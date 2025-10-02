@@ -3,4 +3,4 @@ config PICOCALC_LCD
     tristate "Picocalc screen support"
     help
 
-      Say Y or M here if you want to use the picocalc lcd screen. The module will be called ili9488_fb.
+      Say Y or M here if you want to use the PicoCalc lcd screen. The module will be called ili9488_fb.

@@ -1,13 +1,15 @@
 menuconfig STAGING_PICOCALC
     bool "Picocalc staging drivers"
     default n
+    depends on STAGING
     help
-      This option enables the drivers necessary to support the clockwork
-      picocalc, e.g. keyboard and lcd drivers. These drivers were provided by
-      hisptoot (https://github.com/hisptoot/picocalc_luckfox_lyra).
+      This option enables the drivers necessary to support the Clockwork Pi PicoCalc.
+      These drivers were originally developed by hisptoot (https://github.com/hisptoot/picocalc_luckfox_lyra).
 
 if STAGING_PICOCALC
 
+source "drivers/staging/picocalc/picocalc_mfd/Kconfig"
+source "drivers/staging/picocalc/picocalc_mfd_kbd/Kconfig"
 source "drivers/staging/picocalc/picocalc_kbd/Kconfig"
 source "drivers/staging/picocalc/picocalc_lcd/Kconfig"
 source "drivers/staging/picocalc/picocalc_snd-pwm/Kconfig"

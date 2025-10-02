@@ -1109,10 +1109,15 @@
 		min-brightness-level = <5>;
 	};
 
-	picocalc_kbd: picocalc_kbd@1f {
+	picocalc_mfd: picocalc-mfd@1f {
 		status = "okay";
-		compatible = "picocalc_kbd";
+		compatible = "picocalc_mfd","picocalc_kbd";
 		reg = <0x1F>;
+
+		picocalc_mfd_kbd: kbd {
+			compatible = "picocalc_mfd_kbd";
+		};
+
 	};
 
 };
