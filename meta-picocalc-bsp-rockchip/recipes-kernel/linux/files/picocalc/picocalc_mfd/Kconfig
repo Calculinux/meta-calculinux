@@ -2,6 +2,7 @@
 config PICOCALC_MFD
 	tristate "Picocalc MFD device support"
 	depends on I2C && MFD_CORE
+	imply PICOCALC_MFD_BMS
 	imply PICOCALC_MFD_KBD
 	help
 

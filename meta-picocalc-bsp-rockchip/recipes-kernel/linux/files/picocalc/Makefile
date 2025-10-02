@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_PICOCALC_MFD)     += picocalc_mfd/
+obj-$(CONFIG_PICOCALC_MFD_BMS) += picocalc_mfd_bms/
 obj-$(CONFIG_PICOCALC_MFD_KBD) += picocalc_mfd_kbd/
 obj-$(CONFIG_PICOCALC_KBD)     += picocalc_kbd/
 obj-$(CONFIG_PICOCALC_LCD)     += picocalc_lcd/

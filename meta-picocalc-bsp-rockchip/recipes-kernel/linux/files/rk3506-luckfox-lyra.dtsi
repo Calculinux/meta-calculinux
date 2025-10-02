@@ -1118,6 +1118,10 @@
 			compatible = "picocalc_mfd_kbd";
 		};
 
+		picocalc_mfd_bms: bms {
+			compatible = "picocalc_mfd_bms";
+		};
+
 	};
 
 };
