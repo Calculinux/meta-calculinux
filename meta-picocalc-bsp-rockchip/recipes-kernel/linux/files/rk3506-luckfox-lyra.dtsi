@@ -1279,15 +1279,23 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&snd_pins>;
 		leftpin = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
-		pwm-names = "pwm-snd-left";
-            	pwms = <&pwm0_4ch_0 0 25000 0>;
-		/* rightpin = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>; */
+		rightpin = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pwm-names = "pwm-snd-left", "pwm-snd-right";
+            	pwms = <&pwm0_4ch_0 0 25000 0>, <&pwm0_4ch_1 0 25000 0>;
 	};
 };
 
 &pwm0_4ch_0 {
 	pinctrl-names = "active";
 	pinctrl-0 = <&rm_io12_pwm0_ch0>;
+	status = "okay";
+        assigned-clocks = <&cru CLK_PWM0>;
+        assigned-clock-rates = <100000000>;
+};
+
+&pwm0_4ch_1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&rm_io13_pwm0_ch1>;
 	status = "okay";
         assigned-clocks = <&cru CLK_PWM0>;
         assigned-clock-rates = <100000000>;
