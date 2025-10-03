@@ -69,7 +69,7 @@
 		rockchip,serial-id = <0>;
 		rockchip,wake-irq = <0>;
 		rockchip,irq-mode-enable = <1>;
-		rockchip,baudrate = <1500000>;	/* Only 115200 and 1500000 */
+		rockchip,baudrate = <115200>;	/* Only 115200 and 1500000 */
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
