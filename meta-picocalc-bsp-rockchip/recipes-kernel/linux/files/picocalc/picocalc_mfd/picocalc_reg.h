@@ -17,4 +17,9 @@
 #define REG_ID_C64_JS 0x0d // joystick io bits
 #define REG_ID_OFF 0x0e // power off
 
+/* Most significant bit is used for masking in this driver */
+/* MSB must be set on register address when writing        */
+/* MSB is used as a boolean flag with 7 bit return data.   */
+#define MSB_MASK (1 << 7)
+
 #endif

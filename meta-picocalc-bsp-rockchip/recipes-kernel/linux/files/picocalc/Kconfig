@@ -10,6 +10,7 @@ if STAGING_PICOCALC
 
 source "drivers/staging/picocalc/picocalc_mfd/Kconfig"
 source "drivers/staging/picocalc/picocalc_mfd_bms/Kconfig"
+source "drivers/staging/picocalc/picocalc_mfd_bkl/Kconfig"
 source "drivers/staging/picocalc/picocalc_mfd_kbd/Kconfig"
 source "drivers/staging/picocalc/picocalc_kbd/Kconfig"
 source "drivers/staging/picocalc/picocalc_lcd/Kconfig"

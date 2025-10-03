@@ -1122,6 +1122,9 @@
 			compatible = "picocalc_mfd_bms";
 		};
 
+		picocalc_mfd_bkl: bkl {
+			compatible = "picocalc_mfd_bkl";
+		};
 	};
 
 };
@@ -1242,6 +1245,7 @@
 		cs = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		dc = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 		rst = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
+		backlight = <&picocalc_mfd_bkl>;
 	};
 
 
