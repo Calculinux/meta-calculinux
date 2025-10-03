@@ -21,3 +21,13 @@ SRC_URI = " \
 "
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
+
+do_install:append() {
+    # Remove kernel image formats that are not needed in the device image
+    rm -f ${D}/boot/Image
+    rm -f ${D}/boot/Image-*
+    rm -f ${D}/boot/fitImage
+    rm -f ${D}/boot/fitImage-*
+    rm -f ${D}/boot/zboot.img
+    rm -f ${D}/boot/zboot.img-*
+}
