@@ -5,6 +5,7 @@ config PICOCALC_MFD
 	imply PICOCALC_MFD_BMS
 	imply PICOCALC_MFD_BKL
 	imply PICOCALC_MFD_KBD
+	imply PICOCALC_MFD_LED
 	help
 
 	  Say Y or M here if you want to interface with PicoCalc hardware via the STM32 firmware. The module will be called picocalc_mfd.

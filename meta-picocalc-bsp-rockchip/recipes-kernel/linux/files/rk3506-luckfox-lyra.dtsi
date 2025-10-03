@@ -1125,6 +1125,10 @@
 		picocalc_mfd_bkl: bkl {
 			compatible = "picocalc_mfd_bkl";
 		};
+
+		picocalc_mfd_led: led {
+			compatible = "picocalc_mfd_led";
+		};
 	};
 
 };
