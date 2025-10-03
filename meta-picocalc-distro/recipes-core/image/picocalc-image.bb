@@ -31,6 +31,7 @@ IMAGE_INSTALL += " \
     git \
     grep \
     htop \
+    i2c-tools \
     iw \
     iwd \
     kbd-keymaps \
@@ -55,7 +56,6 @@ IMAGE_INSTALL += " \
     usbutils \
     util-linux \
     wget \
-    zerotier-one \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${PICOCALC_CORE_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
