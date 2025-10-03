@@ -14,6 +14,7 @@ SRC_URI = " \
     file://wifi.cfg \
     file://rauc.cfg \
     file://cgroups.cfg \
+    file://fonts.cfg \
     file://picocalc.cfg \
     file://removed.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
