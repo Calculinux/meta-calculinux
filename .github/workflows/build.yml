@@ -54,10 +54,6 @@ jobs:
       run: |
         echo "Building ${{ matrix.config.name }} using ${{ matrix.config.kas_file }}"
         
-        # Set build environment variables
-        export KAS_CONTAINER_IMAGE_NAME="kas-custom"
-        export KAS_CONTAINER_IMAGE_TAG="latest"
-        
         # Run the build with kas-container
         ./kas-container build ${{ matrix.config.kas_file }}
 
