@@ -103,22 +103,16 @@ bitbake virtual/kernel
 
 To set up a self-hosted GitHub Actions runner for building:
 
-1. **Prepare the runner environment**:
-   ```bash
-   # Run the setup script (no sudo required)
-   ./.github/setup-runner.sh
-   ```
-
-2. **Configure the GitHub Actions runner**:
+1. **Configure the GitHub Actions runner**:
    - Follow [GitHub's documentation](https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners) to add a self-hosted runner
    - Use the tags: `self-hosted`, `Linux`, `X64`
    - Ensure Docker is installed and the runner user is in the docker group
 
-3. **Runner Requirements**:
+2. **Runner Requirements**:
    - **Disk Space**: At least 100GB free (Yocto builds are large)
    - **RAM**: 8GB minimum, 16GB recommended
    - **Docker**: Required for containerized builds
-   - **Persistent Cache**: `~/yocto-cache` for downloads and sstate-cache (no sudo required)
+   - **Cache**: The workflow automatically creates `~/yocto-cache` for downloads and sstate-cache
 
 ---
 

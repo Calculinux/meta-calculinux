@@ -1,0 +1,178 @@
+name: Build Calculinux Images
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  # Yocto build directories that need persistent storage
+  DL_DIR: ${{ github.workspace }}/../yocto-cache/downloads
+  SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
+
+jobs:
+  build:
+    name: Build Yocto Images
+    runs-on: [self-hosted, Linux, X64]
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: "Luckfox Lyra Bundle"
+            kas_file: "kas-luckfox-lyra-bundle.yaml"
+            dockerfile: "Dockerfile.aarch64"
+            target: "picocalc-bundle"
+            machine: "luckfox-lyra"
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up build environment
+      run: |
+        # Create cache directories if they don't exist
+        mkdir -p $DL_DIR $SSTATE_DIR
+        
+        # Clean up any leftover containers and images from previous builds
+        docker system prune -f || true
+        
+        # Show disk space before build
+        df -h
+
+    - name: Build custom kas container
+      run: |
+        echo "Building custom kas container for ${{ matrix.config.machine }}"
+        docker build -f ${{ matrix.config.dockerfile }} -t kas-custom:latest .
+
+    - name: Build Yocto image
+      run: |
+        echo "Building ${{ matrix.config.name }} using ${{ matrix.config.kas_file }}"
+        
+        # Set build environment variables
+        export KAS_CONTAINER_IMAGE_NAME="kas-custom"
+        export KAS_CONTAINER_IMAGE_TAG="latest"
+        
+        # Run the build with kas-container
+        ./kas-container build ${{ matrix.config.kas_file }}
+
+    - name: Collect build artifacts
+      run: |
+        echo "Collecting build artifacts..."
+        
+        # Find the build directory
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1 | sed 's|/tmp||')
+        DEPLOY_DIR="${BUILD_DIR}/tmp/deploy/images/${{ matrix.config.machine }}"
+        
+        echo "Deploy directory: $DEPLOY_DIR"
+        
+        if [ -d "$DEPLOY_DIR" ]; then
+          # Create artifacts directory
+          mkdir -p artifacts
+          
+          # Copy image files
+          find "$DEPLOY_DIR" -name "*.wic.gz" -o -name "*.wic.bz2" -o -name "*.wic.xz" | \
+            xargs -I {} cp {} artifacts/ || true
+          
+          # Copy update bundles (RAUC bundles)
+          find "$DEPLOY_DIR" -name "*.raucb" | \
+            xargs -I {} cp {} artifacts/ || true
+          
+          # Copy other important files
+          find "$DEPLOY_DIR" -name "*.manifest" -o -name "*.testdata.json" | \
+            xargs -I {} cp {} artifacts/ || true
+          
+          # List what we collected
+          echo "Collected artifacts:"
+          ls -la artifacts/
+        else
+          echo "Deploy directory not found: $DEPLOY_DIR"
+          echo "Available directories:"
+          find build -type d -name "deploy" || true
+        fi
+
+    - name: Generate build information
+      run: |
+        # Create build info file
+        cat > artifacts/build-info.txt << EOF
+        Build Information
+        =================
+        Repository: ${{ github.repository }}
+        Commit: ${{ github.sha }}
+        Branch/Tag: ${{ github.ref_name }}
+        Build Date: $(date -u)
+        Configuration: ${{ matrix.config.name }}
+        Machine: ${{ matrix.config.machine }}
+        Target: ${{ matrix.config.target }}
+        Kas File: ${{ matrix.config.kas_file }}
+        Dockerfile: ${{ matrix.config.dockerfile }}
+        Workflow: ${{ github.workflow }}
+        Run Number: ${{ github.run_number }}
+        EOF
+        
+        # Add git information if available
+        if git log -1 --format="%H %s" >> artifacts/build-info.txt 2>/dev/null; then
+          echo "Last Commit: $(git log -1 --format='%H %s')" >> artifacts/build-info.txt
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: calculinux-${{ matrix.config.machine }}-${{ github.run_number }}
+        path: artifacts/
+        retention-days: 30
+
+    - name: Create release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/*
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+
+    - name: Show disk space after build
+      if: always()
+      run: |
+        echo "Disk space after build:"
+        df -h
+        
+        echo "Cache directory sizes:"
+        du -sh $DL_DIR $SSTATE_DIR || true
+
+    - name: Cleanup
+      if: always()
+      run: |
+        # Clean up build directory but preserve caches
+        rm -rf build/tmp/work/* || true
+        
+        # Clean up docker containers and images
+        docker system prune -f || true
+        
+        # Remove our custom image to save space
+        docker rmi kas-custom:latest || true
+
+  cleanup-runner:
+    name: Cleanup Runner
+    runs-on: [self-hosted, Linux, X64]
+    needs: build
+    if: always()
+    steps:
+    - name: Deep cleanup
+      run: |
+        # Remove any leftover build artifacts from workspace
+        rm -rf artifacts/ || true
+        
+        # Docker cleanup
+        docker system prune -af || true
+        docker volume prune -f || true
+        
+        # Show final disk space
+        echo "Final disk space:"
+        df -h
