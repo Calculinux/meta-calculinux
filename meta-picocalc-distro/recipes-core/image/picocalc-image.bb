@@ -17,6 +17,7 @@ EXTRA_USERS_PARAMS = "\
 
 IMAGE_FEATURES += "\
     overlayfs-etc \
+    package-management \
 "
 
 IMAGE_INSTALL += " \
@@ -42,6 +43,7 @@ IMAGE_INSTALL += " \
     ntp \
     openssh \
     opkg \
+    opkg-config-picocalc \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
