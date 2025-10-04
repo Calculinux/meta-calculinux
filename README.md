@@ -1,7 +1,32 @@
-# meta-picocalc-luckfox
+# meta-calculinux
 
 This is a **Yocto Project** meta-layer for building a Linux image for the **ClockworkPi PicoCalc** running on the **Luckfox Lyra** board.
 The layer uses **[KAS](https://kas.readthedocs.io/)** for configuration management and reproducible builds, and includes **RAUC** support for over-the-air (OTA) updates using a **dual rootfs** setup.
+
+## Automated Builds
+
+This repository includes **GitHub Actions** workflows that automatically build images using self-hosted runners. Builds are triggered on:
+
+- **Push to main or develop branches**: Builds images and uploads artifacts
+- **Pull requests to main**: Validates builds without publishing
+- **Tagged releases** (v*): Creates GitHub releases with built images
+- **Manual workflow dispatch**: Allows on-demand builds
+
+### Pre-built Images
+
+Pre-built images and update bundles are available as:
+- **GitHub Release Assets**: For tagged releases (recommended for production)
+- **GitHub Artifacts**: For development builds (available for 30 days)
+
+### Download Latest Build
+
+1. Go to the [Actions tab](../../actions) in this repository
+2. Click on the latest successful build
+3. Download the `calculinux-luckfox-lyra-*` artifact
+4. Extract the ZIP file to find:
+   - `*.wic.gz` - Flashable SD card images
+   - `*.raucb` - RAUC update bundles
+   - `build-info.txt` - Build information
 
 ---
 
@@ -23,17 +48,19 @@ Make sure you have the following installed on your build host:
 
 ---
 
-## Build Instructions
+## Manual Build Instructions
+
+If you prefer to build locally instead of using the automated builds:
 
 1. **Clone this repository**:
    ```bash
-   mkdir picocalc-buildsystem && cd picocalc-buildsystem
-   git clone https://github.com/0xd61/meta-picocalc.git
+   mkdir calculinux-buildsystem && cd calculinux-buildsystem
+   git clone https://github.com/Calculinux/meta-calculinux.git
    ```
 
 2. **Run the build with KAS**:
    ```bash
-   ./meta-picocalc/kas-container --ssh-dir ~/.ssh build --update meta-picocalc/kas-luckfox-lyra-bundle.yaml
+   ./meta-calculinux/kas-container --ssh-dir ~/.ssh build --update meta-calculinux/kas-luckfox-lyra-bundle.yaml
    ```
 
    This will:
@@ -62,13 +89,36 @@ Make sure you have the following installed on your build host:
 To drop into the Yocto build shell environment (for custom builds, debugging, or running `bitbake` commands manually):
 
 ```bash
-./meta-picocalc/kas-container --ssh-dir ~/.ssh shell meta-picocalc/kas-luckfox-lyra-bundle.yaml
+./meta-calculinux/kas-container --ssh-dir ~/.ssh shell meta-calculinux/kas-luckfox-lyra-bundle.yaml
 ```
 
 Inside this shell, you can run commands like:
 ```bash
 bitbake virtual/kernel
 ```
+
+---
+
+## Setting Up Self-Hosted Runners
+
+To set up a self-hosted GitHub Actions runner for building:
+
+1. **Prepare the runner environment**:
+   ```bash
+   # Run the setup script (no sudo required)
+   ./.github/setup-runner.sh
+   ```
+
+2. **Configure the GitHub Actions runner**:
+   - Follow [GitHub's documentation](https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners) to add a self-hosted runner
+   - Use the tags: `self-hosted`, `Linux`, `X64`
+   - Ensure Docker is installed and the runner user is in the docker group
+
+3. **Runner Requirements**:
+   - **Disk Space**: At least 100GB free (Yocto builds are large)
+   - **RAM**: 8GB minimum, 16GB recommended
+   - **Docker**: Required for containerized builds
+   - **Persistent Cache**: `~/yocto-cache` for downloads and sstate-cache (no sudo required)
 
 ---
 
@@ -93,20 +143,20 @@ More on RAUC: https://rauc.readthedocs.io/
 
 ---
 
-## AARCH64 Host
+## AARCH64 Host Support
 
-KAS does not natively support aarch64 hosts. To build on an aarch64 system, additional packages are required in the Docker image. These can be included by manually rebuilding the image.
+KAS does not natively support aarch64 hosts. To build on an aarch64 system, additional packages are required in the Docker image. The automated builds handle this automatically using the `Dockerfile.aarch64`.
 
-Use the following command to build the image:
+For manual builds on aarch64, use the following command to build the image:
 
-```
-docker build -t ghcr.io/siemens/kas/kas:4.7 -f meta-picocalc/Dockerfile.aarch64 meta-picocalc
+```bash
+docker build -t ghcr.io/siemens/kas/kas:4.7 -f meta-calculinux/Dockerfile.aarch64 meta-calculinux
 ```
 
 This command must be **run before starting** the build.
 Note: It will overwrite the local KAS container. If you need to rebuild the image, you must first remove the existing one:
 
-```
+```bash
 docker rmi ghcr.io/siemens/kas/kas:4.7
 ```
 
