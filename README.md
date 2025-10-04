@@ -40,10 +40,10 @@ Make sure you have the following installed on your build host:
 1. **Clone this repository**:
    ```bash
    mkdir calculinux-build && cd calculinux-build
-   git clone https://github.com/0xd61/meta-picocalc.git meta-calculinux
+   git clone https://github.com/calculinux/meta-calculinux.git meta-calculinux
    ```
 
-2. **Build Calculinux with KAS**:
+2. **Build Calculinux for Luckfox Lyra with KAS**:
    ```bash
    ./meta-calculinux/kas-container --ssh-dir ~/.ssh build --update meta-calculinux/kas-luckfox-lyra-bundle.yaml
    ```
