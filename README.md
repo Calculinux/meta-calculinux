@@ -1,17 +1,29 @@
-# meta-picocalc-luckfox
+# meta-calculinux
 
-This is a **Yocto Project** meta-layer for building a Linux image for the **ClockworkPi PicoCalc** running on the **Luckfox Lyra** board.
+This is a **Yocto Project** meta-layer for building **Calculinux**, a custom Linux distribution for the **ClockworkPi Picocalc** device. It currently supports the **Luckfox Lyra** single-board computer (SBC), with plans to support additional SBCs in the future.
+
 The layer uses **[KAS](https://kas.readthedocs.io/)** for configuration management and reproducible builds, and includes **RAUC** support for over-the-air (OTA) updates using a **dual rootfs** setup.
+
+## About Calculinux
+
+**Calculinux** is a specialized Linux distribution designed specifically for the Picocalc calculator device. It provides:
+- Optimized performance for calculator hardware and user interface
+- Hardware-specific drivers for keyboard, display, and audio components
+- A secure, updatable system with read-only root filesystem
+- Integration with Picocalc's unique form factor and use cases
+
+The distribution is built using the Yocto Project, ensuring a minimal, efficient, and customizable embedded Linux system tailored for the Picocalc's requirements.
 
 ---
 
 ## Features
-- Pre-configured for the Clockwork PicoCalc hardware. The system runs read-only on the internal MMC with an Overlay-FS on the external SD-Card.
-- Luckfox Lyra board support.
-- KAS-based build setup for reproducible builds.
-- **RAUC** OTA update support with dual root filesystem (A/B).
-- Ready-to-use shell environment entry after build.
-- Extensible - In the future additional boards can be supported.
+- **Calculinux Distribution**: A custom Linux distribution designed specifically for the Clockwork Picocalc hardware
+- **Read-only Root Filesystem**: The system runs read-only on the internal MMC with an Overlay-FS on the external SD-Card for data persistence
+- **Luckfox Lyra Support**: Full board support for the Luckfox Lyra SBC
+- **KAS-based Build System**: Reproducible builds using KAS configuration management
+- **RAUC OTA Updates**: Over-the-air update support with dual root filesystem (A/B) for safe updates and rollbacks
+- **Development-ready**: Ready-to-use shell environment entry after build for development and debugging
+- **Extensible Architecture**: Designed to support additional SBCs in the future beyond Luckfox Lyra
 
 ---
 
@@ -27,33 +39,33 @@ Make sure you have the following installed on your build host:
 
 1. **Clone this repository**:
    ```bash
-   mkdir picocalc-buildsystem && cd picocalc-buildsystem
-   git clone https://github.com/0xd61/meta-picocalc.git
+   mkdir calculinux-build && cd calculinux-build
+   git clone https://github.com/calculinux/meta-calculinux.git meta-calculinux
    ```
 
-2. **Run the build with KAS**:
+2. **Build Calculinux for Luckfox Lyra with KAS**:
    ```bash
-   ./meta-picocalc/kas-container --ssh-dir ~/.ssh build --update meta-picocalc/kas-luckfox-lyra-bundle.yaml
+   ./meta-calculinux/kas-container --ssh-dir ~/.ssh build --update meta-calculinux/kas-luckfox-lyra-bundle.yaml
    ```
 
    This will:
-   - Download the Yocto sources.
-   - Apply the configurations for the PicoCalc with the Luckfox Lyra.
-   - Build the image.
+   - Download the Yocto sources
+   - Apply the configurations for Calculinux on the Picocalc with Luckfox Lyra
+   - Build the complete Calculinux distribution image
 
-3. **Find the output image**
-   After the build completes, the image (picocalc-image-luckfox-lyra.rootfs.wic) will be located in:
+3. **Find the Calculinux image**
+   After the build completes, the Calculinux distribution image (picocalc-image-luckfox-lyra.rootfs.wic) will be located in:
    ```
    build/tmp/deploy/images/luckfox-lyra/
    ```
 
-4. **Install**
-   Install the image with dd on a Micro-SD card.
+4. **Install Calculinux**
+   Install the Calculinux image with dd on a Micro-SD card:
    ```
    dd if=build/tmp/deploy/images/luckfox-lyra/picocalc-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
    ```
 
-   Create a ext4 partition on the external Picocalc SD-Card which will be mounted at `/data` on the system.
+   Create an ext4 partition on the external Picocalc SD-Card which will be mounted at `/data` on the Calculinux system.
 
 ---
 
@@ -62,7 +74,7 @@ Make sure you have the following installed on your build host:
 To drop into the Yocto build shell environment (for custom builds, debugging, or running `bitbake` commands manually):
 
 ```bash
-./meta-picocalc/kas-container --ssh-dir ~/.ssh shell meta-picocalc/kas-luckfox-lyra-bundle.yaml
+./meta-calculinux/kas-container --ssh-dir ~/.ssh shell meta-calculinux/kas-luckfox-lyra-bundle.yaml
 ```
 
 Inside this shell, you can run commands like:
@@ -74,13 +86,13 @@ bitbake virtual/kernel
 
 ## OTA Updates with RAUC
 
-This meta-layer configures **RAUC** for robust **A/B dual rootfs** OTA updates.
+This meta-layer configures **RAUC** for robust **A/B dual rootfs** OTA updates in Calculinux.
 The device has two root partitions (`rootfsA` and `rootfsB`). During an update:
-1. RAUC installs the new system image to the inactive rootfs.
-2. The bootloader is updated to boot from the new rootfs.
-3. If the new system boots successfully, it is marked as “good”; otherwise, the system falls back to the previous version.
+1. RAUC installs the new Calculinux system image to the inactive rootfs
+2. The bootloader is updated to boot from the new rootfs
+3. If the new system boots successfully, it is marked as "good"; otherwise, the system falls back to the previous version
 
-The system uses a dual-rootfs for proper rollbacks if a update failed. Updates can be installed with rauc.
+Calculinux uses a dual-rootfs setup for proper rollbacks if an update fails. Updates can be installed with rauc.
 Copy the `.raucb` file onto the SD-Card and install it with:
 ```
 rauc install picocalc-bundle-luckfox-lyra.raucb
@@ -100,7 +112,7 @@ KAS does not natively support aarch64 hosts. To build on an aarch64 system, addi
 Use the following command to build the image:
 
 ```
-docker build -t ghcr.io/siemens/kas/kas:4.7 -f meta-picocalc/Dockerfile.aarch64 meta-picocalc
+docker build -t ghcr.io/siemens/kas/kas:4.7 -f meta-calculinux/Dockerfile.aarch64 meta-calculinux
 ```
 
 This command must be **run before starting** the build.
