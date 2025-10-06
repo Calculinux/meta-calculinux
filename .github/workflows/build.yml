@@ -24,7 +24,6 @@ jobs:
         config:
           - name: "Luckfox Lyra Bundle"
             kas_file: "kas-luckfox-lyra-bundle.yaml"
-            dockerfile: "Dockerfile.aarch64"
             target: "picocalc-bundle"
             machine: "luckfox-lyra"
 
@@ -44,11 +43,6 @@ jobs:
         
         # Show disk space before build
         df -h
-
-    - name: Build custom kas container
-      run: |
-        echo "Building custom kas container for ${{ matrix.config.machine }}"
-        docker build -f ${{ matrix.config.dockerfile }} -t kas-custom:latest .
 
     - name: Build Yocto image
       run: |
