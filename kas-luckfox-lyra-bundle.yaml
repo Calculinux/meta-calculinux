@@ -24,7 +24,7 @@ repos:
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
     commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
-  meta-picocalc:
+  meta-calculinux:
     layers:
       meta-picocalc-bsp-rockchip:
 

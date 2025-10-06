@@ -20,7 +20,7 @@ repos:
       meta-python:
       meta-networking:
       meta-filesystems:
-  meta-picocalc:
+  meta-calculinux:
     layers:
       meta-picocalc-distro:
 
