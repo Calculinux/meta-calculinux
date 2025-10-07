@@ -15,7 +15,7 @@ mount -t sysfs sysfs /sys
 
 [ -z "$CONSOLE" ] && CONSOLE="/dev/console"
 
-OVERLAYS="/etc /root /home /var"
+OVERLAYS="/etc /root /home /var /usr/local /opt"
 
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
 if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
