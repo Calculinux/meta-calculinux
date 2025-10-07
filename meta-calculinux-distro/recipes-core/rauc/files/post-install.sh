@@ -59,6 +59,15 @@ log_info "Found $PACKAGE_COUNT installed package(s)"
 if [ $FORCE_REINSTALL -eq 1 ]; then
     log_info "Force reinstalling all packages for compatibility..."
     
+    # Update opkg feed URLs to match current system version
+    OPKG_CONF="/etc/opkg/opkg.conf"
+    if [ -f "$OPKG_CONF" ]; then
+        log_info "Updating package feed URLs to $CURRENT_VERSION"
+        sed -i "s|/ipk/[^/]*/|/ipk/$CURRENT_VERSION/|g" "$OPKG_CONF"
+    else
+        log_error "opkg.conf not found at $OPKG_CONF"
+    fi
+    
     # Update package lists first
     opkg update || log_error "Failed to update package lists"
     
