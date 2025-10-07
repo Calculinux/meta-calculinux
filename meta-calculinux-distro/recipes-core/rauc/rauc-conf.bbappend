@@ -2,6 +2,8 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI:append := "\
                     file://system.conf.in \
+                    file://pre-install.sh \
+                    file://post-install.sh \
                   "
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
@@ -37,3 +39,22 @@ python do_create_system_config() {
 }
 
 addtask create_system_config after do_configure before do_install
+
+do_install:append() {
+    # Install RAUC hooks for package compatibility checking
+    install -d ${D}${libdir}/rauc
+    
+    # Pre-install hook: Warn user about major upgrades
+    sed -e 's|__LAYERSERIES_CORENAMES__|${LAYERSERIES_CORENAMES}|g' \
+        ${UNPACKDIR}/pre-install.sh > ${D}${libdir}/rauc/pre-install.sh
+    chmod 0755 ${D}${libdir}/rauc/pre-install.sh
+    
+    # Post-install hook: Reinstall packages on major upgrades
+    sed -e 's|__LAYERSERIES_CORENAMES__|${LAYERSERIES_CORENAMES}|g' \
+        ${UNPACKDIR}/post-install.sh > ${D}${libdir}/rauc/post-install.sh
+    chmod 0755 ${D}${libdir}/rauc/post-install.sh
+}
+
+FILES:${PN} += "${libdir}/rauc/pre-install.sh ${libdir}/rauc/post-install.sh"
+
+RDEPENDS:${PN} += "calculinux-tools"
