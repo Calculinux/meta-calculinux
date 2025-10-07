@@ -26,6 +26,7 @@ IMAGE_INSTALL += " \
     autoconf \
     bash \
     busybox \
+    calculinux-tools \
     curl \
     file \
     gdb \
