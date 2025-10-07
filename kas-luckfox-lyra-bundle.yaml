@@ -40,4 +40,7 @@ repos:
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
-    CORE_IMAGE_EXTRA_INSTALL += " rtl8821cu"
+
+    EXTRA_WIFI_DRIVERS = "rtl8723bu rtl8723du rtl8812au rtl8814au rtl8821au rtl8821cu rtl88x2bu"
+
+    CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS}"
