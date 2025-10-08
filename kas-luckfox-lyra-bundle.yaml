@@ -5,7 +5,7 @@ header:
     - kas-base.yaml
 
 machine: luckfox-lyra
-target: picocalc-bundle
+target: calculinux-bundle
 
 # walnascar checkout
 repos:

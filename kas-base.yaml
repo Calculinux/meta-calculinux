@@ -2,7 +2,7 @@
 header:
   version: 18
 
-distro: picocalc-distro
+distro: calculinux-distro
 
 # scarthgap checkout
 repos:
@@ -22,7 +22,7 @@ repos:
       meta-filesystems:
   meta-picocalc:
     layers:
-      meta-picocalc-distro:
+      meta-calculinux-distro:
 
 
 local_conf_header:
