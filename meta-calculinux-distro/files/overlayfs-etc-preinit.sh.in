@@ -17,6 +17,16 @@ mount -t sysfs sysfs /sys
 
 OVERLAYS="/etc /root /home /var"
 
+#Grow the overlay partition to fill disk
+PARTITION_SYSFS_PATH="/sys/class/block/$(basename "{OVERLAYFS_ETC_DEVICE}")"
+PARTITION_DISK="/dev/$(basename $(readlink -f "$PARTITION_SYSFS_PATH/.."))"
+PARTITION_NUM="$(cat "$PARTITION_SYSFS_PATH/partition")"
+
+if growpart --free-percent=10 "$PARTITION_DISK" $PARTITION_NUM; then
+  e2fsck -y -f {OVERLAYFS_ETC_DEVICE}
+  resize2fs {OVERLAYFS_ETC_DEVICE}
+fi
+
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
 if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
     -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \

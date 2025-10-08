@@ -26,7 +26,9 @@ IMAGE_INSTALL += " \
     autoconf \
     bash \
     busybox \
+    cloud-utils-growpart \
     curl \
+    e2fsprogs-resize2fs \
     file \
     gdb \
     git \
