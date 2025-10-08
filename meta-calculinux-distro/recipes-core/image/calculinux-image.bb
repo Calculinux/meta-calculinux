@@ -17,6 +17,7 @@ EXTRA_USERS_PARAMS = "\
 
 IMAGE_FEATURES += "\
     overlayfs-etc \
+    package-management \
 "
 
 IMAGE_INSTALL += " \
@@ -42,6 +43,7 @@ IMAGE_INSTALL += " \
     ntp \
     openssh \
     opkg \
+    opkg-config-calculinux \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
@@ -58,4 +60,4 @@ IMAGE_INSTALL += " \
     zerotier-one \
 "
 
-OVERLAYFS_ETC_INIT_TEMPLATE = "${PICOCALC_CORE_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
+OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"

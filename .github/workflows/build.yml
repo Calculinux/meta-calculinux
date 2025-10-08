@@ -13,6 +13,10 @@ env:
   DL_DIR: ${{ github.workspace }}/../yocto-cache/downloads
   SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
 
+permissions:
+  contents: write  # Needed for creating releases
+  packages: write # Needed for uploading artifacts
+
 jobs:
   build:
     name: Build Yocto Images
