@@ -14,9 +14,20 @@ SRC_URI = " \
     file://wifi.cfg \
     file://rauc.cfg \
     file://cgroups.cfg \
+    file://fonts.cfg \
     file://picocalc.cfg \
     file://removed.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
 "
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
+
+do_install:append() {
+    # Remove kernel image formats that are not needed in the device image
+    rm -f ${D}/boot/Image
+    rm -f ${D}/boot/Image-*
+    rm -f ${D}/boot/fitImage
+    rm -f ${D}/boot/fitImage-*
+    rm -f ${D}/boot/zboot.img
+    rm -f ${D}/boot/zboot.img-*
+}
