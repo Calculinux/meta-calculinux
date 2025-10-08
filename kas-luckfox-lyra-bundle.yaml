@@ -7,7 +7,7 @@ header:
 machine: luckfox-lyra
 target: calculinux-bundle
 
-# scarthgap checkout
+# walnascar checkout
 repos:
   meta-arm:
     url: https://git.yoctoproject.org/meta-arm
@@ -21,6 +21,15 @@ repos:
     commit: 71aa531a2018724a713c9587059bc53fcbd05a23
     layers:
       .:
+  meta-rtlwifi:
+    url: https://github.com/EmbeddedAndroid/meta-rtlwifi.git
+    commit: 17a54f8a3c428039ff33c5a8ff8e045b466204b3
+    layers:
+      .:
+    patches:
+      0001-rtlwifi-changes.patch:
+        repo: meta-picocalc
+        path: patches/rtlwifi.patch
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
     commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
@@ -31,3 +40,7 @@ repos:
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
+    
+    EXTRA_WIFI_DRIVERS = "rtl8723du rtl8812au rtl8814au rtl8821cu rtl88x2bu" 
+
+    CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS}"
