@@ -1,0 +1,5 @@
+config PICOCALC_MFD_BKL
+    tristate "PicoCalc MFD LCD Backlight Driver"
+    depends on PICOCALC_MFD && BACKLIGHT_CLASS_DEVICE
+    help
+      Say Y or M here if you want to use the PicoCalc LCD Backlight. The module will be called picocalc_mfd_bkl.

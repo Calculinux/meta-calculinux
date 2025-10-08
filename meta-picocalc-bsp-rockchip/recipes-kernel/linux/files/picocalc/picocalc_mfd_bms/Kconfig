@@ -1,0 +1,5 @@
+config PICOCALC_MFD_BMS
+    tristate "PicoCalc MFD BMS Driver"
+    depends on PICOCALC_MFD && POWER_SUPPLY
+    help
+      Say Y or M here if you want to use the PicoCalc BMS. The module will be called picocalc_mfd_bms.

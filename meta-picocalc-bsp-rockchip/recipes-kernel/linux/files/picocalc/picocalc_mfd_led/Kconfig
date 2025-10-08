@@ -1,0 +1,5 @@
+config PICOCALC_MFD_LED
+    tristate "PicoCalc MFD Keyboard Backlight Driver"
+    depends on PICOCALC_MFD && LEDS_CLASS
+    help
+      Say Y or M here if you want to use the PicoCalc keyboard backlight. The module will be called picocalc_mfd_led.

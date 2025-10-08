@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 config PICOCALC_KBD
 	tristate "Picocalc Keyboard support"
+	depends on I2C && INPUT
 	help
 
-	  Say Y or M here if you want to use the picocalc keyboard. The module will be called picocalc_kbd.
+	  Say Y or M here if you want to use the PicoCalc keyboard. The module will be called picocalc_kbd.
+	  This is a legacy driver that has been replaced by PICOCALC_MFD and PICOCALC_MFD_KBD
+

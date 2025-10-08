@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+config PICOCALC_MFD_KBD
+	tristate "Picocalc MFD: Keyboard support"
+	depends on PICOCALC_MFD && INPUT
+	help
+
+	  Say Y or M here if you want to use the PicoCalc keyboard. The module will be called picocalc_mfd_kbd.

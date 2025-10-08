@@ -1109,10 +1109,26 @@
 		min-brightness-level = <5>;
 	};
 
-	picocalc_kbd: picocalc_kbd@1f {
+	picocalc_mfd: picocalc-mfd@1f {
 		status = "okay";
-		compatible = "picocalc_kbd";
+		compatible = "picocalc_mfd","picocalc_kbd";
 		reg = <0x1F>;
+
+		picocalc_mfd_kbd: kbd {
+			compatible = "picocalc_mfd_kbd";
+		};
+
+		picocalc_mfd_bms: bms {
+			compatible = "picocalc_mfd_bms";
+		};
+
+		picocalc_mfd_bkl: bkl {
+			compatible = "picocalc_mfd_bkl";
+		};
+
+		picocalc_mfd_led: led {
+			compatible = "picocalc_mfd_led";
+		};
 	};
 
 };
@@ -1233,6 +1249,7 @@
 		cs = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 		dc = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 		rst = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
+		backlight = <&picocalc_mfd_bkl>;
 	};
 
 
