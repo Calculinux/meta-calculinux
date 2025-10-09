@@ -25,10 +25,15 @@ S = "${WORKDIR}/git"
 inherit cargo cargo-update-recipe-crates
 
 # Build dependencies
-DEPENDS = "glkterm"
+DEPENDS = "glkterm openssl"
 
 # Runtime dependencies
 RDEPENDS:${PN} = "glkterm"
+
+# Set up OpenSSL for Rust's openssl-sys crate
+export OPENSSL_DIR = "${STAGING_DIR_HOST}${prefix}"
+export OPENSSL_LIB_DIR = "${STAGING_DIR_HOST}${libdir}"
+export OPENSSL_INCLUDE_DIR = "${STAGING_DIR_HOST}${includedir}"
 
 # Include the auto-generated crates file
 require ${BPN}-crates.inc
