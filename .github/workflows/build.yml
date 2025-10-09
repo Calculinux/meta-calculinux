@@ -1,5 +1,10 @@
 name: Build Calculinux Images
 
+# Required Secrets:
+# - OPKG_REPO_TOKEN: Personal Access Token with 'repo' scope to push to Calculinux/opkg-repo
+#   Create at: https://github.com/settings/tokens (classic token with 'repo' scope)
+#   Add to: Repository Settings > Secrets and variables > Actions > New repository secret
+
 on:
   push:
     branches: [ main, develop ]
@@ -152,16 +157,99 @@ jobs:
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
 
+  build-apps:
+    name: Build and Publish Apps
+    runs-on: [self-hosted, Linux, X64]
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout meta-calculinux repository
+      uses: actions/checkout@v4
+      with:
+        path: meta-calculinux
+        fetch-depth: 0
+
+    - name: Checkout opkg-repo repository
+      uses: actions/checkout@v4
+      with:
+        repository: Calculinux/opkg-repo
+        # NOTE: GITHUB_TOKEN cannot push to other repos. You need to create a Personal Access Token
+        # with 'repo' scope and store it as OPKG_REPO_TOKEN secret in repository settings.
+        # Go to: Settings > Secrets and variables > Actions > New repository secret
+        # Name: OPKG_REPO_TOKEN
+        # Value: Your PAT with 'repo' scope from https://github.com/settings/tokens
+        token: ${{ secrets.OPKG_REPO_TOKEN }}
+        path: opkg-repo
+        fetch-depth: 0
+
+    - name: Build apps package group
+      run: |
+        cd meta-calculinux
+        echo "Building packagegroup-meta-calculinux-apps..."
+        ./kas-container build kas-luckfox-lyra-apps.yaml
+
+    - name: Sync packages to opkg-repo
+      run: |
+        # Find the deploy/ipk directory
+        BUILD_DIR=$(find meta-calculinux/build -name "tmp" -type d | head -1)
+        DEPLOY_IPK_DIR="${BUILD_DIR}/deploy/ipk"
+        
+        echo "Deploy IPK directory: $DEPLOY_IPK_DIR"
+        
+        if [ ! -d "$DEPLOY_IPK_DIR" ]; then
+          echo "Error: Deploy IPK directory not found"
+          exit 1
+        fi
+        
+        # Sync packages using the sync script
+        cd opkg-repo
+        ./sync_from_yocto.sh "$DEPLOY_IPK_DIR"
+        
+        # Update package indexes
+        ./update_packages.sh
+
+    - name: Commit and push packages
+      run: |
+        cd opkg-repo
+        
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Add all changes
+        git add ipk/
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No package changes to commit"
+        else
+          # Commit with build information
+          git commit -m "Update packages from build #${{ github.run_number }}
+
+          Repository: ${{ github.repository }}
+          Commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
+          Workflow: ${{ github.workflow }}"
+          
+          # Push changes
+          git push
+          
+          echo "Packages pushed successfully!"
+        fi
+
   cleanup-runner:
     name: Cleanup Runner
     runs-on: [self-hosted, Linux, X64]
-    needs: build
+    needs: [build, build-apps]
     if: always()
     steps:
     - name: Deep cleanup
       run: |
         # Remove any leftover build artifacts from workspace
         rm -rf artifacts/ || true
+        rm -rf meta-calculinux/ || true
+        rm -rf opkg-repo/ || true
         
         # Docker cleanup
         docker system prune -af || true
