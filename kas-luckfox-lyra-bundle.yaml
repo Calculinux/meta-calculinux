@@ -28,7 +28,7 @@ repos:
       .:
     patches:
       0001-rtlwifi-changes.patch:
-        repo: meta-picocalc
+        repo: meta-calculinux
         path: patches/rtlwifi.patch
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
