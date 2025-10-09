@@ -1,0 +1,13 @@
+diff --git a/conf/layer.conf b/conf/layer.conf
+index c8a6383..7857914 100644
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -4,7 +4,7 @@ BBPATH .= ":${LAYERDIR}"
+ # Append recipe dir to BBFILES
+ BBFILES += "${LAYERDIR}/recipes*/*/*.bb ${LAYERDIR}/recipes*/*/*.bbappend"
+ 
+-LAYERSERIES_COMPAT_rtlwifi = "dunfell kirkstone mickledore gatesgarth scarthgap"
++LAYERSERIES_COMPAT_rtlwifi = "dunfell kirkstone mickledore gatesgarth scarthgap styhead walnascar"
+ 
+ BBFILE_COLLECTIONS += "rtlwifi"
+ BBFILE_PRIORITY_rtlwifi = "1"
