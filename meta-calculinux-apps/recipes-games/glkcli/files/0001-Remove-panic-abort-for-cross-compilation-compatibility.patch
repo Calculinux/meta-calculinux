@@ -1,0 +1,16 @@
+From: Yocto Build System <noreply@yoctoproject.org>
+Date: Sat, 5 Oct 2025 23:45:00 +0000
+Subject: [PATCH] Remove panic = "abort" for cross-compilation compatibility
+
+The panic = "abort" setting conflicts with musl cross-compilation targets.
+Remove this setting to allow successful cross-compilation to ARM targets.
+
+Signed-off-by: Yocto Build System <noreply@yoctoproject.org>
+
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -13,4 +13,3 @@ thiserror = "1.0"
+ [profile.release]
+ lto = true
+ codegen-units = 1
+-panic = "abort"
