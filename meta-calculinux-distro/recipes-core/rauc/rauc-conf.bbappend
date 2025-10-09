@@ -50,7 +50,11 @@ do_install:append() {
     chmod 0755 ${D}${libdir}/rauc/pre-install.sh
     
     # Post-install hook: Reinstall packages on major upgrades
+    # Substitute version, slot devices, and overlay mount point
     sed -e 's|__LAYERSERIES_CORENAMES__|${LAYERSERIES_CORENAMES}|g' \
+        -e 's|{RAUC_SLOT_A_DEVICE}|${RAUC_SLOT_A_DEVICE}|g' \
+        -e 's|{RAUC_SLOT_B_DEVICE}|${RAUC_SLOT_B_DEVICE}|g' \
+        -e 's|{OVERLAYFS_ETC_MOUNT_POINT}|${OVERLAYFS_ETC_MOUNT_POINT}|g' \
         ${UNPACKDIR}/post-install.sh > ${D}${libdir}/rauc/post-install.sh
     chmod 0755 ${D}${libdir}/rauc/post-install.sh
 }

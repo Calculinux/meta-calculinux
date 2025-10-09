@@ -68,8 +68,18 @@ if [ "$CURRENT_VERSION" != "$BUNDLE_VERSION" ] && [ "$CURRENT_VERSION" != "unkno
             log_warning "Estimated download size: ~${ESTIMATED_MB} MB"
             log_warning ""
             
+                        
             # Check for network connectivity
-            if ! ping -c 1 -W 2 opkg.calculinux.org >/dev/null 2>&1; then
+            # Try HTTP first (more reliable than ping which can be blocked)
+            NETWORK_OK=0
+            if wget --spider --timeout=5 --tries=1 https://opkg.calculinux.org 2>/dev/null; then
+                NETWORK_OK=1
+            elif ping -c 1 -W 2 opkg.calculinux.org >/dev/null 2>&1; then
+                # Fallback to ping if wget fails
+                NETWORK_OK=1
+            fi
+            
+            if [ $NETWORK_OK -eq 0 ]; then
                 log_error "========================================================"
                 log_error "  NETWORK CONNECTIVITY WARNING"
                 log_error "========================================================"

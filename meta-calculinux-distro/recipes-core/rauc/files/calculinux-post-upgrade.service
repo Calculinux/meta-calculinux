@@ -1,0 +1,16 @@
+[Unit]
+Description=Calculinux Package Reinstall After System Upgrade
+ConditionPathExists=/data/overlay/etc/upper/.calculinux-upgrade-pending
+After=network-online.target
+Wants=network-online.target
+Before=getty.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/rauc/post-upgrade-packages.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
