@@ -1,44 +1,24 @@
 #!/bin/sh
 # RAUC pre-install hook - runs before system update
-# Warns user about major version upgrades requiring package reinstallation
+# Downloads packages for major version upgrades to ensure availability
 
-# Log to journal and stdout
+# Source common library
+SCRIPT_DIR="$(dirname "$0")"
+. "$SCRIPT_DIR/rauc-upgrade-common.sh"
+
 LOG_TAG="rauc-pre-install"
-
-log_info() {
-    echo "$1"
-    logger -t "$LOG_TAG" "$1"
-}
-
-log_warning() {
-    echo "WARNING: $1" >&2
-    logger -t "$LOG_TAG" -p warning "$1"
-}
-
-log_error() {
-    echo "ERROR: $1" >&2
-    logger -t "$LOG_TAG" -p err "$1"
-}
 
 log_info "=== RAUC Pre-Install: Version Check ==="
 
-# Version tracking file (persistent across updates)
-VERSION_FILE="/data/overlay/etc/upper/calculinux-version"
+# Get versions
 BUNDLE_VERSION="__LAYERSERIES_CORENAMES__"  # Replaced during build
+CURRENT_VERSION=$(get_current_version)
 
-# Get current version
-if [ -f "$VERSION_FILE" ]; then
-    CURRENT_VERSION=$(cat "$VERSION_FILE")
-    log_info "Current system version: $CURRENT_VERSION"
-else
-    CURRENT_VERSION="unknown"
-    log_info "Current version unknown (first install or missing version file)"
-fi
-
+log_info "Current system version: $CURRENT_VERSION"
 log_info "Bundle version: $BUNDLE_VERSION"
 
 # Check if this is a major version upgrade
-if [ "$CURRENT_VERSION" != "$BUNDLE_VERSION" ] && [ "$CURRENT_VERSION" != "unknown" ]; then
+if is_major_version_upgrade "$CURRENT_VERSION" "$BUNDLE_VERSION"; then
     log_warning "========================================================"
     log_warning "  MAJOR VERSION UPGRADE DETECTED"
     log_warning "  $CURRENT_VERSION → $BUNDLE_VERSION"
@@ -46,8 +26,8 @@ if [ "$CURRENT_VERSION" != "$BUNDLE_VERSION" ] && [ "$CURRENT_VERSION" != "unkno
     log_warning ""
     
     # Check if opkg and packages exist
-    if command -v opkg >/dev/null 2>&1; then
-        PACKAGE_COUNT=$(opkg list-installed 2>/dev/null | wc -l)
+    if check_opkg_available; then
+        PACKAGE_COUNT=$(get_installed_package_count)
         
         if [ "$PACKAGE_COUNT" -gt 0 ]; then
             log_warning "User-installed packages detected: $PACKAGE_COUNT package(s)"
@@ -70,16 +50,7 @@ if [ "$CURRENT_VERSION" != "$BUNDLE_VERSION" ] && [ "$CURRENT_VERSION" != "unkno
             
                         
             # Check for network connectivity
-            # Try HTTP first (more reliable than ping which can be blocked)
-            NETWORK_OK=0
-            if wget --spider --timeout=5 --tries=1 https://opkg.calculinux.org 2>/dev/null; then
-                NETWORK_OK=1
-            elif ping -c 1 -W 2 opkg.calculinux.org >/dev/null 2>&1; then
-                # Fallback to ping if wget fails
-                NETWORK_OK=1
-            fi
-            
-            if [ $NETWORK_OK -eq 0 ]; then
+            if ! check_network_connectivity; then
                 log_error "========================================================"
                 log_error "  NETWORK CONNECTIVITY WARNING"
                 log_error "========================================================"
@@ -96,15 +67,97 @@ if [ "$CURRENT_VERSION" != "$BUNDLE_VERSION" ] && [ "$CURRENT_VERSION" != "unkno
                 log_error "with network connectivity."
                 log_error ""
                 
-                # Give user time to read and potentially cancel
-                log_error "Waiting 10 seconds before proceeding..."
-                log_error "Press Ctrl+C to cancel the update"
-                sleep 10
+                wait_with_cancel 10 "Waiting 10 seconds before proceeding..."
             else
-                log_info "Network connectivity: OK"
+                log_info "Pre-downloading packages for new version..."
+                log_info ""
+                
+                # Create package cache
+                create_package_cache
+                
+                # Backup and update opkg config
+                OPKG_CONF="/etc/opkg/opkg.conf"
+                OPKG_CONF_BACKUP="/tmp/opkg.conf.backup"
+                
+                if backup_opkg_config "$OPKG_CONF_BACKUP"; then
+                    
+                    # Update feed URLs to new version
+                    log_info "Temporarily updating package feed URLs to $BUNDLE_VERSION"
+                    sed -i "s|/ipk/[^/]*/|/ipk/$BUNDLE_VERSION/|g" "$OPKG_CONF"
+                    
+                    # Update package lists
+                    log_info "Updating package lists for $BUNDLE_VERSION..."
+                    if opkg update 2>&1 | logger -t "$LOG_TAG"; then
+                        log_info "Package lists updated successfully"
+                        
+                        # Download all currently installed packages for new version
+                        log_info "Downloading packages..."
+                        DOWNLOAD_FAILED=0
+                        DOWNLOAD_COUNT=0
+                        
+                        opkg list-installed | awk '{print $1}' | while read pkg; do
+                            log_info "  Downloading: $pkg"
+                            if opkg download "$pkg" -d "$PACKAGE_CACHE" 2>&1 | logger -t "$LOG_TAG"; then
+                                DOWNLOAD_COUNT=$((DOWNLOAD_COUNT + 1))
+                            else
+                                log_error "  Failed to download: $pkg"
+                                DOWNLOAD_FAILED=$((DOWNLOAD_FAILED + 1))
+                            fi
+                        done
+                        
+                        # Move downloaded packages to cache
+                        if [ -f *.ipk ]; then
+                            mv *.ipk "$PACKAGE_CACHE_DIR/" 2>/dev/null || true
+                        fi
+                        
+                        # Count actual files
+                        CACHED_COUNT=$(get_cached_package_count)
+                        
+                        if [ "$CACHED_COUNT" -eq "$PACKAGE_COUNT" ]; then
+                            log_info "Successfully pre-downloaded all $CACHED_COUNT package(s)"
+                            log_info "Packages cached in: $PACKAGE_CACHE_DIR"
+                            
+                            # Create version marker for rollback detection
+                            echo "$BUNDLE_VERSION" > "$PACKAGE_CACHE_DIR/.version"
+                            log_info "Created version marker: $BUNDLE_VERSION"
+                        else
+                            log_warning "Downloaded $CACHED_COUNT of $PACKAGE_COUNT packages"
+                            
+                            if [ "$CACHED_COUNT" -eq 0 ]; then
+                                log_error "========================================================"
+                                log_error "  PACKAGE DOWNLOAD FAILED"
+                                log_error "========================================================"
+                                log_error ""
+                                log_error "Could not download any packages from new repository."
+                                log_error ""
+                                log_error "Options:"
+                                log_error "  1. Cancel this update (Ctrl+C now)"
+                                log_error "  2. Check network connectivity and retry"
+                                log_error "  3. Continue anyway (post-install will attempt download)"
+                                log_error ""
+                                wait_with_cancel 10 "Waiting 10 seconds before proceeding..."
+                            else
+                                log_warning "Some packages failed to download"
+                                log_warning "Post-install will attempt to download missing packages"
+                            fi
+                        fi
+                    else
+                        log_error "Failed to update package lists for new version"
+                        log_error "Post-install will attempt to download packages"
+                    fi
+                    
+                    # Restore original config
+                    restore_opkg_config "$OPKG_CONF_BACKUP"
+                    
+                    # Restore package lists for current version
+                    opkg update 2>&1 | logger -t "$LOG_TAG" || true
+                else
+                    log_error "opkg.conf not found, cannot pre-download packages"
+                fi
+                
                 log_info ""
                 log_info "Proceeding with update. Package reinstallation will"
-                log_info "occur automatically after reboot."
+                log_info "occur automatically after reboot using cached packages."
                 log_info ""
                 # Brief pause for user to read
                 sleep 3
@@ -118,13 +171,9 @@ if [ "$CURRENT_VERSION" != "$BUNDLE_VERSION" ] && [ "$CURRENT_VERSION" != "unkno
     
     log_warning "========================================================"
     
-elif [ "$CURRENT_VERSION" = "$BUNDLE_VERSION" ]; then
-    log_info "Minor/patch update within same version ($BUNDLE_VERSION)"
-    log_info "Package reinstallation not required."
-    
 else
-    log_info "First installation or version upgrade from unknown version"
-    log_info "Proceeding with installation."
+    log_info "Same version or first installation"
+    log_info "Package reinstallation not required."
 fi
 
 log_info "=== RAUC Pre-Install Check Complete ==="

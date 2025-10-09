@@ -18,48 +18,56 @@ opkg find '*python*'
 
 # List installed packages
 opkg list-installed
+
+# Remove a package
+opkg remove vim
 ```
 
-Packages are installed to `/usr/local` which survives system updates.
+All packages automatically install to `/usr/local` which survives system updates.
 
 ## System Updates
 
-When you apply a RAUC system update:
-
 ### Minor Updates (e.g., 5.2.3 → 5.2.4)
-1. **Automatic**: System checks and upgrades only incompatible packages
-2. **No user action needed**: Usually seamless
+- **Automatic**: System upgrades only incompatible packages
+- **No user action needed**: Usually seamless
 
 ### Major Updates (e.g., Scarthgap → Walnascar)
-1. **Before installation**: You'll see a warning message:
-   ```
-   MAJOR VERSION UPGRADE DETECTED
-   
-   User-installed packages detected: X package(s)
-   All packages will be automatically reinstalled
-   
-   IMPORTANT: Ensure network connectivity!
-   
-   Estimated download size: ~X MB
-   ```
-2. **Network required**: Connect to WiFi/Ethernet before proceeding
-3. **Cancellation option**: Press Ctrl+C within 10 seconds to cancel
-4. **Automatic reinstall**: After reboot, all packages reinstall automatically
+1. **Before installation**: You'll see a warning with:
+   - Number of packages that will be reinstalled
+   - Network connectivity requirement
+   - 10-second cancellation window (Ctrl+C to cancel)
+2. **During upgrade**: Packages are downloaded
+3. **After reboot**: Packages automatically reinstall on first boot
+4. **Verification**: Run `calculinux-upgrade-check` to verify
 
-### After Any Update
-- **Verification**: Run `calculinux-upgrade-check` to verify
+### After Updates
+
+Check package status:
+```bash
+calculinux-upgrade-check
+```
+
+If needed, manually upgrade packages:
+```bash
+calculinux-upgrade-check --upgrade
+```
 - **Manual upgrade** (if needed): `calculinux-upgrade-check --upgrade`
 
 ### Version Compatibility
 
 - **Minor updates** (5.2.3 → 5.2.4): Usually seamless, automatic
 - **Major updates** (Scarthgap → Walnascar): 
-  - Pre-install warning displayed
-  - Network connectivity required
-  - All packages automatically reinstalled
-  - ~1MB download per installed package
+Check package status:
+```bash
+calculinux-upgrade-check
+```
 
-## Package Removal
+If needed, manually upgrade packages:
+```bash
+calculinux-upgrade-check --upgrade
+```
+
+## Package Operations
 
 ### Remove Packages
 ```bash
@@ -74,40 +82,28 @@ opkg files package-name
 
 ### Hold Packages (Prevent Upgrades)
 ```bash
-opkg flag hold package-name   # Hold
-opkg flag ok package-name     # Release hold
+opkg flag hold package-name   # Prevent upgrades
+opkg flag ok package-name     # Allow upgrades
 ```
-
-## Package Feeds
-
-Feeds are configured in `/etc/opkg/opkg.conf`:
-```
-src/gz all https://opkg.calculinux.org/ipk/scarthgap/all
-src/gz luckfox-lyra https://opkg.calculinux.org/ipk/scarthgap/luckfox-lyra
-src/gz any https://opkg.calculinux.org/ipk/scarthgap/any
-src/gz noarch https://opkg.calculinux.org/ipk/scarthgap/noarch
-```
-
-Feed URLs are version-specific and update automatically during major system upgrades.
 
 ## Troubleshooting
 
-### Package Won't Run After Update
+### Packages Not Working After Update
+
 ```bash
 # Check and upgrade
 calculinux-upgrade-check --upgrade
 
-# Or manually reinstall
+# Reinstall specific package
 opkg remove package-name
 opkg install package-name
-```
 
-### Check Library Dependencies
-```bash
+# Check dependencies
 ldd /usr/local/bin/binary-name
 ```
 
 ### Storage Issues
+
 ```bash
 # Check space
 df -h /data
@@ -117,11 +113,32 @@ rm -rf /var/lib/opkg/lists/*
 opkg update
 ```
 
+### View Logs
+
+```bash
+# General system logs
+journalctl -xe
+
+# RAUC upgrade logs
+journalctl -t rauc-pre-install
+journalctl -u rauc-install-packages.service
+```
+
 ## Examples
 
 ### Development Tools
 ```bash
-opkg install python3 git vim make
+opkg install python3 git vim make gcc
+```
+
+### Network Utilities
+```bash
+opkg install curl wget rsync
+```
+
+### System Tools
+```bash
+opkg install tmux htop iotop
 ```
 
 ### Web Server
@@ -130,40 +147,25 @@ opkg install nginx
 systemctl enable --now nginx
 ```
 
-### Utilities
-```bash
-opkg install tmux htop curl
-```
-
 ## Advanced
 
-### Local Package Installation
+### Installing Local Package Files
 ```bash
 opkg install /path/to/package.ipk
 ```
 
 ### Manual Software in /opt
-The `/opt` directory is writable and persistent for manually-managed software:
+The `/opt` directory persists across updates for manually-installed software:
 ```bash
-# Example: Installing custom software
 cd /opt
 wget https://example.com/software.tar.gz
 tar xzf software.tar.gz
-# Add /opt/software/bin to your PATH if needed
 ```
 
-Note: Use opkg for package management when possible. `/opt` is for software not available as packages.
+**Note:** Use opkg when possible. `/opt` is for software not available as packages.
 
-### Configuration Files
-- **Read-only**: Original package configs
-- **Writable**: Your modifications (in `/data` overlay)
-- Reinstalling packages preserves your changes
+## More Information
 
-## Getting Help
-
-- Check package status: `calculinux-upgrade-check`
-- View logs: `journalctl -xe`
-- Check dependencies: `ldd /usr/local/bin/binary-name`
-- RAUC logs: `journalctl -t rauc-post-install`
-
-For technical details, see [Architecture Documentation](opkg-readonly-rootfs-strategy.md).
+For technical details about RAUC upgrades, package caching, and A/B safety, see:
+- [rauc-package-management.md](rauc-package-management.md) - Technical details
+- [rauc-upgrade-common-library.md](rauc-upgrade-common-library.md) - API reference
