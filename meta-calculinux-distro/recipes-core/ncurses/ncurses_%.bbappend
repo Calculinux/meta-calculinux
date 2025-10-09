@@ -65,4 +65,26 @@ EOF
     ln -sf libformw.so.6 ${D}${libdir}/libform.so.6
     ln -sf libformw.so.5 ${D}${libdir}/libform.so.5
     ln -sf libform.so.6 ${D}${libdir}/libform.so
+    
+    # Create pkg-config compatibility files for non-wide library names
+    # This allows packages that look for "ncurses" to find "ncursesw"
+    if [ -d ${D}${libdir}/pkgconfig ]; then
+        cd ${D}${libdir}/pkgconfig
+        
+        # Create ncurses.pc that references ncursesw and tinfo
+        ln -sf ncursesw.pc ncurses.pc
+        ln -sf panelw.pc panel.pc
+        ln -sf menuw.pc menu.pc
+        ln -sf formw.pc form.pc
+        
+        # Also create ncurses++.pc -> ncurses++w.pc
+        if [ -f ncurses++w.pc ]; then
+            ln -sf ncurses++w.pc ncurses++.pc
+        fi
+        
+        # Create tic.pc -> ticw.pc
+        if [ -f ticw.pc ]; then
+            ln -sf ticw.pc tic.pc
+        fi
+    fi
 }
