@@ -1,0 +1,204 @@
+name: Build and Publish Packages
+
+# Required Secrets:
+# - OPKG_REPO_TOKEN: Personal Access Token with 'repo' scope to push to Calculinux/opkg-repo
+#   Create at: https://github.com/settings/tokens (classic token with 'repo' scope)
+#   Add to: Repository Settings > Secrets and variables > Actions > New repository secret
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'meta-calculinux-apps/**'
+      - 'kas-luckfox-lyra-apps.yaml'
+      - '.github/workflows/publish-packages.yml'
+  workflow_dispatch:
+  schedule:
+    # Run daily at 2 AM UTC to catch any dependency updates
+    - cron: '0 2 * * *'
+
+env:
+  # Yocto build directories that need persistent storage
+  DL_DIR: ${{ github.workspace }}/../yocto-cache/downloads
+  SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
+
+permissions:
+  contents: read
+
+jobs:
+  build-packages:
+    name: Build and Publish Apps
+    runs-on: [self-hosted, Linux, X64]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout meta-calculinux repository
+      uses: actions/checkout@v4
+      with:
+        path: meta-calculinux
+        fetch-depth: 0
+
+    - name: Checkout opkg-repo repository
+      uses: actions/checkout@v4
+      with:
+        repository: Calculinux/opkg-repo
+        token: ${{ secrets.OPKG_REPO_TOKEN }}
+        path: opkg-repo
+        fetch-depth: 0
+
+    - name: Set up build environment
+      run: |
+        # Create cache directories if they don't exist
+        mkdir -p $DL_DIR $SSTATE_DIR
+        
+        # Clean up any leftover containers and images from previous builds
+        docker system prune -f || true
+
+    - name: Determine feed configuration
+      id: feed-config
+      run: |
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          # Use distro codename for stable releases (e.g., walnascar, scarthgap)
+          cd meta-calculinux
+          DISTRO_CODENAME=$(./kas-container shell kas-luckfox-lyra-bundle.yaml -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          echo "feed_path=ipk/${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "version_suffix=" >> $GITHUB_OUTPUT
+          cd ..
+        else
+          # Use "develop" for all development builds
+          echo "feed_path=ipk/develop" >> $GITHUB_OUTPUT
+          echo "feed_name=develop" >> $GITHUB_OUTPUT
+          echo "version_suffix=+dev.${{ github.run_number }}" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Feed configuration complete"
+
+    - name: Build apps packages
+      env:
+        DISTRO_VERSION_SUFFIX: ${{ steps.feed-config.outputs.version_suffix }}
+      run: |
+        cd meta-calculinux
+        
+        # If we have a version suffix, pass it to the build
+        if [ -n "$DISTRO_VERSION_SUFFIX" ]; then
+          echo "Adding version suffix: $DISTRO_VERSION_SUFFIX"
+          mkdir -p build/conf
+          echo "DISTRO_VERSION:append = \"$DISTRO_VERSION_SUFFIX\"" >> build/conf/auto.conf
+        fi
+        
+        echo "Building packages for ${{ steps.feed-config.outputs.feed_name }} feed..."
+        
+        # Build packages using kas container - let's test the simple approach
+        ./kas-container build kas-luckfox-lyra-apps.yaml
+        
+        echo "Build completed. Checking what was built..."
+        
+        # Verify packages were built
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+        DEPLOY_IPK_DIR="${BUILD_DIR}/deploy/ipk"
+        
+        if [ ! -d "$DEPLOY_IPK_DIR" ]; then
+          echo "Error: No IPK packages were built"
+          exit 1
+        fi
+        
+        PACKAGE_COUNT=$(find "$DEPLOY_IPK_DIR" -name "*.ipk" -type f | wc -l)
+        echo "Built $PACKAGE_COUNT IPK packages"
+
+    - name: Sync packages to repository
+      run: |
+        cd meta-calculinux
+        
+        # Find build directory and make path absolute
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+        DEPLOY_IPK_DIR="$(pwd)/${BUILD_DIR}/deploy/ipk"
+        
+        echo "Deploy IPK directory: $DEPLOY_IPK_DIR"
+        
+        if [ ! -d "$DEPLOY_IPK_DIR" ]; then
+          echo "ERROR: Deploy IPK directory not found"
+          exit 1
+        fi
+        
+        PACKAGE_COUNT=$(find "$DEPLOY_IPK_DIR" -name "*.ipk" -type f | wc -l)
+        echo "Found $PACKAGE_COUNT IPK packages to sync"
+        
+        FEED_PATH="${{ steps.feed-config.outputs.feed_path }}"
+        echo "Target feed path: $FEED_PATH"
+        
+        cd ../opkg-repo
+        mkdir -p "$FEED_PATH"
+        
+        # Copy packages by architecture
+        SYNCED=0
+        for arch_dir in "$DEPLOY_IPK_DIR"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            target_dir="$FEED_PATH/$arch"
+            mkdir -p "$target_dir"
+            
+            package_count=$(find "$arch_dir" -name "*.ipk" -type f | wc -l)
+            if [ "$package_count" -gt 0 ]; then
+              echo "Syncing $package_count packages for architecture: $arch"
+              cp "$arch_dir"/*.ipk "$target_dir/"
+              SYNCED=$((SYNCED + package_count))
+            fi
+          fi
+        done
+        
+        echo "Total packages synced: $SYNCED"
+        
+        # Generate package indexes
+        for arch_dir in "$FEED_PATH"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            
+            package_count=$(find "$arch_dir" -name "*.ipk" -type f | wc -l)
+            if [ "$package_count" -gt 0 ]; then
+              echo "Generating index for $arch ($package_count packages)"
+              
+              (
+                cd "$arch_dir"
+                
+                # Create basic package index
+                echo "# Package index for $arch (${{ steps.feed-config.outputs.feed_name }} feed)" > Packages
+                echo "# Generated on $(date -u)" >> Packages
+                echo "" >> Packages
+                
+                # Use opkg-make-index if available
+                if command -v opkg-make-index >/dev/null 2>&1; then
+                  opkg-make-index . > Packages
+                fi
+                
+                gzip -c Packages > Packages.gz
+              )
+            fi
+          fi
+        done
+        
+        echo "Package sync completed"
+
+    - name: Commit and push packages
+      run: |
+        cd opkg-repo
+        
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git add ${{ steps.feed-config.outputs.feed_path }}/
+        
+        if ! git diff --staged --quiet; then
+          git commit -m "Update ${{ steps.feed-config.outputs.feed_name }} packages from ${{ github.repository }}@${{ github.sha }}"
+          git push
+          echo "Packages published to ${{ steps.feed-config.outputs.feed_name }} feed"
+        else
+          echo "No package changes to publish"
+        fi
+
+    - name: Cleanup
+      if: always()
+      run: |
+        cd meta-calculinux
+        rm -rf build/tmp/work/* || true
+        docker system prune -f || true
