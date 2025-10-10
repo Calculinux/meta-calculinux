@@ -25,8 +25,8 @@ arch any 6
 arch noarch 11
 arch luckfox-lyra 16
 
-# Package feeds - Calculinux OPKG Repository
-src/gz all https://opkg.calculinux.org/ipk/all
-src/gz luckfox-lyra https://opkg.calculinux.org/ipk/luckfox-lyra
-src/gz any https://opkg.calculinux.org/ipk/any
-src/gz noarch https://opkg.calculinux.org/ipk/noarch
+# Package feeds - Calculinux OPKG Repository (version-specific)
+src/gz all https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/all
+src/gz luckfox-lyra https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/luckfox-lyra
+src/gz any https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/any
+src/gz noarch https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/noarch

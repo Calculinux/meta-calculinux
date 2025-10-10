@@ -26,6 +26,7 @@ IMAGE_INSTALL += " \
     autoconf \
     bash \
     busybox \
+    calculinux-tools \
     cloud-utils-growpart \
     curl \
     e2fsprogs-resize2fs \

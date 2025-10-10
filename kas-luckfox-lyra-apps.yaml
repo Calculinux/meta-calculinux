@@ -5,9 +5,8 @@ header:
     - kas-base.yaml
 
 machine: luckfox-lyra
-target: calculinux-bundle
+target: packagegroup-meta-calculinux-apps
 
-# walnascar checkout
 repos:
   meta-arm:
     url: https://git.yoctoproject.org/meta-arm
@@ -21,26 +20,34 @@ repos:
     commit: 71aa531a2018724a713c9587059bc53fcbd05a23
     layers:
       .:
-  meta-rtlwifi:
-    url: https://github.com/EmbeddedAndroid/meta-rtlwifi.git
-    commit: 17a54f8a3c428039ff33c5a8ff8e045b466204b3
-    layers:
-      .:
-    patches:
-      0001-rtlwifi-changes.patch:
-        repo: meta-calculinux
-        path: patches/rtlwifi.patch
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
     commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
   meta-calculinux:
     layers:
       meta-picocalc-bsp-rockchip:
+      meta-calculinux-apps:
 
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
-    
-    EXTRA_WIFI_DRIVERS = "rtl8723du rtl8812au rtl8814au rtl8821cu rtl88x2bu" 
-
-    CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS}"
+  standard: |
+    PATCHRESOLVE = "noop"
+    PACKAGE_CLASSES = "package_ipk"
+    RM_OLD_IMAGE = "1"
+    INHERIT += "rm_work"
+    KERNEL_CLASSES += "kernel-fitimage"
+    KERNEL_IMAGETYPES += "fitImage"
+  diskmon: |
+    BB_DISKMON_DIRS ??= "\
+        STOPTASKS,${TMPDIR},1G,100K \
+        STOPTASKS,${DL_DIR},1G,100K \
+        STOPTASKS,${SSTATE_DIR},1G,100K \
+        STOPTASKS,/tmp,100M,100K \
+        HALT,${TMPDIR},100M,1K \
+        HALT,${DL_DIR},100M,1K \
+        HALT,${SSTATE_DIR},100M,1K \
+        HALT,/tmp,10M,1K"
+  apps_config: |
+    # Add our package group to the image
+    #CORE_IMAGE_EXTRA_INSTALL:append = " packagegroup-meta-calculinux-apps"
