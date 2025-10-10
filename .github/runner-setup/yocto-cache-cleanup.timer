@@ -1,0 +1,14 @@
+[Unit]
+Description=Clean Yocto cache weekly
+Documentation=https://github.com/Calculinux/meta-calculinux
+
+[Timer]
+# Run every Sunday at 3:00 AM
+OnCalendar=Sun *-*-* 03:00:00
+# Run immediately if the system was off during the scheduled time
+Persistent=true
+# Add some randomization to avoid all systems cleaning at the same time
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

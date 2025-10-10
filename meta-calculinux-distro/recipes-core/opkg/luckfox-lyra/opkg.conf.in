@@ -23,10 +23,15 @@ option volatile_cache 1
 arch all 1
 arch any 6
 arch noarch 11
-arch luckfox-lyra 16
+arch cortexa7t2hf-neon-vfpv4 16
+arch luckfox_lyra 21
 
 # Package feeds - Calculinux OPKG Repository (version-specific)
+# all: Architecture-independent packages
+# cortexa7t2hf-neon-vfpv4: ARM Cortex-A7 with NEON VFPV4 (TUNE_PKGARCH)
+# luckfox_lyra: Machine-specific packages (MACHINE_ARCH)
 src/gz all https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/all
-src/gz luckfox-lyra https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/luckfox-lyra
+src/gz cortexa7t2hf-neon-vfpv4 https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/cortexa7t2hf-neon-vfpv4
+src/gz luckfox-lyra https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/luckfox_lyra
 src/gz any https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/any
 src/gz noarch https://opkg.calculinux.org/ipk/__LAYERSERIES_CORENAMES__/noarch

@@ -1,0 +1,16 @@
+[Unit]
+Description=Clean old Yocto cache entries
+Documentation=https://github.com/Calculinux/meta-calculinux
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/yocto-cache-cleanup.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=yocto-cache-cleanup
+
+[Install]
+WantedBy=multi-user.target
