@@ -7,7 +7,6 @@ header:
 machine: luckfox-lyra
 target: packagegroup-meta-calculinux-apps
 
-# scarthgap checkout
 repos:
   meta-arm:
     url: https://git.yoctoproject.org/meta-arm
@@ -53,14 +52,5 @@ local_conf_header:
     # Enable Rust packages
     PACKAGECONFIG:pn-glkcli = ""
   apps_config: |
-    # GLK Interactive Fiction configuration
-    
-    # Default interpreter engines for glkterm
-    #PACKAGECONFIG:pn-glkterm = "bocfel glulxe git hugo level9 magnetic scare scott tads"
-    
-    # Add our package group to the image
-    #CORE_IMAGE_EXTRA_INSTALL:append = " packagegroup-meta-calculinux-apps"
-    
-    # Preferred versions (use git live versions)
     PREFERRED_VERSION_glkterm = "1.0+git%"
     PREFERRED_VERSION_glkcli = "1.0+git%"
