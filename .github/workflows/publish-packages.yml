@@ -56,11 +56,6 @@ jobs:
 
     - name: Set up build environment
       run: |
-        # Create persistent cache directories if they don't exist
-        # These are on the self-hosted runner's local storage
-        sudo mkdir -p $DL_DIR $SSTATE_DIR
-        sudo chown -R $(whoami):$(whoami) /opt/yocto-cache
-        
         echo "Using persistent cache directories:"
         echo "  DL_DIR: $DL_DIR"
         echo "  SSTATE_DIR: $SSTATE_DIR"
