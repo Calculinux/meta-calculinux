@@ -5,4 +5,6 @@ inherit packagegroup
 
 PACKAGES = "${PN}"
 
+# Add packages that should be available in the apps layer
+# These will be built as IPKs and made available in the package feed
 RDEPENDS:${PN} = "zerotier-one"
