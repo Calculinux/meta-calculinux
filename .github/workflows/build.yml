@@ -183,10 +183,41 @@ jobs:
         path: opkg-repo
         fetch-depth: 0
 
+    - name: Determine feed path and version suffix
+      id: feed-config
+      run: |
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          # Use distro codename for stable releases (e.g., walnascar, scarthgap)
+          # Extract from build environment
+          cd meta-calculinux
+          DISTRO_CODENAME=$(./kas-container shell kas-luckfox-lyra-bundle.yaml -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          echo "feed_path=ipk/${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "version_suffix=" >> $GITHUB_OUTPUT
+          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+        else
+          # Use "develop" for all development builds regardless of base distro
+          echo "feed_path=ipk/develop" >> $GITHUB_OUTPUT
+          echo "version_suffix=+dev.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "feed_name=develop" >> $GITHUB_OUTPUT
+        fi
+        echo "Feed: $([ "${{ github.ref_name }}" = "main" ] && echo "${DISTRO_CODENAME} (ipk/${DISTRO_CODENAME}/)" || echo "develop (ipk/develop/)")"
+
     - name: Build apps package group
+      env:
+        # Add development version suffix for develop branch builds
+        DISTRO_VERSION_SUFFIX: ${{ steps.feed-config.outputs.version_suffix }}
       run: |
         cd meta-calculinux
-        echo "Building packagegroup-meta-calculinux-apps..."
+        echo "Building packagegroup-meta-calculinux-apps for ${{ steps.feed-config.outputs.feed_name }} feed..."
+        
+        # If we have a version suffix, pass it to the build via local.conf
+        if [ -n "$DISTRO_VERSION_SUFFIX" ]; then
+          echo "Adding version suffix: $DISTRO_VERSION_SUFFIX"
+          # Create a build configuration override
+          mkdir -p build/conf
+          echo "DISTRO_VERSION:append = \"$DISTRO_VERSION_SUFFIX\"" >> build/conf/auto.conf
+        fi
+        
         ./kas-container build kas-luckfox-lyra-apps.yaml
 
     - name: Sync packages to opkg-repo
@@ -202,12 +233,54 @@ jobs:
           exit 1
         fi
         
-        # Sync packages using the sync script
-        cd opkg-repo
-        ./sync_from_yocto.sh "$DEPLOY_IPK_DIR"
+        # Sync packages to the appropriate feed directory
+        FEED_PATH="${{ steps.feed-config.outputs.feed_path }}"
+        echo "Syncing to feed: $FEED_PATH"
         
-        # Update package indexes
-        ./update_packages.sh
+        cd opkg-repo
+        
+        # Create feed directory if it doesn't exist
+        mkdir -p "$FEED_PATH"
+        
+        # Sync packages - we'll copy architecture directories
+        for arch_dir in "$DEPLOY_IPK_DIR"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            echo "  Syncing architecture: $arch"
+            
+            # Create target directory
+            target_dir="$FEED_PATH/$arch"
+            mkdir -p "$target_dir"
+            
+            # Copy IPK files
+            cp "$arch_dir"/*.ipk "$target_dir/" 2>/dev/null || true
+          fi
+        done
+        
+        # Update package indexes for this feed
+        echo "Updating package indexes for $FEED_PATH..."
+        for arch_dir in "$FEED_PATH"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            echo "  Generating index for $arch..."
+            cd "$arch_dir"
+            
+            # Use opkg-make-index if available, otherwise create basic index
+            if command -v opkg-make-index >/dev/null 2>&1; then
+              opkg-make-index . > Packages
+            else
+              # Basic index generation - just list files
+              echo "# Package index for $arch (${{ steps.feed-config.outputs.feed_name }} feed)" > Packages
+              echo "# Generated on $(date -u)" >> Packages
+              echo "" >> Packages
+            fi
+            
+            # Create compressed version
+            gzip -c Packages > Packages.gz
+            
+            cd ../..
+          fi
+        done
 
     - name: Commit and push packages
       run: |
@@ -217,20 +290,21 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Add all changes
-        git add ipk/
+        # Add all changes for this feed
+        git add ${{ steps.feed-config.outputs.feed_path }}/
         
         # Check if there are changes to commit
         if git diff --staged --quiet; then
           echo "No package changes to commit"
         else
           # Commit with build information
-          git commit -m "Update packages from build #${{ github.run_number }}
+          git commit -m "Update ${{ steps.feed-config.outputs.feed_name }} packages from build #${{ github.run_number }}
 
           Repository: ${{ github.repository }}
           Commit: ${{ github.sha }}
           Branch: ${{ github.ref_name }}
-          Workflow: ${{ github.workflow }}"
+          Workflow: ${{ github.workflow }}
+          Feed: ${{ steps.feed-config.outputs.feed_path }}"
           
           # Push changes
           git push
