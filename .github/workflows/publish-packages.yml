@@ -45,6 +45,7 @@ jobs:
         token: ${{ secrets.OPKG_REPO_TOKEN }}
         path: opkg-repo
         fetch-depth: 0
+        lfs: true  # Enable Git LFS for large files
 
     - name: Set up build environment
       run: |
