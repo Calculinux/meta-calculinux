@@ -48,9 +48,6 @@ local_conf_header:
         HALT,${DL_DIR},100M,1K \
         HALT,${SSTATE_DIR},100M,1K \
         HALT,/tmp,10M,1K"
-  rust_config: |
-    # Enable Rust packages
-    PACKAGECONFIG:pn-glkcli = ""
   apps_config: |
     # Add our package group to the image
     #CORE_IMAGE_EXTRA_INSTALL:append = " packagegroup-meta-calculinux-apps"
