@@ -15,7 +15,6 @@ env:
 
 permissions:
   contents: write  # Needed for creating releases
-  packages: write # Needed for uploading artifacts
 
 jobs:
   build:
@@ -28,7 +27,7 @@ jobs:
         config:
           - name: "Luckfox Lyra Bundle"
             kas_file: "kas-luckfox-lyra-bundle.yaml"
-            target: "calculinux-bundle"
+            target: "picocalc-bundle"
             machine: "luckfox-lyra"
 
     steps:
@@ -151,22 +150,3 @@ jobs:
         
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
-
-  cleanup-runner:
-    name: Cleanup Runner
-    runs-on: [self-hosted, Linux, X64]
-    needs: build
-    if: always()
-    steps:
-    - name: Deep cleanup
-      run: |
-        # Remove any leftover build artifacts from workspace
-        rm -rf artifacts/ || true
-        
-        # Docker cleanup
-        docker system prune -af || true
-        docker volume prune -f || true
-        
-        # Show final disk space
-        echo "Final disk space:"
-        df -h
