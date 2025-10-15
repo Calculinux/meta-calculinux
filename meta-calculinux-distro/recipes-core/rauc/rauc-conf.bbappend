@@ -1,7 +1,14 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
+inherit systemd
+
 SRC_URI:append := "\
                     file://system.conf.in \
+                    file://rauc-upgrade-common.sh \
+                    file://pre-install.sh \
+                    file://post-install.sh \
+                    file://rauc-install-packages.sh \
+                    file://rauc-install-packages.service \
                   "
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
@@ -37,3 +44,34 @@ python do_create_system_config() {
 }
 
 addtask create_system_config after do_configure before do_install
+
+do_install:append() {
+    install -d ${D}${libdir}/rauc
+    
+    # Common library
+    install -m 0755 ${UNPACKDIR}/rauc-upgrade-common.sh ${D}${libdir}/rauc/rauc-upgrade-common.sh
+    
+    # Pre-install hook: downloads packages for major upgrades
+    sed -e 's|__LAYERSERIES_CORENAMES__|${LAYERSERIES_CORENAMES}|g' \
+        ${UNPACKDIR}/pre-install.sh > ${D}${libdir}/rauc/pre-install.sh
+    chmod 0755 ${D}${libdir}/rauc/pre-install.sh
+    
+    # Post-install hook: prepares for first-boot package installation
+    sed -e 's|__LAYERSERIES_CORENAMES__|${LAYERSERIES_CORENAMES}|g' \
+        -e 's|{RAUC_SLOT_A_DEVICE}|${RAUC_SLOT_A_DEVICE}|g' \
+        -e 's|{RAUC_SLOT_B_DEVICE}|${RAUC_SLOT_B_DEVICE}|g' \
+        -e 's|{OVERLAYFS_ETC_MOUNT_POINT}|${OVERLAYFS_ETC_MOUNT_POINT}|g' \
+        ${UNPACKDIR}/post-install.sh > ${D}${libdir}/rauc/post-install.sh
+    chmod 0755 ${D}${libdir}/rauc/post-install.sh
+    
+    # First-boot script and service: installs packages after boot verified
+    install -m 0755 ${UNPACKDIR}/rauc-install-packages.sh ${D}${libdir}/rauc/rauc-install-packages.sh
+    install -d ${D}${systemd_system_unitdir}
+    install -m 0644 ${UNPACKDIR}/rauc-install-packages.service ${D}${systemd_system_unitdir}/rauc-install-packages.service
+}
+
+FILES:${PN} += "${libdir}/rauc/rauc-upgrade-common.sh ${libdir}/rauc/pre-install.sh ${libdir}/rauc/post-install.sh ${libdir}/rauc/rauc-install-packages.sh"
+
+SYSTEMD_SERVICE:${PN} += "rauc-install-packages.service"
+
+RDEPENDS:${PN} += "calculinux-tools"

@@ -3,6 +3,12 @@ compatible={SYSTEM_COMPATIBLE}
 bootloader=uboot
 statusfile=/etc/rauc/rauc-slots.status
 
+[hooks]
+# Run before installing new system to warn about major upgrades
+pre-install=/usr/lib/rauc/pre-install.sh
+# Run after installing new system to check package compatibility
+post-install=/usr/lib/rauc/post-install.sh
+
 [keyring]
 path=/etc/rauc/ca.cert.pem
 
