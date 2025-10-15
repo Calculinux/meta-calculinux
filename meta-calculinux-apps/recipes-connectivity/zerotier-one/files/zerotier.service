@@ -1,0 +1,19 @@
+[Unit]
+Description=ZeroTier One
+# Do not use ``network-online.target`` here as it will block
+# the whole bootprocess when there is no network-connection is available.
+# See ``https://www.freedesktop.org/wiki/Software/systemd/NetworkTarget/``
+After=network.target
+Wants=network.target
+
+[Service]
+ExecStart=/usr/sbin/zerotier-one
+# Restart service on failure
+Restart=on-failure
+# Wait for 4 seconds before restarting
+RestartSec=4
+ExecReload=/usr/bin/killall -TERM zerotier-one; /usr/sbin/zerotier-one
+ExecStop=/usr/bin/killall -TERM zerotier-one
+
+[Install]
+WantedBy=multi-user.target
