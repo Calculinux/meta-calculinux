@@ -10,13 +10,19 @@ name: Build and Publish Packages
 # - Packages automatically available at https://opkg.calculinux.org/
 
 on:
+  workflow_dispatch:
+    inputs:
+      sync_all_packages:
+        description: 'Sync all packages (not just newly built ones)'
+        required: false
+        type: boolean
+        default: false
   push:
     branches: [ main, develop ]
     paths:
       - 'meta-calculinux-apps/**'
       - 'kas-luckfox-lyra-apps.yaml'
       - '.github/workflows/publish-packages.yml'
-  workflow_dispatch:
   schedule:
     # Run daily at 2 AM UTC to catch any dependency updates
     - cron: '0 2 * * *'
@@ -27,7 +33,7 @@ env:
   DL_DIR: /home/github/yocto-cache/calculinux/downloads
   SSTATE_DIR: /home/github/yocto-cache/calculinux/sstate-cache
   # Package repository storage
-  OPKG_REPO_DIR: /mnt/opkg-repo/ipk
+  OPKG_REPO_DIR: /mnt/opkg-repo
 
 permissions:
   contents: read
@@ -144,9 +150,16 @@ jobs:
           exit 1
         fi
         
-        # Record the build start time (subtract 5 minutes for safety margin)
-        BUILD_START_TIME=$(date -d '5 minutes ago' +%s)
-        echo "Only syncing packages modified after: $(date -d @$BUILD_START_TIME)"
+        # Determine sync strategy based on workflow input
+        SYNC_ALL="${{ inputs.sync_all_packages }}"
+        if [ "$SYNC_ALL" = "true" ]; then
+          echo "Syncing ALL packages (manual full sync requested)"
+          BUILD_START_TIME=0
+        else
+          # Record the build start time (subtract 5 minutes for safety margin)
+          BUILD_START_TIME=$(date -d '5 minutes ago' +%s)
+          echo "Only syncing packages modified after: $(date -d @$BUILD_START_TIME)"
+        fi
         
         PACKAGE_COUNT=$(find "$DEPLOY_IPK_DIR" -name "*.ipk" -type f | wc -l)
         echo "Found $PACKAGE_COUNT total IPK packages in deploy directory"
