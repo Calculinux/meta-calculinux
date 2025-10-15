@@ -72,7 +72,7 @@ If you prefer to build locally instead of using the automated builds:
    - Build the complete Calculinux distribution image
 
 3. **Find the Calculinux image**
-   After the build completes, the Calculinux distribution image (picocalc-image-luckfox-lyra.rootfs.wic) will be located in:
+   After the build completes, the Calculinux distribution image (calculinux-image-luckfox-lyra.rootfs.wic) will be located in:
    ```
    build/tmp/deploy/images/luckfox-lyra/
    ```
@@ -80,7 +80,7 @@ If you prefer to build locally instead of using the automated builds:
 4. **Install Calculinux**
    Install the Calculinux image with dd on a Micro-SD card:
    ```
-   dd if=build/tmp/deploy/images/luckfox-lyra/picocalc-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
+   dd if=build/tmp/deploy/images/luckfox-lyra/calculinux-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
    ```
 
    Create an ext4 partition on the external Picocalc SD-Card which will be mounted at `/data` on the Calculinux system.
@@ -130,7 +130,7 @@ The device has two root partitions (`rootfsA` and `rootfsB`). During an update:
 Calculinux uses a dual-rootfs setup for proper rollbacks if an update fails. Updates can be installed with rauc.
 Copy the `.raucb` file onto the SD-Card and install it with:
 ```
-rauc install picocalc-bundle-luckfox-lyra.raucb
+rauc install calculinux-bundle-luckfox-lyra.raucb
 reboot
 ```
 
