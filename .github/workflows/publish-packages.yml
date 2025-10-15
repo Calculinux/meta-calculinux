@@ -2,8 +2,7 @@ name: Build and Publish Packages
 
 # Required Setup for Self-Hosted Runner:
 # - Create persistent cache directories:
-#     sudo mkdir -p /opt/yocto-cache/calculinux/{downloads,sstate-cache}
-#     sudo chown -R <runner-user>:<runner-user> /opt/yocto-cache
+#     mkdir -p ~/yocto-cache/calculinux/{downloads,sstate-cache}
 # - These directories will grow to 20-50GB+ but dramatically speed up builds
 #
 # - Mount package repository storage:
@@ -23,10 +22,10 @@ on:
     - cron: '0 2 * * *'
 
 env:
-  # Yocto build directories - using persistent cache on self-hosted runner
+  # Yocto build directories - using persistent cache in runner's home directory
   # These directories persist across workflow runs to enable sstate-cache
-  DL_DIR: /opt/yocto-cache/calculinux/downloads
-  SSTATE_DIR: /opt/yocto-cache/calculinux/sstate-cache
+  DL_DIR: /home/github/yocto-cache/calculinux/downloads
+  SSTATE_DIR: /home/github/yocto-cache/calculinux/sstate-cache
   # Package repository storage
   OPKG_REPO_DIR: /mnt/opkg-repo/ipk
 
@@ -49,8 +48,7 @@ jobs:
     - name: Set up build environment
       run: |
         # Create persistent cache directories if they don't exist
-        sudo mkdir -p $DL_DIR $SSTATE_DIR
-        sudo chown -R $(whoami):$(whoami) /opt/yocto-cache
+        mkdir -p $DL_DIR $SSTATE_DIR
         
         # Verify package repository storage exists
         if [ ! -d "$OPKG_REPO_DIR" ]; then
