@@ -28,7 +28,7 @@ jobs:
         config:
           - name: "Luckfox Lyra Bundle"
             kas_file: "kas-luckfox-lyra-bundle.yaml"
-            target: "picocalc-bundle"
+            target: "calculinux-bundle"
             machine: "luckfox-lyra"
 
     steps:
