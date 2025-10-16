@@ -16,19 +16,10 @@ The distribution is built using the Yocto Project, ensuring a minimal, efficient
 
 ### Pre-built Images
 
-Pre-built images and update bundles are available as:
-- **GitHub Release Assets**: For tagged releases (recommended for production)
-- **GitHub Artifacts**: For development builds (available for 30 days)
-
-### Download Latest Build
-
-1. Go to the [Actions tab](../../actions) in this repository
-2. Click on the latest successful build
-3. Download the `calculinux-luckfox-lyra-*` artifact
-4. Extract the ZIP file to find:
-   - `*.wic.gz` - Flashable SD card images
-   - `*.raucb` - RAUC update bundles
-   - `build-info.txt` - Build information
+Pre-built images and update bundles are available for download from the [latest release](../../releases/latest). Each release includes:
+- `*.wic.gz` - Flashable SD card images
+- `*.raucb` - RAUC update bundles for OTA updates
+- Build information and checksums
 
 ---
 
@@ -51,14 +42,12 @@ Make sure you have the following installed on your build host:
 
 ---
 
-## Manual Build Instructions
-
-If you prefer to build locally instead of using the automated builds:
+## Build Instructions
 
 1. **Clone this repository**:
    ```bash
    mkdir calculinux-build && cd calculinux-build
-   git clone https://github.com/calculinux/meta-calculinux.git meta-calculinux
+   git clone <repository-url> meta-calculinux
    ```
 
 2. **Build Calculinux for Luckfox Lyra with KAS**:
@@ -102,23 +91,6 @@ bitbake virtual/kernel
 
 ---
 
-## Setting Up Self-Hosted Runners
-
-To set up a self-hosted GitHub Actions runner for building:
-
-1. **Configure the GitHub Actions runner**:
-   - Follow [GitHub's documentation](https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners) to add a self-hosted runner
-   - Use the tags: `self-hosted`, `Linux`, `X64`
-   - Ensure Docker is installed and the runner user is in the docker group
-
-2. **Runner Requirements**:
-   - **Disk Space**: At least 100GB free (Yocto builds are large)
-   - **RAM**: 8GB minimum, 16GB recommended
-   - **Docker**: Required for containerized builds
-   - **Cache**: The workflow automatically creates `~/yocto-cache` for downloads and sstate-cache
-
----
-
 ## OTA Updates with RAUC
 
 This meta-layer configures **RAUC** for robust **A/B dual rootfs** OTA updates in Calculinux.
@@ -142,7 +114,7 @@ More on RAUC: https://rauc.readthedocs.io/
 
 ## AARCH64 Host Support
 
-KAS does not natively support aarch64 hosts. To build on an aarch64 system, additional packages are required in the Docker image. The automated builds handle this automatically using the `Dockerfile.aarch64`.
+KAS does not natively support aarch64 hosts. To build on an aarch64 system, additional packages are required in the Docker image.
 
 For manual builds on aarch64, use the following command to build the image:
 
