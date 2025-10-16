@@ -32,7 +32,7 @@ repos:
         path: patches/rtlwifi.patch
   meta-picocalc-drivers:
     url: https://github.com/Calculinux/meta-picocalc-drivers.git
-    commit: a5adbccde8979b7236f70fb2ab332c1129b5ff89
+    commit: ffebdce2c1e3d75e78c5aee65dfa4c3f5aa1d420
     layers:
       .:
   meta-rauc:
