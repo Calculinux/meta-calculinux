@@ -184,15 +184,23 @@ jobs:
             
             echo "Processing architecture: $arch"
             
-            # Find packages modified during this build (newer than BUILD_START_TIME)
+            # Process all packages in the deploy directory
             while IFS= read -r -d '' ipk_file; do
+              package_name=$(basename "$ipk_file")
+              target_file="$arch_dir_target/$package_name"
               file_mtime=$(stat -c %Y "$ipk_file")
-              if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
-                # Package was built/modified in this run
+              
+              # Sync if package is newly built OR missing from target directory
+              if [ "$file_mtime" -ge "$BUILD_START_TIME" ] || [ ! -f "$target_file" ]; then
+                if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
+                  echo "  Syncing newly built package: $package_name"
+                else
+                  echo "  Syncing missing package: $package_name"
+                fi
                 cp "$ipk_file" "$arch_dir_target/"
                 SYNCED=$((SYNCED + 1))
               else
-                # Package was from sstate-cache, skip syncing
+                # Package exists and wasn't built in this run
                 SKIPPED=$((SKIPPED + 1))
               fi
             done < <(find "$arch_dir" -name "*.ipk" -type f -print0)
