@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-config PICOCALC_SND_SOFT_PWM
-    tristate "Picocalc soft pwm support"
-    help
-      Say Y or M here if you want to use the picocalc soft pwm. The module will be called picocalc_pwm.
