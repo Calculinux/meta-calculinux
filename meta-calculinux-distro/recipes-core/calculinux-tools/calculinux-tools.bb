@@ -16,4 +16,4 @@ do_install() {
 
 FILES:${PN} = "${sbindir}/calculinux-upgrade-check"
 
-RDEPENDS:${PN} = "opkg bash"
+RDEPENDS:${PN} = "opkg"

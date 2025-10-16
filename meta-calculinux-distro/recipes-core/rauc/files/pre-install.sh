@@ -97,7 +97,7 @@ if is_major_version_upgrade "$CURRENT_VERSION" "$BUNDLE_VERSION"; then
                         
                         opkg list-installed | awk '{print $1}' | while read pkg; do
                             log_info "  Downloading: $pkg"
-                            if opkg download "$pkg" -d "$PACKAGE_CACHE" 2>&1 | logger -t "$LOG_TAG"; then
+                            if opkg download "$pkg" -d "$PACKAGE_CACHE_DIR" 2>&1 | logger -t "$LOG_TAG"; then
                                 DOWNLOAD_COUNT=$((DOWNLOAD_COUNT + 1))
                             else
                                 log_error "  Failed to download: $pkg"
@@ -106,7 +106,7 @@ if is_major_version_upgrade "$CURRENT_VERSION" "$BUNDLE_VERSION"; then
                         done
                         
                         # Move downloaded packages to cache
-                        if [ -f *.ipk ]; then
+                        if ls *.ipk >/dev/null 2>&1; then
                             mv *.ipk "$PACKAGE_CACHE_DIR/" 2>/dev/null || true
                         fi
                         
