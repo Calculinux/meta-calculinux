@@ -47,6 +47,6 @@ local_conf_header:
     INHERIT:append = " rockchip-image"
     
     EXTRA_WIFI_DRIVERS = "rtl8723du rtl8812au rtl8814au rtl8821cu rtl88x2bu"
-    PICOCALC_DRIVERS = "picocalc-lcd picocalc-snd-pwm picocalc-snd-softpwm picocalc-mfd picocalc-mfd-bms picocalc-mfd-bkl picocalc-mfd-kbd picocalc-mfd-led"
+    PICOCALC_DRIVERS = "picocalc-lcd picocalc-snd-pwm picocalc-snd-softpwm picocalc-kbd picocalc-mfd picocalc-mfd-bms picocalc-mfd-bkl picocalc-mfd-kbd picocalc-mfd-led"
 
     CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
