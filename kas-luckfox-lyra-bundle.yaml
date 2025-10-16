@@ -32,7 +32,7 @@ repos:
         path: patches/rtlwifi.patch
   meta-picocalc-drivers:
     url: https://github.com/Calculinux/meta-picocalc-drivers.git
-    commit: ffebdce2c1e3d75e78c5aee65dfa4c3f5aa1d420
+    commit: f1a35a3ced0b7b27a08cbea70020cac13661ac5d
     layers:
       .:
   meta-rauc:
@@ -47,6 +47,6 @@ local_conf_header:
     INHERIT:append = " rockchip-image"
     
     EXTRA_WIFI_DRIVERS = "rtl8723du rtl8812au rtl8814au rtl8821cu rtl88x2bu"
-    PICOCALC_DRIVERS = "picocalc-lcd picocalc-snd-pwm picocalc-snd-softpwm picocalc-mfd picocalc-mfd-bms picocalc-mfd-bkl picocalc-mfd-kbd"
+    PICOCALC_DRIVERS = "picocalc-lcd picocalc-snd-pwm picocalc-snd-softpwm picocalc-mfd picocalc-mfd-bms picocalc-mfd-bkl picocalc-mfd-kbd picocalc-mfd-led"
 
     CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
