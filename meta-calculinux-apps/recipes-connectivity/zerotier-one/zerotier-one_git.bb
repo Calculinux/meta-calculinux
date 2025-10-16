@@ -15,7 +15,7 @@ SRC_URI = "\
 LICENSE = "BUSL-1.1"
 LIC_FILES_CHKSUM = "file://LICENSE.txt;md5=33322cad2f266673d999241243910f44"
 
-S = "${UNPACKDIR}/git"
+S = "${WORKDIR}/git"
 
 COMPATIBLE_HOST = '(x86_64.*|arm.*|aarch64.*)-linux'
 
@@ -31,21 +31,20 @@ do_compile () {
 }
 
 FILES:${PN} += " \
-     ${systemd_system_unitdir}/zerotier-one.service \
+     ${systemd_system_unitdir}/zerotier.service \
 "
 
 do_install() {
     install -d ${D}${sbindir}
     install -m 755 zerotier-one ${D}${sbindir}
-    ln zerotier-one ${D}${sbindir}/zerotier-cli
-    ln zerotier-one ${D}${sbindir}/zerotier-idtool
-    chown -R root:root ${D}${sbindir}/zerotier-cli
+    ln -sf zerotier-one ${D}${sbindir}/zerotier-cli
+    ln -sf zerotier-one ${D}${sbindir}/zerotier-idtool
     install -d ${D}/var/lib/zerotier-one
     ln -s ../../..${sbindir}/zerotier-one ${D}/${localstatedir}/lib/zerotier-one/zerotier-one
     ln -s ../../..${sbindir}/zerotier-cli ${D}/${localstatedir}/lib/zerotier-one/zerotier-cli
     ln -s ../../..${sbindir}/zerotier-idtool ${D}/${localstatedir}/lib/zerotier-one/zerotier-idtool
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${UNPACKDIR}/zerotier.service ${D}${systemd_system_unitdir}
+    install -m 0644 ${WORKDIR}/zerotier.service ${D}${systemd_system_unitdir}
     install -d ${D}/var/lib/zerotier-one/networks.d/
 }
 
