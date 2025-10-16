@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-config PICOCALC_KBD
-	tristate "Picocalc Keyboard support"
-	help
-
-	  Say Y or M here if you want to use the picocalc keyboard. The module will be called picocalc_kbd.
