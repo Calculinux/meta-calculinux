@@ -53,9 +53,8 @@ FILES:${PN}-snd-softpwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extr
 # Runtime dependencies - MFD sub-drivers are always loaded together as a unit via the core module
 # No inter-package dependencies needed since they're all in one package
 
-# Conflicts - legacy and new drivers should not be installed together
-RCONFLICTS:${PN}-mfd = "${PN}-kbd"
-RCONFLICTS:${PN}-kbd = "${PN}-mfd"
+# Note: We allow both legacy keyboard and MFD keyboard packages to be installed simultaneously.
+# Device tree 'compatible' selection and driver probe order determine which driver binds at runtime.
 
 # Main package pulls in all driver packages for convenience
 # Users can still install individual packages if they want specific drivers only
