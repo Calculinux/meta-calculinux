@@ -1,0 +1,37 @@
+# Main opkg configuration file
+# Dual destination setup:
+#   root  = Base system packages (managed by RAUC updates, read-only)
+#   local = User-installed packages (persistent across updates to /usr/local)
+dest root /
+dest local /usr/local
+dest ram /tmp
+
+# User packages default to persistent /usr/local location
+option dest local
+
+lists_dir ext /var/lib/opkg/lists
+info_dir ext /var/lib/opkg/info
+status_file /var/lib/opkg/status
+
+# Package verification (optional)
+option check_signature 0
+
+# Offline mode (can be toggled)
+option volatile_cache 1
+
+# Architecture priority
+arch all 1
+arch any 6
+arch noarch 11
+arch cortexa7t2hf-neon-vfpv4 16
+arch luckfox-lyra 21
+
+# Package feeds - Calculinux OPKG Repository (version-specific)
+# all: Architecture-independent packages
+# cortexa7t2hf-neon-vfpv4: ARM Cortex-A7 with NEON VFPV4 (TUNE_PKGARCH)
+# luckfox-lyra: Machine-specific packages (MACHINE_ARCH)
+src/gz all https://opkg.calculinux.org/ipk/__DISTRO_CODENAME__/all
+src/gz cortexa7t2hf-neon-vfpv4 https://opkg.calculinux.org/ipk/__DISTRO_CODENAME__/cortexa7t2hf-neon-vfpv4
+src/gz luckfox-lyra https://opkg.calculinux.org/ipk/__DISTRO_CODENAME__/luckfox-lyra
+src/gz any https://opkg.calculinux.org/ipk/__DISTRO_CODENAME__/any
+src/gz noarch https://opkg.calculinux.org/ipk/__DISTRO_CODENAME__/noarch
