@@ -89,7 +89,7 @@ jobs:
         if [ "${{ github.ref_name }}" = "main" ]; then
           # Use distro codename for stable releases (e.g., walnascar, scarthgap)
           cd meta-calculinux
-          DISTRO_CODENAME=$(./kas-container shell kas-luckfox-lyra-bundle.yaml -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          DISTRO_CODENAME=$(./kas-container shell kas-luckfox-lyra-apps.yaml -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
           echo "feed_path=ipk/${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "version_suffix=" >> $GITHUB_OUTPUT

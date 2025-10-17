@@ -17,8 +17,8 @@ S = "${UNPACKDIR}"
 do_install() {
     install -d ${D}${sysconfdir}/opkg
     
-    # Substitute version-specific feed URLs
-    sed -e 's|__LAYERSERIES_CORENAMES__|${LAYERSERIES_CORENAMES}|g' \
+    # Substitute distro codename for feed URLs
+    sed -e 's|__DISTRO_CODENAME__|${DISTRO_CODENAME}|g' \
         ${UNPACKDIR}/opkg.conf.in > ${D}${sysconfdir}/opkg/opkg.conf
     
     install -m 0644 ${UNPACKDIR}/arch.conf ${D}${sysconfdir}/opkg/arch.conf
