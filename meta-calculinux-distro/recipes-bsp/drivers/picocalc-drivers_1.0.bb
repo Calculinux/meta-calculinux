@@ -70,12 +70,6 @@ RDEPENDS:${PN} = " \
 FILES:${PN} = ""
 ALLOW_EMPTY:${PN} = "1"
 
-# Override the module class configure step since we don't have a root clean target
-do_configure() {
-    # Nothing to configure, each driver directory will be built individually
-    :
-}
-
 # Build all drivers individually
 do_compile() {
     # Use the top-level Makefile to build all modules in the repository
