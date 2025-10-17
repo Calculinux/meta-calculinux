@@ -30,11 +30,6 @@ repos:
       0001-rtlwifi-changes.patch:
         repo: meta-calculinux
         path: patches/rtlwifi.patch
-  meta-picocalc-drivers:
-    url: https://github.com/Calculinux/meta-picocalc-drivers.git
-    commit: 90d7b891c5717d98bbca2843026f23326e806c6b
-    layers:
-      .:
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
     commit: a0b83842d131093e89fa4fefaaa1997f05afdf62

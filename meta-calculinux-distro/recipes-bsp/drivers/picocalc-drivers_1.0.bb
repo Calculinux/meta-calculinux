@@ -8,7 +8,7 @@ inherit module
 PV = "1.0+git${SRCPV}"
 PR = "r0"
 
-SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=make-repo-source-only"
+SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=main"
 SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"
@@ -78,15 +78,13 @@ do_configure() {
 
 # Build all drivers individually
 do_compile() {
-    # Build each driver directory separately
-    for driver_dir in picocalc_mfd picocalc_mfd_bms picocalc_mfd_bkl picocalc_mfd_kbd picocalc_mfd_led picocalc_kbd picocalc_lcd picocalc_snd-pwm picocalc_snd-softpwm; do
-        if [ -d ${S}/${driver_dir} ]; then
-            cd ${S}/${driver_dir}
-            make KSRC=${STAGING_KERNEL_DIR} KERNEL_SRC=${STAGING_KERNEL_DIR}
-        else
-            bbfatal "ERROR: Directory ${driver_dir} does not exist!"
-        fi
-    done
+    # Use the top-level Makefile to build all modules in the repository
+    if [ -f ${S}/Makefile ]; then
+        cd ${S}
+        make KERNEL_SRC=${STAGING_KERNEL_DIR} KSRC=${STAGING_KERNEL_DIR} all
+    else
+        bbfatal "Top-level Makefile not found in ${S}"
+    fi
 }
 
 do_install() {
