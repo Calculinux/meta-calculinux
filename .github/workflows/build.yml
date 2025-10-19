@@ -12,6 +12,8 @@ env:
   # Yocto build directories that need persistent storage
   DL_DIR: ${{ github.workspace }}/../yocto-cache/downloads
   SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
+  # Package repository storage
+  OPKG_REPO_DIR: /mnt/opkg-repo
 
 permissions:
   contents: write  # Needed for creating releases
@@ -41,11 +43,39 @@ jobs:
         # Create cache directories if they don't exist
         mkdir -p $DL_DIR $SSTATE_DIR
         
+        # Verify package repository storage exists
+        if [ ! -d "$OPKG_REPO_DIR" ]; then
+          echo "ERROR: Package repository storage $OPKG_REPO_DIR not found"
+          echo "Please ensure storage is mounted at /mnt/opkg-repo"
+          exit 1
+        fi
+        
         # Clean up any leftover containers and images from previous builds
         docker system prune -f || true
         
         # Show disk space before build
         df -h
+
+    - name: Determine feed configuration
+      id: feed-config
+      run: |
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          # Use distro codename for stable releases (e.g., walnascar, scarthgap)
+          DISTRO_CODENAME=$(./kas-container shell kas-luckfox-lyra-bundle.yaml -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "subfolder=continuous" >> $GITHUB_OUTPUT
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          # Use "develop" for all development builds
+          echo "feed_name=develop" >> $GITHUB_OUTPUT
+          echo "subfolder=continuous" >> $GITHUB_OUTPUT
+        else
+          # Tagged releases - assume from main branch, use distro codename
+          DISTRO_CODENAME=$(./kas-container shell kas-luckfox-lyra-bundle.yaml -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "subfolder=release" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Feed configuration complete"
 
     - name: Build Yocto image
       run: |
@@ -88,6 +118,41 @@ jobs:
           echo "Available directories:"
           find build -type d -name "deploy" || true
         fi
+
+    - name: Publish artifacts to webserver
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/tags/v')
+      run: |
+        echo "Publishing artifacts to webserver..."
+        
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        UPDATE_DIR="$OPKG_REPO_DIR/update/$FEED_NAME/$SUBFOLDER"
+        IMAGE_DIR="$OPKG_REPO_DIR/image/$FEED_NAME/$SUBFOLDER"
+        
+        # Create target directories
+        mkdir -p "$UPDATE_DIR" "$IMAGE_DIR"
+        
+        # Copy RAUC bundles to update directory
+        if ls artifacts/*.raucb 1> /dev/null 2>&1; then
+          echo "Copying RAUC bundles to $UPDATE_DIR"
+          cp artifacts/*.raucb "$UPDATE_DIR/"
+          echo "Published RAUC bundles:"
+          ls -la "$UPDATE_DIR"/*.raucb
+        else
+          echo "No RAUC bundles found to publish"
+        fi
+        
+        # Copy WIC images to image directory
+        if ls artifacts/*.wic.gz 1> /dev/null 2>&1; then
+          echo "Copying WIC images to $IMAGE_DIR"
+          cp artifacts/*.wic.gz "$IMAGE_DIR/"
+          echo "Published WIC images:"
+          ls -la "$IMAGE_DIR"/*.wic.gz
+        else
+          echo "No WIC images found to publish"
+        fi
+        
+        echo "Artifacts published successfully"
 
     - name: Generate build information
       run: |
