@@ -90,8 +90,8 @@ jobs:
           echo "subfolder=continuous" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
-        else
-          # Tagged releases - assume from main branch, use distro codename
+        elif [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then
+          # Tagged releases - check if this is actually a tag
           DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
           echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "subfolder=release" >> $GITHUB_OUTPUT
@@ -102,6 +102,12 @@ jobs:
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
           fi
           echo "is_tagged_release=true" >> $GITHUB_OUTPUT
+        else
+          # Pull requests or other refs - don't publish
+          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "subfolder=branch" >> $GITHUB_OUTPUT
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          echo "is_tagged_release=false" >> $GITHUB_OUTPUT
         fi
         
         echo "Feed configuration complete"
