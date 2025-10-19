@@ -8,7 +8,7 @@ inherit module
 PV = "1.0+git${SRCPV}"
 PR = "r0"
 
-SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=main"
+SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=peapig-keyboard-shift-patch"
 SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"
