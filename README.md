@@ -6,8 +6,8 @@ The layer uses **[KAS](https://kas.readthedocs.io/)** for configuration manageme
 
 ## About Calculinux
 
-**Calculinux** is a specialized Linux distribution designed specifically for the Picocalc calculator device. It provides:
-- Optimized performance for calculator hardware and user interface
+**Calculinux** is a specialized Linux distribution designed specifically for the Picocalc by ClockworkPi with a Luckfox Lyra installed instead of the typical Raspberry Pi Pico. It provides:
+- Optimized performance for low memory and low power hardware
 - Hardware-specific drivers for keyboard, display, and audio components
 - A secure, updatable system with read-only root filesystem
 - Integration with Picocalc's unique form factor and use cases
@@ -20,6 +20,8 @@ Pre-built images and update bundles are available for download from the [latest 
 - `*.wic.gz` - Flashable SD card images
 - `*.raucb` - RAUC update bundles for OTA updates
 - Build information and checksums
+
+Other CI builds are available from the [packages server](https://opkg.calculinux.org/) in the update or image folders.
 
 ---
 
@@ -72,7 +74,7 @@ Make sure you have the following installed on your build host:
    dd if=build/tmp/deploy/images/luckfox-lyra/calculinux-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
    ```
 
-   Create an ext4 partition on the external Picocalc SD-Card which will be mounted at `/data` on the Calculinux system.
+   On first boot, the user partition will be configured to fill the rest of the SD card.
 
 ---
 
