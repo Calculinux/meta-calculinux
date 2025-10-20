@@ -11,4 +11,5 @@ RDEPENDS:${PN} = " \
     zerotier-one \
     vim \
     nano \
+    mc \
 "
