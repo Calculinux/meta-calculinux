@@ -247,7 +247,7 @@ jobs:
             cd "$arch_dir"
             
             # Generate Packages file
-            opkg-make-index -r -p Packages .
+            opkg-make-index -p Packages .
             
             # Compress to Packages.gz
             gzip -f Packages
