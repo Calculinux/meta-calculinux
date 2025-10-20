@@ -11,4 +11,16 @@ RDEPENDS:${PN} = " \
     zerotier-one \
     vim \
     nano \
+    mc \
+    iotop \
+    nmap \
+    tcpdump \
+    sysstat \
+    lsof \
+    tree \
+    rsync \
+    jq \
+    fzf \
+    tmux \
+    screen \
 "
