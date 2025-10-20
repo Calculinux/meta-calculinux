@@ -233,6 +233,37 @@ jobs:
         
         echo "Packages available at: https://opkg.calculinux.org/$FEED_PATH/"
 
+    - name: Generate package indexes
+      run: |
+        FEED_DIR="$OPKG_REPO_DIR/${{ steps.feed-config.outputs.feed_path }}"
+        
+        echo "Generating Packages.gz files for feed: ${{ steps.feed-config.outputs.feed_path }}"
+        
+        for arch_dir in "$FEED_DIR"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            echo "Generating Packages.gz for architecture: $arch"
+            
+            cd "$arch_dir"
+            
+            # Generate Packages file
+            opkg-make-index -r -p Packages .
+            
+            # Compress to Packages.gz
+            gzip -f Packages
+            
+            # Verify the file was created
+            if [ -f "Packages.gz" ]; then
+              echo "  Successfully generated Packages.gz for $arch"
+            else
+              echo "  ERROR: Failed to generate Packages.gz for $arch"
+              exit 1
+            fi
+          fi
+        done
+        
+        echo "Package index generation complete"
+
     - name: Cleanup
       if: always()
       run: |
