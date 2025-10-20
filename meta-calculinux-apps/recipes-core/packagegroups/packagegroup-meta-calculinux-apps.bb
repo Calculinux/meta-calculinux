@@ -20,7 +20,6 @@ RDEPENDS:${PN} = " \
     tree \
     rsync \
     jq \
-    fzf \
     tmux \
     screen \
 "
