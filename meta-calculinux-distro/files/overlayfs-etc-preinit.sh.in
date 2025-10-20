@@ -15,7 +15,7 @@ mount -t sysfs sysfs /sys
 
 [ -z "$CONSOLE" ] && CONSOLE="/dev/console"
 
-OVERLAYS="/etc /root /home /var"
+OVERLAYS="/etc /root /home /var /usr/local /opt"
 
 #Grow the overlay partition to fill disk
 PARTITION_SYSFS_PATH="/sys/class/block/$(basename "{OVERLAYFS_ETC_DEVICE}")"
