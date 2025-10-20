@@ -46,7 +46,6 @@ IMAGE_INSTALL += " \
     ntp \
     openssh \
     opkg \
-    opkg-config-calculinux \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
