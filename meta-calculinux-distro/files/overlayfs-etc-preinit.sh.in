@@ -18,7 +18,7 @@ mount -t sysfs sysfs /sys
 OVERLAYS="/etc /root /home /var"
 
 #Grow the overlay partition to fill disk
-PARTITION_NAME="$(basename $(readlink -f "{OVERLAYFS_ETC_DEVICE}"))"
+PARTITION_NAME="$(basename $(readlink -f '{OVERLAYFS_ETC_DEVICE}'))"
 PARTITION_SYSFS_PATH="/sys/class/block/$(basename "$PARTITION_NAME")"
 PARTITION_DISK="/dev/$(basename $(readlink -f "$PARTITION_SYSFS_PATH/.."))"
 PARTITION_NUM="$(cat "$PARTITION_SYSFS_PATH/partition")"
