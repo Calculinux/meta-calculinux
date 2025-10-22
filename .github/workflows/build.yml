@@ -1,4 +1,4 @@
-name: Build Calculinux Images
+name: Build Calculinux Images and Packages
 
 on:
   push:
@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      sync_all_packages:
+        description: 'Sync all packages (not just newly built ones)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   # Yocto build directories that need persistent storage
@@ -26,17 +32,17 @@ permissions:
 #     - machine: luckfox-lyra
 #       name: "Luckfox Lyra Bundle"
 #       kas_file: "kas-luckfox-lyra-bundle.yaml"
-#       target: "picocalc-bundle"
+#       target: "calculinux-bundle"
 #       dockerfile: "Dockerfile.aarch64"
 #     - machine: rpi4  # Add new machine config
 #       name: "Raspberry Pi 4 Bundle"
 #       kas_file: "kas-rpi4-bundle.yaml"
-#       target: "picocalc-bundle"
+#       target: "calculinux-bundle"
 #       dockerfile: "Dockerfile.arm64"
   
 jobs:
   build:
-    name: Build Yocto Images
+    name: Build Yocto Images and Packages
     runs-on: [self-hosted, Linux, X64]
     
     strategy:
@@ -47,7 +53,7 @@ jobs:
           - machine: luckfox-lyra
             name: "Luckfox Lyra Bundle"
             kas_file: "kas-luckfox-lyra-bundle.yaml"
-            target: "picocalc-bundle"
+            target: "calculinux-bundle"
             dockerfile: "Dockerfile.aarch64"
 
     steps:
@@ -112,14 +118,20 @@ jobs:
         
         echo "Feed configuration complete"
 
-    - name: Build Yocto image
+    - name: Build Yocto image and packages
       run: |
         echo "Building ${{ matrix.name }} using ${{ matrix.kas_file }}"
+        echo "This will build:"
+        echo "  - ${{ matrix.target }} (base image with overlayfs)"
+        echo "  - packagegroup-meta-calculinux-apps (IPK packages)"
+        echo ""
+        echo "All packages install to /usr (standard paths)"
+        echo "Runtime: /usr is overlayfs - base in lower layer, user packages in upper layer"
         
         # Run the build with kas-container
         ./kas-container build ${{ matrix.kas_file }}
 
-    - name: Collect build artifacts
+    - name: Collect build artifacts (images)
       run: |
         echo "Collecting build artifacts..."
         
@@ -153,6 +165,167 @@ jobs:
           echo "Available directories:"
           find build -type d -name "deploy" || true
         fi
+
+    - name: Collect build artifacts (packages)
+      run: |
+        echo "Collecting IPK packages..."
+        
+        # Find build directory
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+        DEPLOY_IPK_DIR="${BUILD_DIR}/deploy/ipk"
+        
+        if [ -d "$DEPLOY_IPK_DIR" ]; then
+          PACKAGE_COUNT=$(find "$DEPLOY_IPK_DIR" -name "*.ipk" -type f | wc -l)
+          echo "Found $PACKAGE_COUNT IPK packages"
+          
+          # Create packages directory in artifacts
+          mkdir -p artifacts/packages
+          
+          # Copy all packages maintaining architecture structure
+          cp -r "$DEPLOY_IPK_DIR"/* artifacts/packages/
+          
+          echo "Collected packages:"
+          ls -la artifacts/packages/
+        else
+          echo "Warning: No IPK packages directory found"
+        fi
+
+    - name: Sync packages to repository
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      run: |
+        echo "Syncing packages to repository..."
+        
+        # Determine feed path based on branch
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          # Use distro codename for stable releases
+          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          FEED_PATH="ipk/${DISTRO_CODENAME}"
+          echo "Publishing to stable feed: $FEED_PATH"
+        else
+          # Use "develop" for development builds
+          FEED_PATH="ipk/develop"
+          echo "Publishing to development feed: $FEED_PATH"
+        fi
+        
+        # Create target directory
+        FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
+        mkdir -p "$FEED_DIR"
+        
+        # Determine sync strategy based on workflow input
+        SYNC_ALL="${{ inputs.sync_all_packages }}"
+        if [ "$SYNC_ALL" = "true" ]; then
+          echo "Syncing ALL packages (manual full sync requested)"
+          BUILD_START_TIME=0
+        else
+          # Record the build start time (subtract 5 minutes for safety margin)
+          BUILD_START_TIME=$(date -d '5 minutes ago' +%s)
+          echo "Only syncing packages modified after: $(date -d @$BUILD_START_TIME)"
+        fi
+        
+        # Sync packages
+        SYNCED=0
+        SKIPPED=0
+        
+        if [ -d "artifacts/packages" ]; then
+          for arch_dir in artifacts/packages/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch=$(basename "$arch_dir")
+              arch_dir_target="$FEED_DIR/$arch"
+              
+              mkdir -p "$arch_dir_target"
+              echo "Processing architecture: $arch"
+              
+              # Process all packages
+              while IFS= read -r -d '' ipk_file; do
+                package_name=$(basename "$ipk_file")
+                target_file="$arch_dir_target/$package_name"
+                file_mtime=$(stat -c %Y "$ipk_file")
+                
+                # Sync if package is newly built OR missing from target
+                if [ "$file_mtime" -ge "$BUILD_START_TIME" ] || [ ! -f "$target_file" ]; then
+                  if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
+                    echo "  Syncing newly built package: $package_name"
+                  else
+                    echo "  Syncing missing package: $package_name"
+                  fi
+                  cp "$ipk_file" "$arch_dir_target/"
+                  SYNCED=$((SYNCED + 1))
+                else
+                  SKIPPED=$((SKIPPED + 1))
+                fi
+              done < <(find "$arch_dir" -name "*.ipk" -type f -print0)
+              
+              # Copy package indexes if they exist
+              if [ -f "$arch_dir/Packages" ]; then
+                echo "  Copying package index for $arch"
+                cp "$arch_dir/Packages" "$arch_dir_target/"
+              fi
+              if [ -f "$arch_dir/Packages.gz" ]; then
+                cp "$arch_dir/Packages.gz" "$arch_dir_target/"
+              fi
+            fi
+          done
+          
+          echo "Packages synced: $SYNCED (newly built)"
+          echo "Packages skipped: $SKIPPED (from sstate-cache)"
+          echo "Total available: $((SYNCED + SKIPPED))"
+          
+          # Show package counts by architecture
+          for arch_dir in "$FEED_DIR"/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch=$(basename "$arch_dir")
+              count=$(find "$arch_dir" -name "*.ipk" -type f | wc -l)
+              size=$(du -sh "$arch_dir" | cut -f1)
+              echo "  $arch: $count packages ($size)"
+            fi
+          done
+          
+          echo "Packages available at: https://opkg.calculinux.org/$FEED_PATH/"
+        else
+          echo "Warning: No packages found to sync"
+        fi
+
+    - name: Generate package indexes
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      run: |
+        # Determine feed path based on branch
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          FEED_PATH="ipk/${DISTRO_CODENAME}"
+        else
+          FEED_PATH="ipk/develop"
+        fi
+        
+        FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
+        
+        echo "Generating Packages.gz files for feed: $FEED_PATH"
+        
+        for arch_dir in "$FEED_DIR"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            echo "Generating Packages.gz for architecture: $arch"
+            
+            cd "$arch_dir"
+            
+            # Generate Packages file
+            opkg-make-index -p Packages .
+            
+            # Compress to Packages.gz
+            gzip -f Packages
+            
+            # Verify the file was created
+            if [ -f "Packages.gz" ]; then
+              echo "  Successfully generated Packages.gz for $arch"
+            else
+              echo "  ERROR: Failed to generate Packages.gz for $arch"
+              exit 1
+            fi
+            
+            cd - > /dev/null
+          fi
+        done
+        
+        echo "Package index generation complete"
 
     - name: Publish artifacts to webserver
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || steps.feed-config.outputs.is_tagged_release == 'true'

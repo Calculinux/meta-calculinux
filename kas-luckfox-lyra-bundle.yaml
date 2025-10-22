@@ -5,7 +5,9 @@ header:
     - kas-base.yaml
 
 machine: luckfox-lyra
-target: calculinux-bundle
+target:
+  - calculinux-bundle
+  - packagegroup-meta-calculinux-apps
 
 # walnascar checkout
 repos:
@@ -35,13 +37,27 @@ repos:
     commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
   meta-calculinux:
     layers:
+      meta-calculinux-distro:
       meta-picocalc-bsp-rockchip:
+      meta-calculinux-apps:
 
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
     
-    EXTRA_WIFI_DRIVERS = "rtl8723du rtl8812au rtl8814au rtl8821cu rtl88x2bu"
-    PICOCALC_DRIVERS = "picocalc-drivers-lcd picocalc-drivers-snd-pwm picocalc-drivers-snd-softpwm picocalc-drivers-kbd picocalc-drivers-mfd"
+    EXTRA_WIFI_DRIVERS = "\
+      rtl8723du \
+      rtl8812au \
+      rtl8814au \
+      rtl8821cu \
+      rtl88x2bu \
+    "
 
+    PICOCALC_DRIVERS = "\
+      picocalc-drivers-lcd \
+      picocalc-drivers-snd-pwm \
+      picocalc-drivers-snd-softpwm \
+      picocalc-drivers-kbd \
+      picocalc-drivers-mfd \
+    "
     CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
