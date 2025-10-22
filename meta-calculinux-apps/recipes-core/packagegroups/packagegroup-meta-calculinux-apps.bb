@@ -21,21 +21,3 @@ RDEPENDS:${PN} = " \
     tmux \
     screen \
 "
-
-inherit packagegroup
-
-# This Python function applies the `prefix-local` class to every package
-# in the RDEPENDS list, including its dependencies.
-python do_apply_prefix_local() {
-    # Get the list of packages specified in RDEPENDS
-    rdepends_list = d.getVar('RDEPENDS').split()
-
-    # Iterate over each package and apply the class
-    for pkg in rdepends_list:
-        # Check if the package recipe exists before applying the class
-        if bb.utils.find_bbclass("prefix-local"):
-            # This is the key part: inherit the custom class for each recipe
-            bb.parse.inherit_recipe_class(d, pkg, "prefix-local")
-}
-
-addtask do_apply_prefix_local before do_build
