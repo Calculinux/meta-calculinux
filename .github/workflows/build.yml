@@ -83,24 +83,34 @@ jobs:
     - name: Determine feed configuration
       id: feed-config
       run: |
+        # Get distro codename for all scenarios
+        DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+        
         if [ "${{ github.ref_name }}" = "main" ]; then
           # Use distro codename for stable releases (e.g., walnascar, scarthgap)
-          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
           echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "subfolder=continuous" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
+          echo "is_published_branch=true" >> $GITHUB_OUTPUT
+          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
         elif [ "${{ github.ref_name }}" = "develop" ]; then
           # Use "develop" for all development builds
           echo "feed_name=develop" >> $GITHUB_OUTPUT
           echo "subfolder=continuous" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
+          echo "is_published_branch=true" >> $GITHUB_OUTPUT
+          echo "distro_codename=develop" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then
-          # Tagged releases - check if this is actually a tag
-          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          # Tagged releases - publish to release folder
           echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "subfolder=release" >> $GITHUB_OUTPUT
+          echo "is_published_branch=true" >> $GITHUB_OUTPUT
+          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=release" >> $GITHUB_OUTPUT
           # Check if this is a prerelease (contains rc, beta, or alpha)
           if [[ "${{ github.ref_name }}" =~ (rc|beta|alpha) ]]; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
@@ -114,9 +124,42 @@ jobs:
           echo "subfolder=branch" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
+          echo "is_published_branch=false" >> $GITHUB_OUTPUT
+          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
         fi
         
         echo "Feed configuration complete"
+        echo "Image will use feed: https://opkg.calculinux.org/ipk/$(cat $GITHUB_OUTPUT | grep distro_codename | cut -d'=' -f2)/$(cat $GITHUB_OUTPUT | grep feed_subfolder | cut -d'=' -f2)/"
+
+    - name: Configure package feed for image
+      run: |
+        echo "Configuring package feed..."
+        
+        DISTRO_CODENAME="${{ steps.feed-config.outputs.distro_codename }}"
+        FEED_SUBFOLDER="${{ steps.feed-config.outputs.feed_subfolder }}"
+        
+        # Create build/conf directory if it doesn't exist
+        mkdir -p build/conf
+        
+        # Create auto.conf to override feed configuration
+        cat > build/conf/auto.conf << EOF
+        # Auto-generated feed configuration for CI builds
+        # This file is created by the GitHub Actions workflow
+        
+        # Override DISTRO_CODENAME for develop builds
+        DISTRO_CODENAME = "${DISTRO_CODENAME}"
+        
+        # Set the feed subfolder (continuous or release)
+        CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
+        
+        # Resulting feed path: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/
+        EOF
+        
+        echo "Package feed configured:"
+        echo "  DISTRO_CODENAME = ${DISTRO_CODENAME}"
+        echo "  CALCULINUX_FEED_SUBFOLDER = ${FEED_SUBFOLDER}"
+        echo "  Full feed URL: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/"
 
     - name: Build Yocto image and packages
       run: |
@@ -191,20 +234,30 @@ jobs:
         fi
 
     - name: Sync packages to repository
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      if: steps.feed-config.outputs.is_published_branch == 'true'
       run: |
         echo "Syncing packages to repository..."
         
-        # Determine feed path based on branch
-        if [ "${{ github.ref_name }}" = "main" ]; then
-          # Use distro codename for stable releases
-          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
-          FEED_PATH="ipk/${DISTRO_CODENAME}"
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
+        
+        # Determine feed path based on branch/tag
+        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+          # Tagged releases go to ipk/{codename}/release/
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+          echo "Publishing to release feed: $FEED_PATH"
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          # Main branch goes to ipk/{codename}/continuous/
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
           echo "Publishing to stable feed: $FEED_PATH"
-        else
-          # Use "develop" for development builds
-          FEED_PATH="ipk/develop"
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          # Develop goes to ipk/develop/continuous/
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
           echo "Publishing to development feed: $FEED_PATH"
+        else
+          echo "ERROR: Unexpected branch/tag configuration"
+          exit 1
         fi
         
         # Create target directory
@@ -286,14 +339,22 @@ jobs:
         fi
 
     - name: Generate package indexes
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      if: steps.feed-config.outputs.is_published_branch == 'true'
       run: |
-        # Determine feed path based on branch
-        if [ "${{ github.ref_name }}" = "main" ]; then
-          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
-          FEED_PATH="ipk/${DISTRO_CODENAME}"
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
+        
+        # Determine feed path (same logic as sync step)
+        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
         else
-          FEED_PATH="ipk/develop"
+          echo "ERROR: Unexpected branch/tag configuration"
+          exit 1
         fi
         
         FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
@@ -327,10 +388,10 @@ jobs:
         
         echo "Package index generation complete"
 
-    - name: Publish artifacts to webserver
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || steps.feed-config.outputs.is_tagged_release == 'true'
+    - name: Publish images to webserver
+      if: steps.feed-config.outputs.is_published_branch == 'true'
       run: |
-        echo "Publishing artifacts to webserver..."
+        echo "Publishing images to webserver..."
         
         FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
         SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
@@ -344,7 +405,7 @@ jobs:
         mkdir -p "$UPDATE_DIR" "$IMAGE_DIR"
         
         if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-          echo "Publishing tagged release artifacts..."
+          echo "Publishing tagged release images..."
           
           # Find the specific RAUC bundle and WIC image files
           RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
@@ -378,7 +439,7 @@ jobs:
             echo "Warning: calculinux-image-${{ matrix.machine }}.rootfs.wic.gz not found"
           fi
         else
-          echo "Publishing continuous development artifacts..."
+          echo "Publishing continuous development images..."
           
           # Copy RAUC bundles to update directory
           if ls artifacts/*.raucb 1> /dev/null 2>&1; then
@@ -400,8 +461,8 @@ jobs:
             echo "No WIC images found to publish"
           fi
         fi
-        
-        echo "Artifacts published successfully"
+
+        echo "Images published successfully"
 
     - name: Generate build information
       run: |
