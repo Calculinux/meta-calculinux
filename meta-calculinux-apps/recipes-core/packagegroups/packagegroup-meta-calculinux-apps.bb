@@ -3,6 +3,9 @@ DESCRIPTION = "Package group for additional applications and tools for Calculinu
 
 inherit packagegroup
 
+# Disable GTK GUI and sound for vim so we don't pull in an entire desktop stack
+PACKAGECONFIG:remove:pn-vim = "gtkgui sound"
+
 PACKAGES = "${PN}"
 
 # Add packages that should be available in the apps layer
