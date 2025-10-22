@@ -1,4 +1,4 @@
-name: Build Calculinux Images
+name: Build Calculinux Images and Packages
 
 on:
   push:
@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      sync_all_packages:
+        description: 'Sync all packages (not just newly built ones)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   # Yocto build directories that need persistent storage
@@ -26,17 +32,17 @@ permissions:
 #     - machine: luckfox-lyra
 #       name: "Luckfox Lyra Bundle"
 #       kas_file: "kas-luckfox-lyra-bundle.yaml"
-#       target: "picocalc-bundle"
+#       target: "calculinux-bundle"
 #       dockerfile: "Dockerfile.aarch64"
 #     - machine: rpi4  # Add new machine config
 #       name: "Raspberry Pi 4 Bundle"
 #       kas_file: "kas-rpi4-bundle.yaml"
-#       target: "picocalc-bundle"
+#       target: "calculinux-bundle"
 #       dockerfile: "Dockerfile.arm64"
   
 jobs:
   build:
-    name: Build Yocto Images
+    name: Build Yocto Images and Packages
     runs-on: [self-hosted, Linux, X64]
     
     strategy:
@@ -47,7 +53,7 @@ jobs:
           - machine: luckfox-lyra
             name: "Luckfox Lyra Bundle"
             kas_file: "kas-luckfox-lyra-bundle.yaml"
-            target: "picocalc-bundle"
+            target: "calculinux-bundle"
             dockerfile: "Dockerfile.aarch64"
 
     steps:
@@ -77,24 +83,34 @@ jobs:
     - name: Determine feed configuration
       id: feed-config
       run: |
+        # Get distro codename for all scenarios
+        DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+        
         if [ "${{ github.ref_name }}" = "main" ]; then
           # Use distro codename for stable releases (e.g., walnascar, scarthgap)
-          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
           echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "subfolder=continuous" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
+          echo "is_published_branch=true" >> $GITHUB_OUTPUT
+          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
         elif [ "${{ github.ref_name }}" = "develop" ]; then
           # Use "develop" for all development builds
           echo "feed_name=develop" >> $GITHUB_OUTPUT
           echo "subfolder=continuous" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
+          echo "is_published_branch=true" >> $GITHUB_OUTPUT
+          echo "distro_codename=develop" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then
-          # Tagged releases - check if this is actually a tag
-          DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
+          # Tagged releases - publish to release folder
           echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
           echo "subfolder=release" >> $GITHUB_OUTPUT
+          echo "is_published_branch=true" >> $GITHUB_OUTPUT
+          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=release" >> $GITHUB_OUTPUT
           # Check if this is a prerelease (contains rc, beta, or alpha)
           if [[ "${{ github.ref_name }}" =~ (rc|beta|alpha) ]]; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
@@ -108,18 +124,57 @@ jobs:
           echo "subfolder=branch" >> $GITHUB_OUTPUT
           echo "is_prerelease=false" >> $GITHUB_OUTPUT
           echo "is_tagged_release=false" >> $GITHUB_OUTPUT
+          echo "is_published_branch=false" >> $GITHUB_OUTPUT
+          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
+          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
         fi
         
         echo "Feed configuration complete"
+        echo "Image will use feed: https://opkg.calculinux.org/ipk/$(cat $GITHUB_OUTPUT | grep distro_codename | cut -d'=' -f2)/$(cat $GITHUB_OUTPUT | grep feed_subfolder | cut -d'=' -f2)/"
 
-    - name: Build Yocto image
+    - name: Configure package feed for image
+      run: |
+        echo "Configuring package feed..."
+        
+        DISTRO_CODENAME="${{ steps.feed-config.outputs.distro_codename }}"
+        FEED_SUBFOLDER="${{ steps.feed-config.outputs.feed_subfolder }}"
+        
+        # Create build/conf directory if it doesn't exist
+        mkdir -p build/conf
+        
+        # Create auto.conf to override feed configuration
+        cat > build/conf/auto.conf << EOF
+        # Auto-generated feed configuration for CI builds
+        # This file is created by the GitHub Actions workflow
+        
+        # Override DISTRO_CODENAME for develop builds
+        DISTRO_CODENAME = "${DISTRO_CODENAME}"
+        
+        # Set the feed subfolder (continuous or release)
+        CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
+        
+        # Resulting feed path: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/
+        EOF
+        
+        echo "Package feed configured:"
+        echo "  DISTRO_CODENAME = ${DISTRO_CODENAME}"
+        echo "  CALCULINUX_FEED_SUBFOLDER = ${FEED_SUBFOLDER}"
+        echo "  Full feed URL: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/"
+
+    - name: Build Yocto image and packages
       run: |
         echo "Building ${{ matrix.name }} using ${{ matrix.kas_file }}"
+        echo "This will build:"
+        echo "  - ${{ matrix.target }} (base image with overlayfs)"
+        echo "  - packagegroup-meta-calculinux-apps (IPK packages)"
+        echo ""
+        echo "All packages install to /usr (standard paths)"
+        echo "Runtime: /usr is overlayfs - base in lower layer, user packages in upper layer"
         
         # Run the build with kas-container
         ./kas-container build ${{ matrix.kas_file }}
 
-    - name: Collect build artifacts
+    - name: Collect build artifacts (images)
       run: |
         echo "Collecting build artifacts..."
         
@@ -154,10 +209,189 @@ jobs:
           find build -type d -name "deploy" || true
         fi
 
-    - name: Publish artifacts to webserver
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || steps.feed-config.outputs.is_tagged_release == 'true'
+    - name: Collect build artifacts (packages)
       run: |
-        echo "Publishing artifacts to webserver..."
+        echo "Collecting IPK packages..."
+        
+        # Find build directory
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+        DEPLOY_IPK_DIR="${BUILD_DIR}/deploy/ipk"
+        
+        if [ -d "$DEPLOY_IPK_DIR" ]; then
+          PACKAGE_COUNT=$(find "$DEPLOY_IPK_DIR" -name "*.ipk" -type f | wc -l)
+          echo "Found $PACKAGE_COUNT IPK packages"
+          
+          # Create packages directory in artifacts
+          mkdir -p artifacts/packages
+          
+          # Copy all packages maintaining architecture structure
+          cp -r "$DEPLOY_IPK_DIR"/* artifacts/packages/
+          
+          echo "Collected packages:"
+          ls -la artifacts/packages/
+        else
+          echo "Warning: No IPK packages directory found"
+        fi
+
+    - name: Sync packages to repository
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      run: |
+        echo "Syncing packages to repository..."
+        
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
+        
+        # Determine feed path based on branch/tag
+        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+          # Tagged releases go to ipk/{codename}/release/
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+          echo "Publishing to release feed: $FEED_PATH"
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          # Main branch goes to ipk/{codename}/continuous/
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+          echo "Publishing to stable feed: $FEED_PATH"
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          # Develop goes to ipk/develop/continuous/
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+          echo "Publishing to development feed: $FEED_PATH"
+        else
+          echo "ERROR: Unexpected branch/tag configuration"
+          exit 1
+        fi
+        
+        # Create target directory
+        FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
+        mkdir -p "$FEED_DIR"
+        
+        # Determine sync strategy based on workflow input
+        SYNC_ALL="${{ inputs.sync_all_packages }}"
+        if [ "$SYNC_ALL" = "true" ]; then
+          echo "Syncing ALL packages (manual full sync requested)"
+          BUILD_START_TIME=0
+        else
+          # Record the build start time (subtract 5 minutes for safety margin)
+          BUILD_START_TIME=$(date -d '5 minutes ago' +%s)
+          echo "Only syncing packages modified after: $(date -d @$BUILD_START_TIME)"
+        fi
+        
+        # Sync packages
+        SYNCED=0
+        SKIPPED=0
+        
+        if [ -d "artifacts/packages" ]; then
+          for arch_dir in artifacts/packages/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch=$(basename "$arch_dir")
+              arch_dir_target="$FEED_DIR/$arch"
+              
+              mkdir -p "$arch_dir_target"
+              echo "Processing architecture: $arch"
+              
+              # Process all packages
+              while IFS= read -r -d '' ipk_file; do
+                package_name=$(basename "$ipk_file")
+                target_file="$arch_dir_target/$package_name"
+                file_mtime=$(stat -c %Y "$ipk_file")
+                
+                # Sync if package is newly built OR missing from target
+                if [ "$file_mtime" -ge "$BUILD_START_TIME" ] || [ ! -f "$target_file" ]; then
+                  if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
+                    echo "  Syncing newly built package: $package_name"
+                  else
+                    echo "  Syncing missing package: $package_name"
+                  fi
+                  cp "$ipk_file" "$arch_dir_target/"
+                  SYNCED=$((SYNCED + 1))
+                else
+                  SKIPPED=$((SKIPPED + 1))
+                fi
+              done < <(find "$arch_dir" -name "*.ipk" -type f -print0)
+              
+              # Copy package indexes if they exist
+              if [ -f "$arch_dir/Packages" ]; then
+                echo "  Copying package index for $arch"
+                cp "$arch_dir/Packages" "$arch_dir_target/"
+              fi
+              if [ -f "$arch_dir/Packages.gz" ]; then
+                cp "$arch_dir/Packages.gz" "$arch_dir_target/"
+              fi
+            fi
+          done
+          
+          echo "Packages synced: $SYNCED (newly built)"
+          echo "Packages skipped: $SKIPPED (from sstate-cache)"
+          echo "Total available: $((SYNCED + SKIPPED))"
+          
+          # Show package counts by architecture
+          for arch_dir in "$FEED_DIR"/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch=$(basename "$arch_dir")
+              count=$(find "$arch_dir" -name "*.ipk" -type f | wc -l)
+              size=$(du -sh "$arch_dir" | cut -f1)
+              echo "  $arch: $count packages ($size)"
+            fi
+          done
+          
+          echo "Packages available at: https://opkg.calculinux.org/$FEED_PATH/"
+        else
+          echo "Warning: No packages found to sync"
+        fi
+
+    - name: Generate package indexes
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      run: |
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
+        
+        # Determine feed path (same logic as sync step)
+        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
+        else
+          echo "ERROR: Unexpected branch/tag configuration"
+          exit 1
+        fi
+        
+        FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
+        
+        echo "Generating Packages.gz files for feed: $FEED_PATH"
+        
+        for arch_dir in "$FEED_DIR"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            echo "Generating Packages.gz for architecture: $arch"
+            
+            cd "$arch_dir"
+            
+            # Generate Packages file
+            opkg-make-index -p Packages .
+            
+            # Compress to Packages.gz
+            gzip -f Packages
+            
+            # Verify the file was created
+            if [ -f "Packages.gz" ]; then
+              echo "  Successfully generated Packages.gz for $arch"
+            else
+              echo "  ERROR: Failed to generate Packages.gz for $arch"
+              exit 1
+            fi
+            
+            cd - > /dev/null
+          fi
+        done
+        
+        echo "Package index generation complete"
+
+    - name: Publish images to webserver
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      run: |
+        echo "Publishing images to webserver..."
         
         FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
         SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
@@ -171,7 +405,7 @@ jobs:
         mkdir -p "$UPDATE_DIR" "$IMAGE_DIR"
         
         if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-          echo "Publishing tagged release artifacts..."
+          echo "Publishing tagged release images..."
           
           # Find the specific RAUC bundle and WIC image files
           RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
@@ -205,7 +439,7 @@ jobs:
             echo "Warning: calculinux-image-${{ matrix.machine }}.rootfs.wic.gz not found"
           fi
         else
-          echo "Publishing continuous development artifacts..."
+          echo "Publishing continuous development images..."
           
           # Copy RAUC bundles to update directory
           if ls artifacts/*.raucb 1> /dev/null 2>&1; then
@@ -227,8 +461,8 @@ jobs:
             echo "No WIC images found to publish"
           fi
         fi
-        
-        echo "Artifacts published successfully"
+
+        echo "Images published successfully"
 
     - name: Generate build information
       run: |
