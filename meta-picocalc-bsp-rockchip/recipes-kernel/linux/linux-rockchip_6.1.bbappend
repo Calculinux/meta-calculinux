@@ -20,6 +20,15 @@ SRC_URI = " \
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
 
+# Copy PicoCalc device tree from staged location
+do_prepare_kernel_picocalc() {
+    PICOCALC_DT_SOURCE="/build/tmp/work/luckfox_lyra-poky-linux-musleabi/picocalc-drivers/1.0/devicetree-staging/picocalc-luckfox-lyra.dtsi"
+    cp "${PICOCALC_DT_SOURCE}" "${S}/arch/${ARCH}/boot/dts/picocalc-luckfox-lyra.dtsi"
+}
+
+addtask prepare_kernel_picocalc after do_kernel_checkout before do_kernel_configme
+do_prepare_kernel_picocalc[depends] += "picocalc-drivers:do_stage_devicetree"
+
 do_install:append() {
     # Remove kernel image formats that are not needed in the device image
     rm -f ${D}/boot/Image

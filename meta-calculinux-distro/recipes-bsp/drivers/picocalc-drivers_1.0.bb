@@ -69,6 +69,17 @@ RDEPENDS:${PN} = " \
 FILES:${PN} = ""
 ALLOW_EMPTY:${PN} = "1"
 
+# Stage device tree file for kernel use
+do_stage_devicetree() {
+    install -d ${WORKDIR}/devicetree-staging
+    cp ${S}/picocalc-luckfox-lyra.dtsi ${WORKDIR}/devicetree-staging/
+}
+
+addtask stage_devicetree after do_unpack before do_compile
+
+# Track source file changes for development builds with externalsrc
+do_stage_devicetree[file-checksums] += "${S}/picocalc-luckfox-lyra.dtsi:True"
+
 # Build all drivers individually
 do_compile() {
     # Use the top-level Makefile to build all modules in the repository
