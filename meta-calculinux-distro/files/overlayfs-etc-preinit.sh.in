@@ -18,10 +18,10 @@ mount -t sysfs sysfs /sys
 OVERLAYS="/etc /root /home /var"
 
 #Grow the overlay partition to fill disk
-PARTITION_NAME="$(lsblk -n -r -o NAME -Q 'PARTLABEL =~ "OVERLAY_DATA"')"
+PARTITION_NAME="$(lsblk -n -r -o NAME -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_LABEL}"')"
 PARTITION_SYSFS_PATH="/sys/class/block/$(basename "$PARTITION_NAME")"
-PARTITION_DISK="$(lsblk -n -r -o PKNAME -Q 'PARTLABEL =~ "OVERLAY_DATA"')"
-PARTITION_NUM="$(lsblk -n -r -o PARTN -Q 'PARTLABEL =~ "OVERLAY_DATA"')"
+PARTITION_DISK="$(lsblk -n -r -o PKNAME -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_LABEL}"')"
+PARTITION_NUM="$(lsblk -n -r -o PARTN -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_LABEL}"')"
 
 
 if growpart --free-percent=10 "$PARTITION_DISK" $PARTITION_NUM; then
