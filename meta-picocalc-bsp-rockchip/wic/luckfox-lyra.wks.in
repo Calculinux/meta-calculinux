@@ -9,5 +9,5 @@ part --source rawcopy --sourceparams="file=trust.img" --part-name trust --align 
 part --source empty --part-name ubootenv --size=1 --align=4
 part / --source rootfs --fstype ${RK_ROOTFS_TYPE} --label ROOT_A --mkfs-extraopts "${RK_ROOTFS_EXTRAOPTS}" --align 8192 --fixed-size 2048
 part / --source rootfs --fstype ${RK_ROOTFS_TYPE} --label ROOT_B --mkfs-extraopts "${RK_ROOTFS_EXTRAOPTS}" --align 8192 --fixed-size 2048
-part swap --size 44 --label swap --fstype=swap --size=1024M --overhead-factor 1
-part --label data --source empty --fstype ext4 --fixed-size 2048 --align 8192
+part swap --size 44 --label SWAP --fstype=swap --size=1024M --overhead-factor 1
+part --label OVERLAY_DATA --fstype ext4 --fixed-size 2048 --align 8192
