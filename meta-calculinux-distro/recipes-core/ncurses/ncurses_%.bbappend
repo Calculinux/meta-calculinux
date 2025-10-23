@@ -1,7 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 # Add GPM (General Purpose Mouse) support for console mouse handling
-DEPENDS += "gpm"
+#DEPENDS += "gpm"
 
 # Override to use ABI version 6 to enable extended color functions
 # This provides init_extended_pair, alloc_pair, and free_pair functions
