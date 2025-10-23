@@ -13,36 +13,38 @@ setenv rauc_slot;
 if test "${{BOOT_ORDER}}" = "A"; then
     echo "Found only slot A, booting....";
     setenv rauc_slot "A";
-    setenv mmcpart 3;
+    part number mmc 0 ROOT_A mmcpart_hex;
 elif test "${{BOOT_ORDER}}" = "B"; then
     echo "Found only slot B, booting.... ";
     setenv rauc_slot "B";
-    setenv mmcpart 4;
+    part number mmc 0 ROOT_B mmcpart_hex;
 elif test "${{BOOT_ORDER}}" = "A B"; then
     if test ${{BOOT_A_LEFT}} -gt 0; then
         echo "Found valid slot A, ${{BOOT_A_LEFT}} attempts remaining";
         setexpr BOOT_A_LEFT ${{BOOT_A_LEFT}} - 1;
         setenv rauc_slot "A";
-        setenv mmcpart 3;
+        part number mmc 0 ROOT_A mmcpart_hex;
     else
         echo "Found slot B, booting.... ";
         setenv BOOT_ORDER "B";
-        setenv rauc_slot "B"
-        setenv mmcpart 4;
+        setenv rauc_slot "B";
+        part number mmc 0 ROOT_B mmcpart_hex;
     fi;
 elif test "${{BOOT_ORDER}}" = "B A"; then
     if test ${{BOOT_B_LEFT}} -gt 0; then
         echo "Found valid slot B, ${{BOOT_B_LEFT}} attempts remaining";
         setexpr BOOT_B_LEFT ${{BOOT_B_LEFT}} - 1;
         setenv rauc_slot "B";
-        setenv mmcpart 4;
+        part number mmc 0 ROOT_B mmcpart_hex;
     else
         echo "Found slot A, booting.... ";
         setenv BOOT_ORDER "A";
         setenv rauc_slot "A";
-        setenv mmcpart 3;
+        part number mmc 0 ROOT_A mmcpart_hex;
     fi;
 fi;
+
+setexpr mmcpart fmt %d $mmcpart_hex;
 
 if test -n "${{rauc_slot}}"; then
     echo "Saving Environment from bootcmd";
