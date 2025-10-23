@@ -15,7 +15,7 @@ mount -t sysfs sysfs /sys
 
 [ -z "$CONSOLE" ] && CONSOLE="/dev/console"
 
-OVERLAYS="/etc /root /home /var"
+OVERLAYS="/etc /root /home /var /usr /opt"
 
 #Grow the overlay partition to fill disk
 PARTITION_NAME="$(lsblk -n -r -o NAME -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_LABEL}"')"
