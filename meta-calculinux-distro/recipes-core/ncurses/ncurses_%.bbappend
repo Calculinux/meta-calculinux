@@ -10,6 +10,10 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 EXTRA_OECONF += "--with-abi-version=6"
 
+# Ensure wide character and UTF-8 support is enabled
+# This is critical for proper box drawing and Unicode character rendering
+EXTRA_OECONF += "--enable-widec --enable-ext-colors --enable-ext-mouse"
+
 # Enable GPM support for target builds only (overrides --without-gpm from base recipe)
 #EXTRA_OECONF:append:class-target = " --with-gpm"
 
@@ -24,6 +28,13 @@ INSANE_SKIP:${PN}-libformw += "dev-deps"
 INSANE_SKIP:${PN}-libpanelw += "dev-deps"
 INSANE_SKIP:${PN}-libticw += "dev-deps"
 INSANE_SKIP:${PN}-tools += "dev-deps"
+
+# Explicitly assign the compatibility symlinks to their respective wide-char packages
+# This prevents bitbake warnings about shlib provider changes
+FILES:${PN}-libformw += "${libdir}/libform.so.6* ${libdir}/libform.so.5"
+FILES:${PN}-libmenuw += "${libdir}/libmenu.so.6* ${libdir}/libmenu.so.5"
+FILES:${PN}-libpanelw += "${libdir}/libpanel.so.6* ${libdir}/libpanel.so.5"
+FILES:${PN}-libtinfo += "${libdir}/libtinfo.so.5"
 
 # Fix the linker scripts to reference the correct version AND provide compatibility symlinks
 do_install:append() {
