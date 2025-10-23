@@ -14,6 +14,7 @@ SRC_URI = " \
     file://cgroups.cfg \
     file://fonts.cfg \
     file://removed.cfg \
+    file://utf8.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
 "
 
