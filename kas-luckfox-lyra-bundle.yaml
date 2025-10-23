@@ -5,9 +5,11 @@ header:
     - kas-base.yaml
 
 machine: luckfox-lyra
-target: calculinux-bundle
+target:
+  - calculinux-bundle
+  - packagegroup-meta-calculinux-apps
 
-# scarthgap checkout
+# walnascar checkout
 repos:
   meta-arm:
     url: https://git.yoctoproject.org/meta-arm
@@ -21,13 +23,41 @@ repos:
     commit: 71aa531a2018724a713c9587059bc53fcbd05a23
     layers:
       .:
+  meta-rtlwifi:
+    url: https://github.com/EmbeddedAndroid/meta-rtlwifi.git
+    commit: 17a54f8a3c428039ff33c5a8ff8e045b466204b3
+    layers:
+      .:
+    patches:
+      0001-rtlwifi-changes.patch:
+        repo: meta-calculinux
+        path: patches/rtlwifi.patch
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
     commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
   meta-calculinux:
     layers:
+      meta-calculinux-distro:
       meta-picocalc-bsp-rockchip:
+      meta-calculinux-apps:
 
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
+    
+    EXTRA_WIFI_DRIVERS = "\
+      rtl8723du \
+      rtl8812au \
+      rtl8814au \
+      rtl8821cu \
+      rtl88x2bu \
+    "
+
+    PICOCALC_DRIVERS = "\
+      picocalc-drivers-lcd \
+      picocalc-drivers-snd-pwm \
+      picocalc-drivers-snd-softpwm \
+      picocalc-drivers-kbd \
+      picocalc-drivers-mfd \
+    "
+    CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "

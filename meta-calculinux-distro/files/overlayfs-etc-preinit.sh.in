@@ -15,12 +15,22 @@ mount -t sysfs sysfs /sys
 
 [ -z "$CONSOLE" ] && CONSOLE="/dev/console"
 
-OVERLAYS="/etc /root /home /var"
+OVERLAYS="/etc /root /home /var /usr /opt"
+
+#Grow the overlay partition to fill disk
+PARTITION_NAME="$(lsblk -n -r -o NAME -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_DEVICE}"')"
+PARTITION_DISK="$(lsblk -n -r -o PKNAME -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_DEVICE}"')"
+PARTITION_NUM="$(lsblk -n -r -o PARTN -Q 'PARTLABEL =~ "{OVERLAYFS_ETC_DEVICE}"')"
+
+if growpart --free-percent=10 "$PARTITION_DISK" $PARTITION_NUM; then
+  e2fsck -y -f "/dev/$PARTITION_NAME"
+  resize2fs "/dev/$PARTITION_NAME"
+fi
 
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
 if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
     -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \
-    {OVERLAYFS_ETC_DEVICE} {OVERLAYFS_ETC_MOUNT_POINT}
+    "/dev/$PARTITION_NAME" {OVERLAYFS_ETC_MOUNT_POINT}
 then
     for overlay in $OVERLAYS; do
         echo ">> Mounting overlay for: $overlay"

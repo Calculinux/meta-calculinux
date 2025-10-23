@@ -26,12 +26,15 @@ IMAGE_INSTALL += " \
     autoconf \
     bash \
     busybox \
+    cloud-utils-growpart \
     curl \
+    e2fsprogs-resize2fs \
     file \
     gdb \
     git \
     grep \
     htop \
+    i2c-tools \
     iw \
     iwd \
     kbd-keymaps \
@@ -40,10 +43,10 @@ IMAGE_INSTALL += " \
     links \
     man-db \
     mtd-utils \
+    musl-locales \
     ntp \
     openssh \
     opkg \
-    opkg-config-calculinux \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
@@ -57,7 +60,6 @@ IMAGE_INSTALL += " \
     usbutils \
     util-linux \
     wget \
-    zerotier-one \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"

@@ -6,8 +6,8 @@ The layer uses **[KAS](https://kas.readthedocs.io/)** for configuration manageme
 
 ## About Calculinux
 
-**Calculinux** is a specialized Linux distribution designed specifically for the Picocalc calculator device. It provides:
-- Optimized performance for calculator hardware and user interface
+**Calculinux** is a specialized Linux distribution designed specifically for the Picocalc by ClockworkPi with a Luckfox Lyra installed instead of the typical Raspberry Pi Pico. It provides:
+- Optimized performance for low memory and low power hardware
 - Hardware-specific drivers for keyboard, display, and audio components
 - A secure, updatable system with read-only root filesystem
 - Integration with Picocalc's unique form factor and use cases
@@ -16,19 +16,12 @@ The distribution is built using the Yocto Project, ensuring a minimal, efficient
 
 ### Pre-built Images
 
-Pre-built images and update bundles are available as:
-- **GitHub Release Assets**: For tagged releases (recommended for production)
-- **GitHub Artifacts**: For development builds (available for 30 days)
+Pre-built images and update bundles are available for download from the [latest release](../../releases/latest). Each release includes:
+- `*.wic.gz` - Flashable SD card images
+- `*.raucb` - RAUC update bundles for OTA updates
+- Build information and checksums
 
-### Download Latest Build
-
-1. Go to the [Actions tab](../../actions) in this repository
-2. Click on the latest successful build
-3. Download the `calculinux-luckfox-lyra-*` artifact
-4. Extract the ZIP file to find:
-   - `*.wic.gz` - Flashable SD card images
-   - `*.raucb` - RAUC update bundles
-   - `build-info.txt` - Build information
+Other CI builds are available from the [packages server](https://opkg.calculinux.org/) in the update or image folders.
 
 ---
 
@@ -51,14 +44,12 @@ Make sure you have the following installed on your build host:
 
 ---
 
-## Manual Build Instructions
-
-If you prefer to build locally instead of using the automated builds:
+## Build Instructions
 
 1. **Clone this repository**:
    ```bash
    mkdir calculinux-build && cd calculinux-build
-   git clone https://github.com/calculinux/meta-calculinux.git meta-calculinux
+   git clone <repository-url> meta-calculinux
    ```
 
 2. **Build Calculinux for Luckfox Lyra with KAS**:
@@ -72,7 +63,7 @@ If you prefer to build locally instead of using the automated builds:
    - Build the complete Calculinux distribution image
 
 3. **Find the Calculinux image**
-   After the build completes, the Calculinux distribution image (picocalc-image-luckfox-lyra.rootfs.wic) will be located in:
+   After the build completes, the Calculinux distribution image (calculinux-image-luckfox-lyra.rootfs.wic) will be located in:
    ```
    build/tmp/deploy/images/luckfox-lyra/
    ```
@@ -80,10 +71,10 @@ If you prefer to build locally instead of using the automated builds:
 4. **Install Calculinux**
    Install the Calculinux image with dd on a Micro-SD card:
    ```
-   dd if=build/tmp/deploy/images/luckfox-lyra/picocalc-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
+   dd if=build/tmp/deploy/images/luckfox-lyra/calculinux-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
    ```
 
-   Create an ext4 partition on the external Picocalc SD-Card which will be mounted at `/data` on the Calculinux system.
+   On first boot, the user partition will be configured to fill the rest of the SD card.
 
 ---
 
@@ -102,23 +93,6 @@ bitbake virtual/kernel
 
 ---
 
-## Setting Up Self-Hosted Runners
-
-To set up a self-hosted GitHub Actions runner for building:
-
-1. **Configure the GitHub Actions runner**:
-   - Follow [GitHub's documentation](https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners) to add a self-hosted runner
-   - Use the tags: `self-hosted`, `Linux`, `X64`
-   - Ensure Docker is installed and the runner user is in the docker group
-
-2. **Runner Requirements**:
-   - **Disk Space**: At least 100GB free (Yocto builds are large)
-   - **RAM**: 8GB minimum, 16GB recommended
-   - **Docker**: Required for containerized builds
-   - **Cache**: The workflow automatically creates `~/yocto-cache` for downloads and sstate-cache
-
----
-
 ## OTA Updates with RAUC
 
 This meta-layer configures **RAUC** for robust **A/B dual rootfs** OTA updates in Calculinux.
@@ -130,7 +104,7 @@ The device has two root partitions (`rootfsA` and `rootfsB`). During an update:
 Calculinux uses a dual-rootfs setup for proper rollbacks if an update fails. Updates can be installed with rauc.
 Copy the `.raucb` file onto the SD-Card and install it with:
 ```
-rauc install picocalc-bundle-luckfox-lyra.raucb
+rauc install calculinux-bundle-luckfox-lyra.raucb
 reboot
 ```
 
@@ -142,7 +116,7 @@ More on RAUC: https://rauc.readthedocs.io/
 
 ## AARCH64 Host Support
 
-KAS does not natively support aarch64 hosts. To build on an aarch64 system, additional packages are required in the Docker image. The automated builds handle this automatically using the `Dockerfile.aarch64`.
+KAS does not natively support aarch64 hosts. To build on an aarch64 system, additional packages are required in the Docker image.
 
 For manual builds on aarch64, use the following command to build the image:
 

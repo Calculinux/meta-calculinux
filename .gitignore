@@ -1,0 +1,45 @@
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Backup files
+*.bak
+*.backup
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+
+# Don't ignore the basic package index files, but ignore temporary ones
+**/Packages.tmp
+**/Packages.temp
+
+# Build artifacts (except our IPK files)
+*.o
+*.a
+*.so
+
+# Default build folder
+build/*
+
+# Yocto specific ignores
+meta-arm/*
+meta-openembedded/*
+meta-rauc/*
+meta-rockchip/*
+meta-rtlwifi/*
+poky/*

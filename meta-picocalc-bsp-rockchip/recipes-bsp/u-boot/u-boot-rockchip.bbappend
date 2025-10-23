@@ -13,7 +13,10 @@ SRCREV = "c1758ed5fecd6200db4e211524be2a0b762670b9"
 SRC_URI = " \
     git://github.com/0xd61/luckfox-u-boot-2017.09-rk3506.git;nobranch=1;protocol=https \
     git://github.com/rockchip-linux/rkbin.git;protocol=https;nobranch=1;name=rkbin;destsuffix=rkbin; \
+    file://backport-part-command-from-u-boot-2020.01.patch \
+    file://backport-setexpr-fmt-from-u-boot-2021.10.patch \
     file://disable-display.cfg \
+    file://partition-labels.cfg \
     file://rk3506_common.h;subdir=git/include/configs/ \
     file://rk3506-luckfox.dts;subdir=git/arch/arm/dts/ \
     file://rk3506-luckfox.dtsi;subdir=git/arch/arm/dts/ \
