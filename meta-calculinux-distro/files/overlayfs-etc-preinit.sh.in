@@ -18,20 +18,21 @@ mount -t sysfs sysfs /sys
 OVERLAYS="/etc /root /home /var"
 
 #Grow the overlay partition to fill disk
-PARTITION_NAME="$(basename $(readlink -f '{OVERLAYFS_ETC_DEVICE}'))"
+PARTITION_NAME="$(lsblk -n -r -o NAME -Q 'PARTLABEL =~ "OVERLAY_DATA"')"
 PARTITION_SYSFS_PATH="/sys/class/block/$(basename "$PARTITION_NAME")"
-PARTITION_DISK="/dev/$(basename $(readlink -f "$PARTITION_SYSFS_PATH/.."))"
-PARTITION_NUM="$(cat "$PARTITION_SYSFS_PATH/partition")"
+PARTITION_DISK="$(lsblk -n -r -o PKNAME -Q 'PARTLABEL =~ "OVERLAY_DATA"')"
+PARTITION_NUM="$(lsblk -n -r -o PARTN -Q 'PARTLABEL =~ "OVERLAY_DATA"')"
+
 
 if growpart --free-percent=10 "$PARTITION_DISK" $PARTITION_NUM; then
-  e2fsck -y -f {OVERLAYFS_ETC_DEVICE}
-  resize2fs {OVERLAYFS_ETC_DEVICE}
+  e2fsck -y -f "/dev/$PARTITION_NAME"
+  resize2fs "/dev/$PARTITION_NAME"
 fi
 
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
 if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
     -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \
-    {OVERLAYFS_ETC_DEVICE} {OVERLAYFS_ETC_MOUNT_POINT}
+    "/dev/$PARTITION_NAME" {OVERLAYFS_ETC_MOUNT_POINT}
 then
     for overlay in $OVERLAYS; do
         echo ">> Mounting overlay for: $overlay"
