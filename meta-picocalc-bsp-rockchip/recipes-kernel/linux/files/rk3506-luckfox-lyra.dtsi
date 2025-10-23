@@ -75,9 +75,10 @@
 
 	leds: leds {
 		compatible = "gpio-leds";
-		work_led: work-led {
+		user_led: user-led {
 			gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
+			label = "luckfox_lyra:user_led";
 		};
 	};
 
