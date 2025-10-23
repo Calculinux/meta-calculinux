@@ -43,6 +43,7 @@ IMAGE_INSTALL += " \
     links \
     man-db \
     mtd-utils \
+    musl-locales \
     ntp \
     openssh \
     opkg \

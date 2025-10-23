@@ -35,3 +35,11 @@ Thumbs.db
 
 # Default build folder
 build/*
+
+# Yocto specific ignores
+meta-arm/*
+meta-openembedded/*
+meta-rauc/*
+meta-rockchip/*
+meta-rtlwifi/*
+poky/*
