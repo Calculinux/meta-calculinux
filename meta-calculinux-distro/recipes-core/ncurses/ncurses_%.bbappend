@@ -1,7 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 # Add GPM (General Purpose Mouse) support for console mouse handling (target only)
-DEPENDS:append:class-target = " gpm"
+#DEPENDS:append:class-target = " gpm"
 
 # Override to use ABI version 6 to enable extended color functions
 # This provides init_extended_pair, alloc_pair, and free_pair functions
@@ -11,7 +11,7 @@ DEPENDS:append:class-target = " gpm"
 EXTRA_OECONF += "--with-abi-version=6"
 
 # Enable GPM support for target builds only (overrides --without-gpm from base recipe)
-EXTRA_OECONF:append:class-target = " --with-gpm"
+#EXTRA_OECONF:append:class-target = " --with-gpm"
 
 # Skip QA checks that are triggered by our compatibility layer
 # dev-deps: libraries reference the linker script which is in -dev
