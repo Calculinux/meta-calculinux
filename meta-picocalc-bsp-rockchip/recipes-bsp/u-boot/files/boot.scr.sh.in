@@ -61,7 +61,7 @@ setenv bootcmd "run mmc_boot;"
 saveenv;
 saveenv;
 
-setenv fit_image "zboot.img"
+setenv fit_image "boot.img"
 
 test -n "${{baudrate}}" || setenv baudrate 1500000;
 
