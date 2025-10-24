@@ -493,7 +493,9 @@ jobs:
       if: always()
       with:
         name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
-        path: artifacts/
+        path: |
+          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
         retention-days: 30
 
     - name: Create release
