@@ -7,7 +7,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=de11de89f591f82e0bdfa58b63169f28"
 
 inherit pkgconfig
 
-SRCREV = "001fca1260049ba7d726b5f9180f44ac1f9ee10b"
+SRCREV = "${AUTOREV}"
 SRC_URI = "git://github.com/hpsaturn/x48ng;protocol=https;branch=main"
 
 S = "${WORKDIR}/git"
