@@ -64,8 +64,9 @@ saveenv;
 setenv fit_image "boot.img"
 
 test -n "${{baudrate}}" || setenv baudrate 1500000;
+test -n "${{consoleblank}}" || setenv consoleblank 300;
 
-setenv bootargs "console=${{console}} earlycon=uart8250,mmio32,0xff0a0000,${{baudrate}} console=ttyFIQ0,${{baudrate}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
+setenv bootargs "console=${{console}} earlycon=uart8250,mmio32,0xff0a0000,${{baudrate}} console=ttyFIQ0,${{baudrate}} consoleblank=${{consoleblank}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
 echo Setting bootargs to ${{bootargs}};
 
 echo Loading FIT image <${{fit_image}}> from ${{devtype}} ${{devnum}}:${{mmcpart}};
