@@ -20,6 +20,10 @@ SRC_URI = " \
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
 
+ROCKCHIP_KERNEL_IMAGES = "0"
+ROCKCHIP_KERNEL_COMPRESSED = "1"
+KERNEL_IMAGETYPES = "zboot.img"
+
 # Copy PicoCalc device tree from staged location
 do_prepare_kernel_picocalc() {
     PICOCALC_DT_SOURCE="/build/tmp/work/luckfox_lyra-poky-linux-musleabi/picocalc-drivers/1.0/devicetree-staging/picocalc-luckfox-lyra.dtsi"
@@ -33,8 +37,4 @@ do_install:append() {
     # Remove kernel image formats that are not needed in the device image
     rm -f ${D}/boot/Image
     rm -f ${D}/boot/Image-*
-    rm -f ${D}/boot/fitImage
-    rm -f ${D}/boot/fitImage-*
-    rm -f ${D}/boot/zboot.img
-    rm -f ${D}/boot/zboot.img-*
 }
