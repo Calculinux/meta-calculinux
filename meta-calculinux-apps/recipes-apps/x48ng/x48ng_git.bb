@@ -1,21 +1,23 @@
 SUMMARY = "HP48 emulator based on x48"
 DESCRIPTION = "x48ng is a reboot of the x48 HP 48 calculator emulator. \
-It supports HP 48SX, GX, and G+ calculators with a text-based ncurses interface."
+It supports HP 48SX, GX, and G+ calculators with both text-based ncurses interface and SDL graphics."
 HOMEPAGE = "https://github.com/gwenhael-le-moine/x48ng"
 LICENSE = "GPL-2.0-only"
-LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=de11de89f591f82e0bdfa58b63169f28"
 
-SRCREV = "dd7a3e74de26040ca6118bf68181387eefc56ad1"
+inherit pkgconfig
+
+SRCREV = "001fca1260049ba7d726b5f9180f44ac1f9ee10b"
 SRC_URI = "git://github.com/hpsaturn/x48ng;protocol=https;branch=main"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "ncurses readline lua"
+DEPENDS = "ncurses readline lua libsdl2"
 
-# Disable X11 and SDL support, use ncurses only
+# Enable SDL support, disable X11
 EXTRA_OEMAKE = "\
     WITH_X11=no \
-    WITH_SDL=no \
+    WITH_SDL2=yes \
     HAS_X11=0 \
     PREFIX=${prefix} \
     CC='${CC}' \
@@ -42,11 +44,8 @@ do_install() {
     
     # Install ROMs
     cp -R ${S}/dist/ROMs/ ${D}${datadir}/x48ng/
-    
-    # Install setup script
-    install -m 0755 ${S}/dist/setup-x48ng-home.sh ${D}${datadir}/x48ng/setup-x48ng-home.sh
 }
 
 FILES:${PN} += "${datadir}/x48ng"
 
-RDEPENDS:${PN} = "ncurses readline lua"
+RDEPENDS:${PN} = "ncurses readline lua libsdl2"
