@@ -4,7 +4,7 @@ kiwix-manage (manage XML based library of ZIM files), kiwix-search (full text \
 search in ZIM files), and kiwix-serve (HTTP daemon serving ZIM files)."
 HOMEPAGE = "https://github.com/kiwix/kiwix-tools"
 LICENSE = "GPL-3.0-or-later"
-LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
+LIC_FILES_CHKSUM = "file://COPYING;md5=f27defe1e96c2e1ecd4e0c9be8967949"
 
 SRC_URI = "git://github.com/kiwix/kiwix-tools;protocol=https;branch=main"
 SRCREV = "acad8a85ab4706ff527cabdaac4635a930f3bdd4"
