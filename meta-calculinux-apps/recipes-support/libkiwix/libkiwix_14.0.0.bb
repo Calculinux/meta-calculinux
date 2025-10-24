@@ -9,7 +9,7 @@ SRC_URI = "\
     git://github.com/kiwix/libkiwix;protocol=https;branch=main \
     https://raw.githubusercontent.com/kainjow/Mustache/v4.1/mustache.hpp;name=mustache;subdir=git \
 "
-SRCREV = "0a5c5c13d2ba51a7e4c3cf0e3bc1e7c3e9b8f8f8"
+SRCREV = "20abebd6237fe5879bf79950a0e620edd620f33a"
 SRC_URI[mustache.sha256sum] = "e18d8f98cd3d4e0e5b8e1c6b8a5f3e5c3e3e3f3e3e3e3f3e3e3e3f3e3e3e3f3e"
 
 S = "${WORKDIR}/git"

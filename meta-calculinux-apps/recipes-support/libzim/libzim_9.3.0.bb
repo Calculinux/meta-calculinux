@@ -4,10 +4,10 @@ format. It's a software library to read and write ZIM files on many systems \
 and architectures."
 HOMEPAGE = "https://github.com/openzim/libzim"
 LICENSE = "GPL-2.0-or-later"
-LIC_FILES_CHKSUM = "file://COPYING;md5=3d49fb732c80149332a79a8bfaf1f448"
+LIC_FILES_CHKSUM = "file://COPYING;md5=00f62fee8056dc37ed6566f4ab3ddf2a"
 
 SRC_URI = "git://github.com/openzim/libzim;protocol=https;branch=main"
-SRCREV = "bb62cbc5d3f2c3ba11e1ced6f5e0e65c2c6ebf8e"
+SRCREV = "f421088da622c3a1e0fc6a6ced737b10d4fa5502"
 
 S = "${WORKDIR}/git"
 
