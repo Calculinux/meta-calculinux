@@ -3,15 +3,21 @@ DESCRIPTION = "Complete set of kernel drivers for PicoCalc hardware support incl
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
-inherit module
-
-PV = "1.0+git${SRCPV}"
 PR = "r0"
 
+####### Build with local checkout for development
+#inherit module externalsrc
+#PV = "1.0"
+#EXTERNALSRC = "/work/picocalc-drivers"
+#EXTERNALSRC_BUILD = "/work/picocalc-drivers"
+#######
+####### Build with Github source repo
+inherit module
+PV = "1.0+git${SRCPV}"
 SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=main"
 SRCREV = "${AUTOREV}"
-
 S = "${WORKDIR}/git"
+#######
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
