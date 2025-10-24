@@ -6,21 +6,24 @@ HOMEPAGE = "https://github.com/openzim/libzim"
 LICENSE = "GPL-2.0-or-later"
 LIC_FILES_CHKSUM = "file://COPYING;md5=00f62fee8056dc37ed6566f4ab3ddf2a"
 
-SRC_URI = "git://github.com/openzim/libzim;protocol=https;branch=main"
+SRC_URI = "git://github.com/openzim/libzim;protocol=https;branch=main \
+    file://0001-add-icu-uc-dependency.patch"
 SRCREV = "f421088da622c3a1e0fc6a6ced737b10d4fa5502"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "xz zstd"
+DEPENDS = "cmake icu xz zstd xapian-core"
 
 inherit meson pkgconfig
+
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 EXTRA_OEMESON = "\
     -Dstatic-linkage=false \
     -Dtests=false \
     -Dexamples=false \
     -Ddoc=false \
-    -Dwith_xapian=false \
+    -Dwith_xapian=true \
 "
 
 FILES:${PN} += "${libdir}/*.so.*"
