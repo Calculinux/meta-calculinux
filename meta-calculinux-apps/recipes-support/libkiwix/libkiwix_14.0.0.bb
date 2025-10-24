@@ -1,4 +1,4 @@
-SUMMARY = "CoSRCREV = "20abebd6237fe5879bf79950a0e620edd620f33a"n code base for all Kiwix ports"
+SUMMARY = "Common code base for all Kiwix ports"
 DESCRIPTION = "The Kiwix library provides the Kiwix software core. It contains the code \
 shared by all Kiwix ports (Windows, Linux, macOS, Android, iOS, etc.)."
 HOMEPAGE = "https://github.com/kiwix/libkiwix"
