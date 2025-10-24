@@ -3,14 +3,15 @@ DESCRIPTION = "Android Debug Bridge (ADB) daemon for Android debugging and devel
 Provides remote shell access and debugging capabilities."
 HOMEPAGE = "https://developer.android.com/studio/command-line/adb"
 LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://debian/copyright;md5=8ffc5c9f2f2d2e23c184f73df85a8498"
+LIC_FILES_CHKSUM = "file://debian/copyright;md5=f6d5f92d58d34638365ec9c5fe15d13d"
 
 MY_PV = "8.1.0+r23-8"
 MY_FULL_PV = "1%25${MY_PV}"
-MY_P = "android-platform-system-core-debian-${MY_FULL_PV}"
+MY_P_ENCODED = "android-platform-system-core-debian-${MY_FULL_PV}"
+MY_P_DECODED = "android-platform-system-core-debian-1%${MY_PV}"
 
 SRC_URI = "\
-    https://salsa.debian.org/android-tools-team/android-platform-system-core/-/archive/debian/${MY_FULL_PV}/${MY_P}.tar.gz \
+    https://salsa.debian.org/android-tools-team/android-platform-system-core/-/archive/debian/${MY_FULL_PV}/${MY_P_ENCODED}.tar.gz \
     file://0001-adb-libcrypto_utils-Switch-to-libopenssl.patch \
     file://0002-adb-daemon-Support-linux.patch \
     file://0003-adb-daemon-Support-custom-auth-command.patch \
@@ -20,15 +21,15 @@ SRC_URI = "\
     file://0007-adb-daemon-Handle-SIGINT.patch \
     file://0008-adb-daemon-Fix-build-issue-with-musl-and-uclibc.patch \
     file://0009-adb-daemon-Fix-cpp-version-header-issue.patch \
-    file://0010-adb-daemon-fix-cstring-include.patch \
     file://0011-adb-daemon-fix-openssl3-rsa-deprecation.patch \
+    file://0012-adb-daemon-fix-typeof-cpp17.patch \
     file://adbd.service \
     file://adbd-auth \
 "
 
-SRC_URI[sha256sum] = ""
+SRC_URI[sha256sum] = "74689eaf472763aa7f842eb277cb62fbe08ebcabc7687f4546cec2383838435e"
 
-S = "${WORKDIR}/${MY_P}"
+S = "${WORKDIR}/${MY_P_DECODED}"
 
 DEPENDS = "openssl"
 
@@ -74,7 +75,7 @@ python apply_debian_patches() {
 do_install:append() {
     # Install systemd service file
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/adbd.service ${D}${systemd_system_unitdir}/adbd.service
+    install -m 0644 ${WORKDIR}/sources-unpack/adbd.service ${D}${systemd_system_unitdir}/adbd.service
     
     # Install shell profile script
     install -d ${D}${sysconfdir}/profile.d
