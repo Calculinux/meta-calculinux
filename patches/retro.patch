@@ -1,0 +1,13 @@
+diff --git a/conf/layer.conf b/conf/layer.conf
+index 78b1db7..5a46b48 100644
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -13,7 +13,7 @@ BBFILE_COLLECTIONS += "meta-libretro"
+ BBFILE_PATTERN_meta-libretro := "^${LAYERDIR}/"
+ BBFILE_PRIORITY_meta-libretro = "100"
+ 
+-LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap"
++LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap styhead walnascar"
+ 
+ # Additional license directories.
+ RETRO_LICENSE_DIR = "${LAYERDIR}/files/custom-licenses"

@@ -29,4 +29,7 @@ RDEPENDS:${PN} = " \
     screen \
     glkterm \
     glkcli \
+    x48ng \
+    android-adbd \
+    kiwix-tools \
 "
