@@ -1,0 +1,35 @@
+[Unit]
+Description=Android Debug Bridge Daemon
+Documentation=https://developer.android.com/studio/command-line/adb
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/adbd
+Restart=on-failure
+RestartSec=5
+
+# Environment configuration
+Environment="ADB_TCP_PORT=5555"
+Environment="ADBD_SHELL=/bin/bash"
+Environment="ADB_SECURE=0"
+
+# Read additional configuration from environment file
+EnvironmentFile=-/etc/default/adbd
+
+# Create ADB keys directory if needed
+ExecStartPre=/bin/mkdir -p /data/misc/adb
+ExecStartPre=/bin/chmod 700 /data/misc/adb
+
+# Security settings
+# Run as root (required for ADB functionality)
+User=root
+Group=root
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=adbd
+
+[Install]
+WantedBy=multi-user.target

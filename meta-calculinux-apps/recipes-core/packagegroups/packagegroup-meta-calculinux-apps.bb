@@ -27,4 +27,15 @@ RDEPENDS:${PN} = " \
     jq \
     tmux \
     screen \
+    glkterm \
+    glkcli \
+    x48ng \
+    android-adbd \
+    kiwix-tools \
+    nodejs \
+    nodejs-npm \
+    python3 \
+    python3-pip \
+    rust \
+    cargo \
 "
