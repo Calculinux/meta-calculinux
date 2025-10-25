@@ -57,7 +57,7 @@ local_conf_header:
       picocalc-drivers-lcd \
       picocalc-drivers-snd-pwm \
       picocalc-drivers-snd-softpwm \
-      picocalc-drivers-kbd \
       picocalc-drivers-mfd \
     "
+
     CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
