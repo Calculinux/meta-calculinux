@@ -13,29 +13,32 @@ PACKAGES = "${PN}"
 # Add packages that should be available in the apps layer
 # These will be built as IPKs and made available in the package feed
 RDEPENDS:${PN} = " \
-    zerotier-one \
-    vim \
-    nano \
-    mc \
-    iotop \
-    nmap \
-    tcpdump \
-    sysstat \
-    lsof \
-    tree \
-    rsync \
-    jq \
-    tmux \
-    screen \
-    glkterm \
-    glkcli \
-    x48ng \
     android-adbd \
+    cargo \
+    circumflex \
+    glkcli \
+    glkterm \
+    iotop \
+    jq \
     kiwix-tools \
+    links \
+    lsof \
+    mc \
+    nano \
+    nmap \
     nodejs \
     nodejs-npm \
     python3 \
     python3-pip \
+    reddit-tui \
+    rsync \
     rust \
-    cargo \
+    screen \
+    sysstat \
+    tcpdump \
+    tmux \
+    tree \
+    vim \
+    x48ng \
+    zerotier-one \
 "
