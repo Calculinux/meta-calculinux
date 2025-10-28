@@ -1,0 +1,31 @@
+GO_MOD_LICENSES = "MIT & Unknown"
+
+LIC_FILES_CHKSUM  += "${VENDORED_LIC_FILES_CHKSUM}"
+VENDORED_LIC_FILES_CHKSUM = "\
+    file://src/${GO_IMPORT}/vendor/github.com/BurntSushi/toml/COPYING;md5=9e24c0e2a784c1d1fcabb279f4f107e0 \
+    file://src/${GO_IMPORT}/vendor/github.com/atotto/clipboard/LICENSE;md5=489200b65f13bcbcb890a96b99a58a6f \
+    file://src/${GO_IMPORT}/vendor/github.com/aymanbagabas/go-osc52/v2/LICENSE;md5=1a0d772267e294ecc2591f71600b31be \
+    file://src/${GO_IMPORT}/vendor/github.com/aymanbagabas/go-udiff/LICENSE-BSD;md5=5d4950ecb7b26d2c5e4e7b4e0dd74707 \
+    file://src/${GO_IMPORT}/vendor/github.com/aymanbagabas/go-udiff/LICENSE-MIT;md5=9a69fe40e0369b3f1af7077e4da91286 \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/bubbles/LICENSE;md5=1ae13bc955a9ff214667dc4de2b50a8f \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/bubbletea/LICENSE;md5=1ae13bc955a9ff214667dc4de2b50a8f \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/lipgloss/LICENSE;md5=d9906fe5084aa289bb7c18d752aacdbe \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/x/ansi/LICENSE;md5=8de487b5d6882617671fc40361af8ce4 \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/x/exp/golden/LICENSE;md5=8de487b5d6882617671fc40361af8ce4 \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/x/exp/teatest/LICENSE;md5=8de487b5d6882617671fc40361af8ce4 \
+    file://src/${GO_IMPORT}/vendor/github.com/charmbracelet/x/term/LICENSE;md5=8de487b5d6882617671fc40361af8ce4 \
+    file://src/${GO_IMPORT}/vendor/github.com/erikgeiser/coninput/LICENSE;md5=00d1713d9d426e07e34fee281662eb3c \
+    file://src/${GO_IMPORT}/vendor/github.com/lucasb-eyer/go-colorful/LICENSE;md5=00a5466a69069b14448ded7ed1f3125f \
+    file://src/${GO_IMPORT}/vendor/github.com/mattn/go-isatty/LICENSE;md5=f509beadd5a11227c27b5d2ad6c9f2c6 \
+    file://src/${GO_IMPORT}/vendor/github.com/mattn/go-runewidth/LICENSE;md5=24ce168f90aec2456a73de1839037245 \
+    file://src/${GO_IMPORT}/vendor/github.com/muesli/ansi/LICENSE;md5=12785123c9c3b5bfe3b39c9a2d17d41e \
+    file://src/${GO_IMPORT}/vendor/github.com/muesli/cancelreader/LICENSE;md5=ab12cc3eb7227b30073651c468c85f68 \
+    file://src/${GO_IMPORT}/vendor/github.com/muesli/reflow/LICENSE;md5=16f73cc575bd3ae2372e63dcfb76aeba \
+    file://src/${GO_IMPORT}/vendor/github.com/muesli/termenv/LICENSE;md5=16f73cc575bd3ae2372e63dcfb76aeba \
+    file://src/${GO_IMPORT}/vendor/github.com/rivo/uniseg/LICENSE.txt;md5=4393c339bf180cf6e188b6ea32d8b93c \
+    file://src/${GO_IMPORT}/vendor/github.com/sahilm/fuzzy/LICENSE;md5=1a224267c36b7ee0723f9f568fef4e5a \
+    file://src/${GO_IMPORT}/vendor/golang.org/x/net/LICENSE;md5=7998cb338f82d15c0eff93b7004d272a \
+    file://src/${GO_IMPORT}/vendor/golang.org/x/sync/LICENSE;md5=7998cb338f82d15c0eff93b7004d272a \
+    file://src/${GO_IMPORT}/vendor/golang.org/x/sys/LICENSE;md5=7998cb338f82d15c0eff93b7004d272a \
+    file://src/${GO_IMPORT}/vendor/golang.org/x/text/LICENSE;md5=7998cb338f82d15c0eff93b7004d272a \
+"
