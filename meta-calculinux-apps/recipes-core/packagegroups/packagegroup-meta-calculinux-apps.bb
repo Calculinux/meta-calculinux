@@ -21,7 +21,6 @@ RDEPENDS:${PN} = " \
     iotop \
     jq \
     kiwix-tools \
-    links \
     lsof \
     mc \
     nano \
