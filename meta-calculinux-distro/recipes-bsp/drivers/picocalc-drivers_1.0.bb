@@ -14,7 +14,7 @@ PR = "r0"
 ####### Build with Github source repo
 inherit module
 PV = "1.0+git${SRCPV}"
-SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=main"
+SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=kernel-driver-improvements"
 SRCREV = "${AUTOREV}"
 S = "${WORKDIR}/git"
 #######
