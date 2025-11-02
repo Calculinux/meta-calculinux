@@ -1,0 +1,79 @@
+--- a/BasiliskII/src/uae_cpu_2021/memory.h
++++ b/BasiliskII/src/uae_cpu_2021/memory.h
+@@ -56,51 +56,51 @@
+ #endif /* EXCEPTIONS_VIA_LONGJMP */
+ 
+ #if DIRECT_ADDRESSING
+-static __inline__ uae_u8 *do_get_real_address(uaecptr addr)
++inline uae_u8 *do_get_real_address(uaecptr addr)
+ {
+ 	return (uae_u8 *)MEMBaseDiff + addr;
+ }
+-static __inline__ uae_u32 do_get_virtual_address(uae_u8 *addr)
++inline uae_u32 do_get_virtual_address(uae_u8 *addr)
+ {
+ 	return (uintptr)addr - MEMBaseDiff;
+ }
+-static __inline__ uae_u32 get_long(uaecptr addr)
++inline uae_u32 get_long(uaecptr addr)
+ {
+     uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
+     return do_get_mem_long(m);
+ }
+ #define phys_get_long get_long
+-static __inline__ uae_u32 get_word(uaecptr addr)
++inline uae_u32 get_word(uaecptr addr)
+ {
+     uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
+     return do_get_mem_word(m);
+ }
+ #define phys_get_word get_word
+-static __inline__ uae_u32 get_byte(uaecptr addr)
++inline uae_u32 get_byte(uaecptr addr)
+ {
+     uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+     return do_get_mem_byte(m);
+ }
+ #define phys_get_byte get_byte
+-static __inline__ void put_long(uaecptr addr, uae_u32 l)
++inline void put_long(uaecptr addr, uae_u32 l)
+ {
+     uae_u32 * const m = (uae_u32 *)do_get_real_address(addr);
+     do_put_mem_long(m, l);
+ }
+ #define phys_put_long put_long
+-static __inline__ void put_word(uaecptr addr, uae_u32 w)
++inline void put_word(uaecptr addr, uae_u32 w)
+ {
+     uae_u16 * const m = (uae_u16 *)do_get_real_address(addr);
+     do_put_mem_word(m, w);
+ }
+ #define phys_put_word put_word
+-static __inline__ void put_byte(uaecptr addr, uae_u32 b)
++inline void put_byte(uaecptr addr, uae_u32 b)
+ {
+     uae_u8 * const m = (uae_u8 *)do_get_real_address(addr);
+     do_put_mem_byte(m, b);
+ }
+ #define phys_put_byte put_byte
+-static __inline__ uae_u8 *get_real_address(uaecptr addr)
++inline uae_u8 *get_real_address(uaecptr addr)
+ {
+ 	return do_get_real_address(addr);
+ }
+@@ -112,13 +112,13 @@
+ {
+     return do_get_real_address(addr);
+ }
+-static __inline__ uae_u32 get_virtual_address(uae_u8 *addr)
++inline uae_u32 get_virtual_address(uae_u8 *addr)
+ {
+ 	return do_get_virtual_address(addr);
+ }
+ #endif /* DIRECT_ADDRESSING */
+ 
+-static __inline__ void check_ram_boundary(uaecptr addr, int size, bool write) {}
++inline void check_ram_boundary(uaecptr addr, int size, bool write) {}
+ static inline void flush_internals() {}
+ 
+ #endif /* MEMORY_H */
