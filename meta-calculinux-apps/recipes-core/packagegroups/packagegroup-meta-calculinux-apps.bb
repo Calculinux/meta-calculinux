@@ -16,6 +16,7 @@ RDEPENDS:${PN} = " \
     android-adbd \
     cargo \
     circumflex \
+    emacs-full \
     glkcli \
     glkterm \
     iotop \
