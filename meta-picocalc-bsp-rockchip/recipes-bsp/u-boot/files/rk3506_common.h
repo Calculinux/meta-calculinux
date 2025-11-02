@@ -83,16 +83,21 @@
 #include <config_distro_bootcmd.h>
 
 #define CONFIG_EXTRA_ENV_SETTINGS \
-	ENV_MEM_LAYOUT_SETTINGS \
-	"partitions=" PARTS_RKIMG \
-	"distro_bootpart=3\0" \
-	ROCKCHIP_DEVICE_SETTINGS \
-	RKIMG_DET_BOOTDEV \
+	ENV_MEM_LAYOUT_SETTINGS												\
+	"partitions=" PARTS_RKIMG											\
+	"calculinux_bootcmd="												\
+ 	"env exists BOOT_ORDER || setenv BOOT_ORDER A B; "						\
+	"for boot_part_letter in ${BOOT_ORDER}; do "						\
+	    "part number ${devtype} ${devnum} ROOT_${boot_part_letter} distro_bootpart_hex; " \
+	    "setexpr distro_bootpart fmt %d ${distro_bootpart_hex}; " \
+	    "run scan_dev_for_boot; "								  \
+	"done\0"												  \
+	ROCKCHIP_DEVICE_SETTINGS								  \
+	RKIMG_DET_BOOTDEV										  \
 	BOOTENV
 
 #undef RKIMG_BOOTCOMMAND
-#define RKIMG_BOOTCOMMAND		\
-	"run mmc_boot;"
-
+#define RKIMG_BOOTCOMMAND								\
+	"run rkimg_bootdev; run calculinux_bootcmd;"
 #endif
 #endif
