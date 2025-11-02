@@ -504,6 +504,75 @@ jobs:
           artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
         retention-days: 30
 
+    - name: Comment artifact links on PR
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const runId = context.runId;
+          const { owner, repo } = context.repo;
+          const issueNumber = context.payload.pull_request.number;
+
+          const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
+            owner,
+            repo,
+            run_id: runId,
+            per_page: 100,
+          });
+
+          const artifacts = artifactsResponse.data.artifacts ?? [];
+
+          if (artifacts.length === 0) {
+            core.info('No artifacts found for this run; skipping PR comment.');
+            return;
+          }
+
+          const formatSize = (bytes) => {
+            if (!bytes || bytes <= 0) {
+              return 'size unknown';
+            }
+            const mb = bytes / (1024 * 1024);
+            return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
+          };
+
+          const artifactLines = artifacts
+            .map((artifact) => `- [${artifact.name}](${artifact.archive_download_url}) (${formatSize(artifact.size_in_bytes)})`)
+            .join('\n');
+
+          const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+          const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
+
+          const existingComments = await github.paginate(
+            github.rest.issues.listComments,
+            {
+              owner,
+              repo,
+              issue_number: issueNumber,
+              per_page: 100,
+            },
+            (response) => response.data.filter((comment) => comment.body?.startsWith('<!-- calculinux-artifacts -->'))
+          );
+
+          if (existingComments.length > 0) {
+            const commentToUpdate = existingComments[0];
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: commentToUpdate.id,
+              body,
+            });
+            core.info(`Updated existing artifacts comment (ID: ${commentToUpdate.id}).`);
+          } else {
+            const newComment = await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body,
+            });
+            core.info(`Created new artifacts comment (ID: ${newComment.data.id}).`);
+          }
+
     - name: Create release
       if: steps.feed-config.outputs.is_tagged_release == 'true'
       uses: softprops/action-gh-release@v1
