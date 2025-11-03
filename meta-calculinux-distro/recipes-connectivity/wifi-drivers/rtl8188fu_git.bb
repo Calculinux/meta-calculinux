@@ -10,8 +10,6 @@ SRC_URI = " \
     "
 S = "${UNPACKDIR}/git"
 
-DEPENDS += "virtual/kernel"
-
 inherit module
 
 MODULE_DIR="${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"

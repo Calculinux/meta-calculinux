@@ -51,6 +51,8 @@ FILES:${PN} += " \
     ${sysconfdir}/udev/rules.d/aic.rules \
 "
 
+RPROVIDES:${PN} += "kernel-module-aic8800_fdrv"
+
 KERNEL_MODULE_AUTOLOAD:${PN} = "aic_load_fw aic8800_fdrv"
 
 RDEPENDS:${PN} += "udev"
