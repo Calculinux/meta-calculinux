@@ -22,7 +22,8 @@ env:
   OPKG_REPO_DIR: /mnt/opkg-repo
 
 permissions:
-  contents: write  # Needed for creating releases
+  contents: write      # Needed for creating releases
+  pull-requests: write # Needed for commenting on PRs
 
 # To add a new machine configuration, do something similar to the following:
 # 
@@ -504,6 +505,93 @@ jobs:
           artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
         retention-days: 30
 
+    - name: Comment artifact links on PR
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          try {
+            const runId = context.runId;
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.pull_request.number;
+
+            core.info(`Attempting to comment on PR #${issueNumber} for run ${runId}`);
+
+            const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
+              owner,
+              repo,
+              run_id: runId,
+              per_page: 100,
+            });
+
+            const artifacts = artifactsResponse.data.artifacts ?? [];
+            core.info(`Found ${artifacts.length} artifacts`);
+
+            if (artifacts.length === 0) {
+              core.info('No artifacts found for this run; skipping PR comment.');
+              return;
+            }
+
+            const formatSize = (bytes) => {
+              if (!bytes || bytes <= 0) {
+                return 'size unknown';
+              }
+              const mb = bytes / (1024 * 1024);
+              return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
+            };
+
+            const artifactLines = artifacts
+              .map((artifact) => {
+                const artifactUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
+                return `- [${artifact.name}](${artifactUrl}) (${formatSize(artifact.size_in_bytes)})`;
+              })
+              .join('\n');
+
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+            const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
+
+            // Check for existing comments
+            core.info('Checking for existing artifact comments...');
+            const existingComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              },
+              (response) => response.data.filter((comment) => comment.body?.startsWith('<!-- calculinux-artifacts -->'))
+            );
+
+            if (existingComments.length > 0) {
+              const commentToUpdate = existingComments[0];
+              core.info(`Updating existing comment (ID: ${commentToUpdate.id})`);
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: commentToUpdate.id,
+                body,
+              });
+              core.info(`✅ Updated existing artifacts comment (ID: ${commentToUpdate.id}).`);
+            } else {
+              core.info('Creating new artifact comment...');
+              const newComment = await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body,
+              });
+              core.info(`✅ Created new artifacts comment (ID: ${newComment.data.id}).`);
+            }
+          } catch (error) {
+            core.error(`❌ Failed to comment on PR: ${error.message}`);
+            core.error(`Error details: ${JSON.stringify(error, null, 2)}`);
+            
+            // Don't fail the entire workflow for comment failures
+            core.warning('PR comment failed, but continuing workflow execution');
+          }
+
     - name: Create release
       if: steps.feed-config.outputs.is_tagged_release == 'true'
       uses: softprops/action-gh-release@v1
@@ -512,6 +600,128 @@ jobs:
         generate_release_notes: true
         draft: false
         prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
+
+    - name: Send Discord notification
+      if: steps.feed-config.outputs.is_tagged_release == 'true' && success()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        # Skip notification if Discord webhook is not configured
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "Discord webhook not configured, skipping notification"
+          exit 0
+        fi
+        
+        # For tagged releases only
+        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
+        TAG_NAME="${{ github.ref_name }}"
+        COMMIT_SHA="${{ github.sha }}"
+        RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+        
+        # Set notification color and build type based on tag
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          # Determine prerelease type
+          if [[ "$TAG_NAME" =~ alpha ]]; then
+            BUILD_TYPE="Alpha Release"
+            COLOR="16776960"  # Yellow
+          elif [[ "$TAG_NAME" =~ beta ]]; then
+            BUILD_TYPE="Beta Release"
+            COLOR="16753920"  # Orange
+          elif [[ "$TAG_NAME" =~ rc ]]; then
+            BUILD_TYPE="Release Candidate"
+            COLOR="8421504"   # Gray
+          else
+            BUILD_TYPE="Pre-release"
+            COLOR="16776960"  # Yellow
+          fi
+        else
+          BUILD_TYPE="Stable Release"
+          COLOR="65280"     # Green
+        fi
+        
+        VERSION="$TAG_NAME"
+        DOWNLOAD_BASE="https://opkg.calculinux.org"
+        IMAGE_URL="$DOWNLOAD_BASE/image/${{ steps.feed-config.outputs.feed_name }}/release/"
+        UPDATE_URL="$DOWNLOAD_BASE/update/${{ steps.feed-config.outputs.feed_name }}/release/"
+        PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ steps.feed-config.outputs.feed_name }}/release/"
+        
+        # Find actual build artifacts
+        WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
+        RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
+        
+        # Create download links section for tagged releases
+        DOWNLOAD_LINKS=""
+        if [ -n "$WIC_FILE" ]; then
+          WIC_FILENAME=$(basename "$WIC_FILE")
+          # Published filename: calculinux-image-{machine}.rootfs-{tag}.wic.gz
+          WIC_VERSIONED="calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📱 **Full Image**: [$WIC_VERSIONED]($IMAGE_URL$WIC_VERSIONED)\n"
+        fi
+        if [ -n "$RAUCB_FILE" ]; then
+          RAUCB_FILENAME=$(basename "$RAUCB_FILE")
+          # Published filename: calculinux-bundle-{machine}-{tag}.raucb
+          RAUCB_VERSIONED="calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
+        fi
+        
+        # Add package feed link
+        DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📦 **Package Feed**: [Browse packages]($PACKAGES_URL)\n"
+        
+        # Create Discord embed payload
+        cat > discord_payload.json << EOF
+        {
+          "embeds": [
+            {
+              "title": "🚀 New Calculinux $BUILD_TYPE Available!",
+              "description": "A new Calculinux build has been published for **${{ matrix.machine }}**",
+              "color": $COLOR,
+              "fields": [
+                {
+                  "name": "📋 Version",
+                  "value": "$VERSION",
+                  "inline": true
+                },
+                {
+                  "name": "🏷️ Build Type",
+                  "value": "$BUILD_TYPE",
+                  "inline": true
+                },
+                {
+                  "name": "💻 Target Device",
+                  "value": "${{ matrix.machine }}",
+                  "inline": true
+                },
+                {
+                  "name": "📥 Downloads",
+                  "value": "$DOWNLOAD_LINKS",
+                  "inline": false
+                }
+              ],
+              "footer": {
+                "text": "Build #${{ github.run_number }} • Calculinux"
+              },
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+              "url": "$RELEASE_URL"
+            }
+          ]
+        }
+        EOF
+        
+        # Send Discord notification
+        echo "Sending Discord notification for $BUILD_TYPE..."
+        HTTP_CODE=$(curl -s -o discord_response.json -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d @discord_payload.json \
+          "$DISCORD_WEBHOOK_URL")
+        
+        if [ "$HTTP_CODE" -eq 204 ]; then
+          echo "✅ Discord notification sent successfully"
+        else
+          echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
+          echo "Response:"
+          cat discord_response.json || echo "No response body"
+          exit 1
+        fi
 
     - name: Show disk space after build
       if: always()
