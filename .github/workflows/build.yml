@@ -542,7 +542,10 @@ jobs:
             };
 
             const artifactLines = artifacts
-              .map((artifact) => `- [${artifact.name}](${artifact.archive_download_url}) (${formatSize(artifact.size_in_bytes)})`)
+              .map((artifact) => {
+                const artifactUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
+                return `- [${artifact.name}](${artifactUrl}) (${formatSize(artifact.size_in_bytes)})`;
+              })
               .join('\n');
 
             const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
