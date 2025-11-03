@@ -75,17 +75,6 @@ RDEPENDS:${PN} = " \
 FILES:${PN} = ""
 ALLOW_EMPTY:${PN} = "1"
 
-# Stage device tree file for kernel use
-do_stage_devicetree() {
-    install -d ${WORKDIR}/devicetree-staging
-    cp ${S}/picocalc-luckfox-lyra.dtsi ${WORKDIR}/devicetree-staging/
-}
-
-addtask stage_devicetree after do_unpack before do_compile
-
-# Track source file changes for development builds with externalsrc
-do_stage_devicetree[file-checksums] += "${S}/picocalc-luckfox-lyra.dtsi:True"
-
 # Build all drivers individually
 do_compile() {
     # Use the top-level Makefile to build all modules in the repository
@@ -111,3 +100,12 @@ do_install() {
     install -m 0644 ${S}/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
+
+do_install:append() {
+    install -d ${D}${datadir}/picocalc
+    install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
+}
+
+SYSROOT_DIRS += "${datadir}/picocalc"
+
+FILES:${PN}-src += "${datadir}/picocalc/picocalc-luckfox-lyra.dtsi"
