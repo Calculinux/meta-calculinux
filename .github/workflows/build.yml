@@ -646,19 +646,21 @@ jobs:
         PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ steps.feed-config.outputs.feed_name }}/release/"
         
         # Find actual build artifacts
-        WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}*.wic.gz" | head -1)
-        RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}*.raucb" | head -1)
+        WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
+        RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
         
         # Create download links section for tagged releases
         DOWNLOAD_LINKS=""
         if [ -n "$WIC_FILE" ]; then
           WIC_FILENAME=$(basename "$WIC_FILE")
-          WIC_VERSIONED="${WIC_FILENAME%.wic.gz}-$TAG_NAME.wic.gz"
+          # Published filename: calculinux-image-{machine}.rootfs-{tag}.wic.gz
+          WIC_VERSIONED="calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
           DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📱 **Full Image**: [$WIC_VERSIONED]($IMAGE_URL$WIC_VERSIONED)\n"
         fi
         if [ -n "$RAUCB_FILE" ]; then
           RAUCB_FILENAME=$(basename "$RAUCB_FILE")
-          RAUCB_VERSIONED="${RAUCB_FILENAME%.raucb}-$TAG_NAME.raucb"
+          # Published filename: calculinux-bundle-{machine}-{tag}.raucb
+          RAUCB_VERSIONED="calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
           DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
         fi
         
