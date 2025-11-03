@@ -1,9 +1,13 @@
 SUMMARY = "PicoCalc hardware drivers"
-DESCRIPTION = "Complete set of kernel drivers for PicoCalc hardware support including MFD, LCD, keyboard, sound, and power management"
+DESCRIPTION = "Complete set of kernel drivers for PicoCalc including MFD, LCD, keyboard, sound, and power management"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
 PR = "r0"
+
+require picocalc-drivers-source.inc
+
+COMPATIBLE_MACHINE = "luckfox-lyra"
 
 ####### Build with local checkout for development
 #inherit module externalsrc
@@ -13,13 +17,7 @@ PR = "r0"
 #######
 ####### Build with Github source repo
 inherit module
-PV = "1.0+git${SRCPV}"
-SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=kernel-driver-improvements"
-SRCREV = "${AUTOREV}"
-S = "${WORKDIR}/git"
 #######
-
-COMPATIBLE_MACHINE = "luckfox-lyra"
 
 # Skip QA checks that are problematic for all kernel modules
 INSANE_SKIP:${PN} += "buildpaths debug-files"
