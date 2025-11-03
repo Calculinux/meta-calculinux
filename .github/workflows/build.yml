@@ -196,6 +196,10 @@ jobs:
           find "$DEPLOY_DIR" -name "*.raucb" | \
             xargs -I {} cp {} artifacts/ || true
           
+          # Copy u-boot files
+          cp "$DEPLOY_DIR/uboot-${{ matrix.machine }}-*.bin" artifacts/ || true
+          cp "$DEPLOY_DIR/u-boot-*initial-env-${{ matrix.machine }}-*" artifacts/ || true
+          
           # Copy other important files
           find "$DEPLOY_DIR" -name "*.manifest" -o -name "*.testdata.json" | \
             xargs -I {} cp {} artifacts/ || true
@@ -493,7 +497,11 @@ jobs:
       if: always()
       with:
         name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
-        path: artifacts/
+        path: |
+          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          artifacts/uboot-${{ matrix.machine }}-*.bin
+          artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
         retention-days: 30
 
     - name: Create release

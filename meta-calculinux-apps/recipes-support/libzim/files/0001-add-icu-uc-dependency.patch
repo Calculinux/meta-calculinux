@@ -1,0 +1,8 @@
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -67,7 +67,7 @@ if xapian_dep.found()
+     sources += xapian_sources
+     sources += lib_resources
+-    deps += [xapian_dep, icu_dep]
++    deps += [xapian_dep, icu_dep, dependency('icu-uc', static:static_linkage)]
+ endif
