@@ -9,6 +9,9 @@ require ../drivers/picocalc-drivers-source.inc
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
+do_configure[noexec] = "1"
+do_compile[noexec] = "1"
+
 do_install() {
     install -d ${D}${datadir}/picocalc
     install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
