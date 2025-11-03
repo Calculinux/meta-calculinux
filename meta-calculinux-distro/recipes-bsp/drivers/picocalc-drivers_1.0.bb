@@ -99,11 +99,6 @@ do_install() {
     install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
 
-do_install:append() {
-    install -d ${D}${datadir}/picocalc
-    install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
-}
-
 SYSROOT_DIRS += "${datadir}/picocalc"
 
 FILES:${PN}-src += "${datadir}/picocalc/picocalc-luckfox-lyra.dtsi"
