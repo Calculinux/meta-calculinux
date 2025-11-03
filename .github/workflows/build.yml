@@ -582,6 +582,126 @@ jobs:
         draft: false
         prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
 
+    - name: Send Discord notification
+      if: steps.feed-config.outputs.is_tagged_release == 'true' && success()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        # Skip notification if Discord webhook is not configured
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "Discord webhook not configured, skipping notification"
+          exit 0
+        fi
+        
+        # For tagged releases only
+        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
+        TAG_NAME="${{ github.ref_name }}"
+        COMMIT_SHA="${{ github.sha }}"
+        RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+        
+        # Set notification color and build type based on tag
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          # Determine prerelease type
+          if [[ "$TAG_NAME" =~ alpha ]]; then
+            BUILD_TYPE="Alpha Release"
+            COLOR="16776960"  # Yellow
+          elif [[ "$TAG_NAME" =~ beta ]]; then
+            BUILD_TYPE="Beta Release"
+            COLOR="16753920"  # Orange
+          elif [[ "$TAG_NAME" =~ rc ]]; then
+            BUILD_TYPE="Release Candidate"
+            COLOR="8421504"   # Gray
+          else
+            BUILD_TYPE="Pre-release"
+            COLOR="16776960"  # Yellow
+          fi
+        else
+          BUILD_TYPE="Stable Release"
+          COLOR="65280"     # Green
+        fi
+        
+        VERSION="$TAG_NAME"
+        DOWNLOAD_BASE="https://opkg.calculinux.org"
+        IMAGE_URL="$DOWNLOAD_BASE/image/${{ steps.feed-config.outputs.feed_name }}/release/"
+        UPDATE_URL="$DOWNLOAD_BASE/update/${{ steps.feed-config.outputs.feed_name }}/release/"
+        PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ steps.feed-config.outputs.feed_name }}/release/"
+        
+        # Find actual build artifacts
+        WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}*.wic.gz" | head -1)
+        RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}*.raucb" | head -1)
+        
+        # Create download links section for tagged releases
+        DOWNLOAD_LINKS=""
+        if [ -n "$WIC_FILE" ]; then
+          WIC_FILENAME=$(basename "$WIC_FILE")
+          WIC_VERSIONED="${WIC_FILENAME%.wic.gz}-$TAG_NAME.wic.gz"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📱 **Full Image**: [$WIC_VERSIONED]($IMAGE_URL$WIC_VERSIONED)\n"
+        fi
+        if [ -n "$RAUCB_FILE" ]; then
+          RAUCB_FILENAME=$(basename "$RAUCB_FILE")
+          RAUCB_VERSIONED="${RAUCB_FILENAME%.raucb}-$TAG_NAME.raucb"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
+        fi
+        
+        # Add package feed link
+        DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📦 **Package Feed**: [Browse packages]($PACKAGES_URL)\n"
+        
+        # Create Discord embed payload
+        cat > discord_payload.json << EOF
+        {
+          "embeds": [
+            {
+              "title": "🚀 New Calculinux $BUILD_TYPE Available!",
+              "description": "A new Calculinux build has been published for **${{ matrix.machine }}**",
+              "color": $COLOR,
+              "fields": [
+                {
+                  "name": "📋 Version",
+                  "value": "$VERSION",
+                  "inline": true
+                },
+                {
+                  "name": "🏷️ Build Type",
+                  "value": "$BUILD_TYPE",
+                  "inline": true
+                },
+                {
+                  "name": "💻 Target Device",
+                  "value": "${{ matrix.machine }}",
+                  "inline": true
+                },
+                {
+                  "name": "📥 Downloads",
+                  "value": "$DOWNLOAD_LINKS",
+                  "inline": false
+                }
+              ],
+              "footer": {
+                "text": "Build #${{ github.run_number }} • Calculinux"
+              },
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+              "url": "$RELEASE_URL"
+            }
+          ]
+        }
+        EOF
+        
+        # Send Discord notification
+        echo "Sending Discord notification for $BUILD_TYPE..."
+        HTTP_CODE=$(curl -s -o discord_response.json -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d @discord_payload.json \
+          "$DISCORD_WEBHOOK_URL")
+        
+        if [ "$HTTP_CODE" -eq 204 ]; then
+          echo "✅ Discord notification sent successfully"
+        else
+          echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
+          echo "Response:"
+          cat discord_response.json || echo "No response body"
+          exit 1
+        fi
+
     - name: Show disk space after build
       if: always()
       run: |
