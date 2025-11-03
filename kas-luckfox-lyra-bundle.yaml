@@ -51,6 +51,8 @@ local_conf_header:
       rtl8814au \
       rtl8821cu \
       rtl88x2bu \
+      aic8800 \
+      rtl8188fu \
     "
 
     PICOCALC_DRIVERS = "\

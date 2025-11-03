@@ -50,7 +50,6 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
-    rtl8188fu \
     shadow \
     sudo \
     systemd-analyze \
