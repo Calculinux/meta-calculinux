@@ -22,7 +22,8 @@ env:
   OPKG_REPO_DIR: /mnt/opkg-repo
 
 permissions:
-  contents: write  # Needed for creating releases
+  contents: write      # Needed for creating releases
+  pull-requests: write # Needed for commenting on PRs
 
 # To add a new machine configuration, do something similar to the following:
 # 
@@ -510,67 +511,82 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const runId = context.runId;
-          const { owner, repo } = context.repo;
-          const issueNumber = context.payload.pull_request.number;
+          try {
+            const runId = context.runId;
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.pull_request.number;
 
-          const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
-            owner,
-            repo,
-            run_id: runId,
-            per_page: 100,
-          });
+            core.info(`Attempting to comment on PR #${issueNumber} for run ${runId}`);
 
-          const artifacts = artifactsResponse.data.artifacts ?? [];
-
-          if (artifacts.length === 0) {
-            core.info('No artifacts found for this run; skipping PR comment.');
-            return;
-          }
-
-          const formatSize = (bytes) => {
-            if (!bytes || bytes <= 0) {
-              return 'size unknown';
-            }
-            const mb = bytes / (1024 * 1024);
-            return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
-          };
-
-          const artifactLines = artifacts
-            .map((artifact) => `- [${artifact.name}](${artifact.archive_download_url}) (${formatSize(artifact.size_in_bytes)})`)
-            .join('\n');
-
-          const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
-          const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
-
-          const existingComments = await github.paginate(
-            github.rest.issues.listComments,
-            {
+            const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
               owner,
               repo,
-              issue_number: issueNumber,
+              run_id: runId,
               per_page: 100,
-            },
-            (response) => response.data.filter((comment) => comment.body?.startsWith('<!-- calculinux-artifacts -->'))
-          );
+            });
 
-          if (existingComments.length > 0) {
-            const commentToUpdate = existingComments[0];
-            await github.rest.issues.updateComment({
-              owner,
-              repo,
-              comment_id: commentToUpdate.id,
-              body,
-            });
-            core.info(`Updated existing artifacts comment (ID: ${commentToUpdate.id}).`);
-          } else {
-            const newComment = await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              body,
-            });
-            core.info(`Created new artifacts comment (ID: ${newComment.data.id}).`);
+            const artifacts = artifactsResponse.data.artifacts ?? [];
+            core.info(`Found ${artifacts.length} artifacts`);
+
+            if (artifacts.length === 0) {
+              core.info('No artifacts found for this run; skipping PR comment.');
+              return;
+            }
+
+            const formatSize = (bytes) => {
+              if (!bytes || bytes <= 0) {
+                return 'size unknown';
+              }
+              const mb = bytes / (1024 * 1024);
+              return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
+            };
+
+            const artifactLines = artifacts
+              .map((artifact) => `- [${artifact.name}](${artifact.archive_download_url}) (${formatSize(artifact.size_in_bytes)})`)
+              .join('\n');
+
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+            const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
+
+            // Check for existing comments
+            core.info('Checking for existing artifact comments...');
+            const existingComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              },
+              (response) => response.data.filter((comment) => comment.body?.startsWith('<!-- calculinux-artifacts -->'))
+            );
+
+            if (existingComments.length > 0) {
+              const commentToUpdate = existingComments[0];
+              core.info(`Updating existing comment (ID: ${commentToUpdate.id})`);
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: commentToUpdate.id,
+                body,
+              });
+              core.info(`✅ Updated existing artifacts comment (ID: ${commentToUpdate.id}).`);
+            } else {
+              core.info('Creating new artifact comment...');
+              const newComment = await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body,
+              });
+              core.info(`✅ Created new artifacts comment (ID: ${newComment.data.id}).`);
+            }
+          } catch (error) {
+            core.error(`❌ Failed to comment on PR: ${error.message}`);
+            core.error(`Error details: ${JSON.stringify(error, null, 2)}`);
+            
+            // Don't fail the entire workflow for comment failures
+            core.warning('PR comment failed, but continuing workflow execution');
           }
 
     - name: Create release
