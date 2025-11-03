@@ -25,14 +25,15 @@ ROCKCHIP_KERNEL_IMAGES = "0"
 ROCKCHIP_KERNEL_COMPRESSED = "1"
 KERNEL_IMAGETYPES = "zboot.img"
 
-# Copy PicoCalc device tree from staged location
+# Copy PicoCalc device tree from devicetree helper recipe
 do_prepare_kernel_picocalc() {
-    PICOCALC_DT_SOURCE="/build/tmp/work/luckfox_lyra-poky-linux-musleabi/picocalc-drivers/1.0/devicetree-staging/picocalc-luckfox-lyra.dtsi"
+    PICOCALC_DT_SOURCE="${RECIPE_SYSROOT}/usr/share/picocalc/picocalc-luckfox-lyra.dtsi"
+    install -d ${S}/arch/${ARCH}/boot/dts
     cp "${PICOCALC_DT_SOURCE}" "${S}/arch/${ARCH}/boot/dts/picocalc-luckfox-lyra.dtsi"
 }
 
 addtask prepare_kernel_picocalc after do_kernel_checkout before do_kernel_configme
-do_prepare_kernel_picocalc[depends] += "picocalc-drivers:do_stage_devicetree"
+do_prepare_kernel_picocalc[depends] += "picocalc-devicetree:do_populate_sysroot"
 
 do_install:append() {
     # Remove kernel image formats that are not needed in the device image

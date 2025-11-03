@@ -1,9 +1,13 @@
 SUMMARY = "PicoCalc hardware drivers"
-DESCRIPTION = "Complete set of kernel drivers for PicoCalc hardware support including MFD, LCD, keyboard, sound, and power management"
+DESCRIPTION = "Complete set of kernel drivers for PicoCalc including MFD, LCD, keyboard, sound, and power management"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
 PR = "r0"
+
+require picocalc-drivers-source.inc
+
+COMPATIBLE_MACHINE = "luckfox-lyra"
 
 ####### Build with local checkout for development
 #inherit module externalsrc
@@ -13,13 +17,7 @@ PR = "r0"
 #######
 ####### Build with Github source repo
 inherit module
-PV = "1.0+git${SRCPV}"
-SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=main"
-SRCREV = "${AUTOREV}"
-S = "${WORKDIR}/git"
 #######
-
-COMPATIBLE_MACHINE = "luckfox-lyra"
 
 # Skip QA checks that are problematic for all kernel modules
 INSANE_SKIP:${PN} += "buildpaths debug-files"
@@ -75,17 +73,6 @@ RDEPENDS:${PN} = " \
 FILES:${PN} = ""
 ALLOW_EMPTY:${PN} = "1"
 
-# Stage device tree file for kernel use
-do_stage_devicetree() {
-    install -d ${WORKDIR}/devicetree-staging
-    cp ${S}/picocalc-luckfox-lyra.dtsi ${WORKDIR}/devicetree-staging/
-}
-
-addtask stage_devicetree after do_unpack before do_compile
-
-# Track source file changes for development builds with externalsrc
-do_stage_devicetree[file-checksums] += "${S}/picocalc-luckfox-lyra.dtsi:True"
-
 # Build all drivers individually
 do_compile() {
     # Use the top-level Makefile to build all modules in the repository
@@ -111,3 +98,7 @@ do_install() {
     install -m 0644 ${S}/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
+
+SYSROOT_DIRS += "${datadir}/picocalc"
+
+FILES:${PN}-src += "${datadir}/picocalc/picocalc-luckfox-lyra.dtsi"
