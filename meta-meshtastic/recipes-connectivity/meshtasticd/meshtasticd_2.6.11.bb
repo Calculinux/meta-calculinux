@@ -7,9 +7,9 @@ LIC_FILES_CHKSUM = " \
     file://LICENSE;subdir=platform-native;md5=8f0e2cd40e05189ec81232da84bd6e1a \
 "
 
-PV = "2.6.11+git${SRCPV}"
+PV = "2.6.11"
 
-SRCREV_FORMAT = "meshtastic platform"
+SRCREV_FORMAT = "meshtastic_platform"
 SRCREV_meshtastic = "60ec05e53693535aaf616162d4f970cfca6a5d58"
 SRCREV_platform = "622341c6de8a239704318b10c3dbb00c21a3eab3"
 
