@@ -1,0 +1,13 @@
+# Waveshare SX126X XXXM
+# AI Thinker RA-01SH
+# Will work with any module with automatic RF switching, and with no TCXO
+Lora:
+  Module: sx1262
+  gpiochip: 1  # Subtract 32 from the gpio numbers
+  DIO2_AS_RF_SWITCH: true
+  CS: 16  # GPIO48 1C0
+  IRQ: 23  # GPIO55 1C7
+  Busy: 22  # GPIO54 1C6
+  Reset: 25  # GPIO57 1D1
+  spidev: spidev0.0
+  spiSpeed: 2000000

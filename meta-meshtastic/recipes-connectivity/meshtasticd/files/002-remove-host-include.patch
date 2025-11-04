@@ -1,0 +1,31 @@
+From: Calculinux Build Team <build@calculinux.org>
+Subject: [PATCH] portduino: drop host /usr/include from native build flags
+
+Upstream's portduino PlatformIO configuration injects an explicit
+"-I /usr/include" include path for the native environment. When
+cross compiling the Linux port with Yocto, this forces the compiler
+to pick up the build host's glibc headers instead of the target
+sysroot (musl) headers, which in turn triggers numerous build
+failures because the target toolchain does not support host-specific
+floating point types like _Float128.
+
+The Yocto build already exports the appropriate include paths via the
+TARGET_CFLAGS environment variable (and the buildroot platform uses
+them automatically), so the extra host include directory is not
+required. Remove it to ensure the compiler relies solely on the
+target sysroot provided by the BitBake environment.
+
+Signed-off-by: Calculinux Build Team <build@calculinux.org>
+Upstream-Status: Inappropriate [Yocto specific]
+
+diff --git a/variants/portduino/platformio.ini b/variants/portduino/platformio.ini
+index 5c0fbdc43..f78e0a5ca 100644
+--- a/variants/portduino/platformio.ini
++++ b/variants/portduino/platformio.ini
+@@ -2,7 +2,6 @@ extends = portduino_base
+ build_flags = ${portduino_base.build_flags} -I variants/portduino
+   -D ARCH_PORTDUINO
+-  -I /usr/include
+ board = cross_platform
+ lib_deps = ${portduino_base.lib_deps}
+ build_src_filter = ${portduino_base.build_src_filter}
