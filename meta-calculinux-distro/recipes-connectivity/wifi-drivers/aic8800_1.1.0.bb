@@ -6,7 +6,8 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 inherit module
 
 PV = "1.1.0+git${SRCPV}"
-SRC_URI = "git://github.com/CELIANVF/aic8800_linux_drvier.git;protocol=https;branch=main"
+SRC_URI = "git://github.com/CELIANVF/aic8800_linux_drvier.git;protocol=https;branch=main \
+           file://0001-linux-6.9-compatibility-fixes.patch"
 SRCREV = "5b85ae0cc8a9f6e154c850006cda8390cb0d37e1"
 
 S = "${WORKDIR}/git/drivers/aic8800"
