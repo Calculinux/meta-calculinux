@@ -44,7 +44,7 @@ PACKAGECONFIG[web] = "",,"libulfius liborcania libyder openssl gnutls"
 
 DEPENDS += " \
     argp-standalone \
-    bluez \
+    bluez5 \
     i2c-tools \
     libgpiod \
     libusb1 \
@@ -64,7 +64,7 @@ DEPENDS += " \
 "
 
 RDEPENDS:${PN} += " \
-    bluez \
+    bluez5 \
     i2c-tools \
     libgpiod \
     libusb1 \
