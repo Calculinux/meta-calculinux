@@ -43,6 +43,13 @@ PACKAGECONFIG[avahi] = "",,"avahi"
 PACKAGECONFIG[web] = "",,"libulfius liborcania libyder openssl gnutls"
 
 DEPENDS += " \
+    argp-standalone \
+    bluez \
+    i2c-tools \
+    libgpiod \
+    libusb1 \
+    libuv \
+    openssl-native \
     python3-native \
     python3-platformio-native \
     python3-click-native \
@@ -52,21 +59,16 @@ DEPENDS += " \
     python3-pyserial-native \
     python3-pyelftools-native \
     pkgconfig-native \
-    openssl-native \
-    argp-standalone \
-    libgpiod \
-    libusb1 \
-    libuv \
-    i2c-tools \
     yaml-cpp \
     zlib \
 "
 
 RDEPENDS:${PN} += " \
+    bluez \
+    i2c-tools \
     libgpiod \
     libusb1 \
     libuv \
-    i2c-tools \
     yaml-cpp \
     zlib \
 "
@@ -121,9 +123,7 @@ do_compile() {
     export PKG_CONFIG_LIBDIR="${STAGING_LIBDIR}/pkgconfig:${STAGING_DIR_TARGET}/usr/lib/pkgconfig"
     export PKG_CONFIG_PATH="${PKG_CONFIG_LIBDIR}"
 
-    export PLATFORMIO_EXTRA_ARGS="-v"
-
-    ${PYTHON} -m platformio run -v --environment native --project-dir ${S}
+    ${PYTHON} -m platformio run --environment native --project-dir ${S}
 }
 
 do_install() {
