@@ -175,6 +175,16 @@ jobs:
         # Run the build with kas-container
         ./kas-container build ${{ matrix.kas_file }}
 
+    - name: Build SDK
+      run: |
+        echo "Building SDK for ${{ matrix.name }}..."
+        echo "This will generate a cross-compilation toolchain and sysroot for development"
+        
+        # Build the SDK using the same kas configuration
+        ./kas-container --ssh-dir ~/.ssh build --update ${{ matrix.kas_file }} --target calculinux-image -c populate_sdk
+        
+        echo "SDK build completed successfully"
+
     - name: Collect build artifacts (images)
       run: |
         echo "Collecting build artifacts..."
@@ -236,6 +246,51 @@ jobs:
           ls -la artifacts/packages/
         else
           echo "Warning: No IPK packages directory found"
+        fi
+
+    - name: Collect build artifacts (SDK)
+      run: |
+        echo "Collecting SDK artifacts..."
+        
+        # Find build directory
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+        DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
+        
+        if [ -d "$DEPLOY_SDK_DIR" ]; then
+          echo "Found SDK directory: $DEPLOY_SDK_DIR"
+          
+          # Create SDK directory in artifacts
+          mkdir -p artifacts/sdk
+          
+          # Copy SDK installer(s)
+          find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do
+            if [ -f "$sdk_file" ]; then
+              echo "Copying SDK installer: $(basename "$sdk_file")"
+              cp "$sdk_file" artifacts/sdk/
+            fi
+          done
+          
+          # Copy SDK manifest if it exists
+          find "$DEPLOY_SDK_DIR" -name "*.manifest" -type f | while read manifest_file; do
+            if [ -f "$manifest_file" ]; then
+              echo "Copying SDK manifest: $(basename "$manifest_file")"
+              cp "$manifest_file" artifacts/sdk/
+            fi
+          done
+          
+          # Show what we collected
+          echo "Collected SDK artifacts:"
+          ls -la artifacts/sdk/
+          
+          # Show SDK file sizes
+          du -sh artifacts/sdk/* 2>/dev/null || echo "No SDK files found"
+        else
+          echo "Warning: No SDK directory found at $DEPLOY_SDK_DIR"
+          echo "SDK build may have failed or SDK files are in a different location"
+          
+          # Try to find SDK files elsewhere
+          echo "Searching for SDK files in build directory..."
+          find "$BUILD_DIR" -name "*.sh" -path "*/sdk*" -type f 2>/dev/null | head -5 || echo "No SDK installer files found"
         fi
 
     - name: Sync packages to repository
@@ -469,6 +524,88 @@ jobs:
 
         echo "Images published successfully"
 
+    - name: Publish SDK to webserver
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      run: |
+        echo "Publishing SDK to webserver..."
+        
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        SDK_DIR="$OPKG_REPO_DIR/sdk/$FEED_NAME/$SUBFOLDER"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
+        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
+        TAG_NAME="${{ github.ref_name }}"
+        
+        # Create target directory
+        mkdir -p "$SDK_DIR"
+        
+        if [ -d "artifacts/sdk" ] && [ "$(ls -A artifacts/sdk)" ]; then
+          if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+            echo "Publishing tagged release SDK..."
+            
+            # Find SDK installer file
+            SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
+            
+            if [ -n "$SDK_FILE" ]; then
+              SDK_BASENAME=$(basename "$SDK_FILE")
+              # Extract the base name without extension for versioning
+              SDK_NAME_NO_EXT="${SDK_BASENAME%.sh}"
+              
+              # Copy SDK with versioned name
+              cp "$SDK_FILE" "$SDK_DIR/${SDK_NAME_NO_EXT}-$TAG_NAME.sh"
+              echo "Published SDK: ${SDK_NAME_NO_EXT}-$TAG_NAME.sh"
+              
+              # If not a prerelease, also copy with original name for latest release
+              if [ "$IS_PRERELEASE" = "false" ]; then
+                cp "$SDK_FILE" "$SDK_DIR/$SDK_BASENAME"
+                echo "Published SDK: $SDK_BASENAME (latest)"
+              fi
+              
+              # Copy SDK manifest if available
+              SDK_MANIFEST=$(find artifacts/sdk -name "*.manifest" -type f | head -1)
+              if [ -n "$SDK_MANIFEST" ]; then
+                MANIFEST_BASENAME=$(basename "$SDK_MANIFEST")
+                MANIFEST_NAME_NO_EXT="${MANIFEST_BASENAME%.manifest}"
+                
+                cp "$SDK_MANIFEST" "$SDK_DIR/${MANIFEST_NAME_NO_EXT}-$TAG_NAME.manifest"
+                echo "Published SDK manifest: ${MANIFEST_NAME_NO_EXT}-$TAG_NAME.manifest"
+                
+                if [ "$IS_PRERELEASE" = "false" ]; then
+                  cp "$SDK_MANIFEST" "$SDK_DIR/$MANIFEST_BASENAME"
+                  echo "Published SDK manifest: $MANIFEST_BASENAME (latest)"
+                fi
+              fi
+            else
+              echo "Warning: No SDK installer (.sh) files found in artifacts/sdk"
+            fi
+          else
+            echo "Publishing continuous development SDK..."
+            
+            # Copy all SDK files to SDK directory
+            if ls artifacts/sdk/*.sh 1> /dev/null 2>&1; then
+              echo "Copying SDK installers to $SDK_DIR"
+              cp artifacts/sdk/*.sh "$SDK_DIR/"
+              echo "Published SDK installers:"
+              ls -la "$SDK_DIR"/*.sh
+            else
+              echo "No SDK installer files found to publish"
+            fi
+            
+            # Copy SDK manifests if available
+            if ls artifacts/sdk/*.manifest 1> /dev/null 2>&1; then
+              echo "Copying SDK manifests to $SDK_DIR"
+              cp artifacts/sdk/*.manifest "$SDK_DIR/"
+              echo "Published SDK manifests:"
+              ls -la "$SDK_DIR"/*.manifest
+            fi
+          fi
+          
+          echo "SDK published successfully"
+          echo "SDK available at: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/"
+        else
+          echo "Warning: No SDK artifacts found to publish"
+        fi
+
     - name: Generate build information
       run: |
         # Create build info file
@@ -503,6 +640,8 @@ jobs:
           artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
           artifacts/uboot-${{ matrix.machine }}-*.bin
           artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
+          artifacts/sdk/*.sh
+          artifacts/sdk/*.manifest
         retention-days: 30
 
     - name: Comment artifact links on PR
@@ -644,10 +783,12 @@ jobs:
         IMAGE_URL="$DOWNLOAD_BASE/image/${{ steps.feed-config.outputs.feed_name }}/release/"
         UPDATE_URL="$DOWNLOAD_BASE/update/${{ steps.feed-config.outputs.feed_name }}/release/"
         PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ steps.feed-config.outputs.feed_name }}/release/"
+        SDK_URL="$DOWNLOAD_BASE/sdk/${{ steps.feed-config.outputs.feed_name }}/release/"
         
         # Find actual build artifacts
         WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
         RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
+        SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
         
         # Create download links section for tagged releases
         DOWNLOAD_LINKS=""
@@ -662,6 +803,14 @@ jobs:
           # Published filename: calculinux-bundle-{machine}-{tag}.raucb
           RAUCB_VERSIONED="calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
           DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
+        fi
+        if [ -n "$SDK_FILE" ]; then
+          SDK_FILENAME=$(basename "$SDK_FILE")
+          # Extract base name without extension for versioning
+          SDK_NAME_NO_EXT="${SDK_FILENAME%.sh}"
+          # Published filename: {sdk-name}-{tag}.sh
+          SDK_VERSIONED="${SDK_NAME_NO_EXT}-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain**: [$SDK_VERSIONED]($SDK_URL$SDK_VERSIONED)\n"
         fi
         
         # Add package feed link
