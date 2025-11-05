@@ -34,7 +34,7 @@ Thumbs.db
 *.so
 
 # Default build folder
-build/*
+build
 
 # Yocto specific ignores
 meta-arm/*

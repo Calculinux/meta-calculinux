@@ -115,12 +115,7 @@ do_compile:prepend() {
     ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencpu-host obj/host-tools/gencpu-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
 
     ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/compiler/gencomp.c -o obj/host-tools/gencomp-host.o
-            ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencomp-host obj/host-tools/gencomp-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
-}
-
-        obj/host-tools/gencpu-host
-        obj/host-tools/gencomp-host
-    fi
+    ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencomp-host obj/host-tools/gencomp-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
 }
 
 do_compile() {
