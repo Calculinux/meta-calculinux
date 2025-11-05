@@ -177,13 +177,49 @@ jobs:
 
     - name: Build SDK
       run: |
-        echo "Building SDK for ${{ matrix.name }}..."
-        echo "This will generate a cross-compilation toolchain and sysroot for development"
+
+        echo "Building SDK for ${{ matrix.name }} (x86_64 architecture)..."
+        echo "This will generate a cross-compilation toolchain and sysroot for development for use on x86_64 hosts"
         
-        # Build the SDK using the same kas configuration
-        ./kas-container --ssh-dir ~/.ssh build --update ${{ matrix.kas_file }} --target calculinux-image -c populate_sdk
+        # Create temporary kas file for x86_64 SDK
+        cat > kas-sdk-x86_64.yaml << EOF
+        header:
+          version: 18
+          includes:
+            - ${{ matrix.kas_file }}
         
-        echo "SDK build completed successfully"
+        local_conf_header:
+          sdk_x86_64: |
+            SDKMACHINE = "x86_64"
+        EOF
+        
+        # Build the SDK using the temporary kas configuration
+        ./kas-container --ssh-dir ~/.ssh build --update kas-sdk-x86_64.yaml --target calculinux-image -c populate_sdk
+        
+        echo "x86_64 SDK build completed successfully"
+
+    - name: Build AArch64 SDK
+      run: |
+
+        echo "Building SDK for ${{ matrix.name }} (aarch64 architecture)..."
+        echo "This will generate a cross-compilation toolchain and sysroot for development for use on aarch64 hosts"
+        
+        # Create temporary kas file for aarch64 SDK
+        cat > kas-sdk-aarch64.yaml << EOF
+        header:
+          version: 18
+          includes:
+            - ${{ matrix.kas_file }}
+        
+        local_conf_header:
+          sdk_aarch64: |
+            SDKMACHINE = "aarch64"
+        EOF
+        
+        # Build the AArch64 SDK using the temporary kas configuration
+        ./kas-container --ssh-dir ~/.ssh build --update kas-sdk-aarch64.yaml --target calculinux-image -c populate_sdk
+        
+        echo "aarch64 SDK build completed successfully"
 
     - name: Collect build artifacts (images)
       run: |
@@ -259,31 +295,96 @@ jobs:
         if [ -d "$DEPLOY_SDK_DIR" ]; then
           echo "Found SDK directory: $DEPLOY_SDK_DIR"
           
-          # Create SDK directory in artifacts
-          mkdir -p artifacts/sdk
+          # Create SDK directory structure in artifacts for both architectures
+          mkdir -p artifacts/sdk/x86_64 artifacts/sdk/aarch64
           
-          # Copy SDK installer(s)
+          # Process each SDK file to determine its architecture and organize accordingly
           find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do
             if [ -f "$sdk_file" ]; then
-              echo "Copying SDK installer: $(basename "$sdk_file")"
-              cp "$sdk_file" artifacts/sdk/
+              sdk_basename=$(basename "$sdk_file")
+              echo "Processing SDK installer: $sdk_basename"
+              
+              # Determine architecture from filename
+              # SDK filenames typically contain architecture info, e.g.:
+              # calculinux-distro-glibc-x86_64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
+              # calculinux-distro-glibc-aarch64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
+              if [[ "$sdk_basename" =~ -x86_64- ]]; then
+                echo "  -> x86_64 SDK: $sdk_basename"
+                cp "$sdk_file" artifacts/sdk/x86_64/
+                SDK_ARCH="x86_64"
+              elif [[ "$sdk_basename" =~ -aarch64- ]]; then
+                echo "  -> aarch64 SDK: $sdk_basename"
+                cp "$sdk_file" artifacts/sdk/aarch64/
+                SDK_ARCH="aarch64"
+              else
+                echo "  -> Unknown architecture, defaulting to x86_64: $sdk_basename"
+                cp "$sdk_file" artifacts/sdk/x86_64/
+                SDK_ARCH="x86_64"
+              fi
+              
+              # Look for corresponding manifest file
+              manifest_file="${sdk_file%.sh}.manifest"
+              if [ -f "$manifest_file" ]; then
+                manifest_basename=$(basename "$manifest_file")
+                echo "    Found manifest: $manifest_basename"
+                cp "$manifest_file" "artifacts/sdk/$SDK_ARCH/"
+              fi
             fi
           done
           
-          # Copy SDK manifest if it exists
+          # Also look for standalone manifest files
           find "$DEPLOY_SDK_DIR" -name "*.manifest" -type f | while read manifest_file; do
             if [ -f "$manifest_file" ]; then
-              echo "Copying SDK manifest: $(basename "$manifest_file")"
-              cp "$manifest_file" artifacts/sdk/
+              manifest_basename=$(basename "$manifest_file")
+              # Skip if we already copied it above
+              if [ ! -f "artifacts/sdk/x86_64/$manifest_basename" ] && [ ! -f "artifacts/sdk/aarch64/$manifest_basename" ]; then
+                echo "Processing standalone manifest: $manifest_basename"
+                
+                # Determine architecture from manifest filename
+                if [[ "$manifest_basename" =~ -x86_64- ]]; then
+                  echo "  -> x86_64 manifest: $manifest_basename"
+                  cp "$manifest_file" artifacts/sdk/x86_64/
+                elif [[ "$manifest_basename" =~ -aarch64- ]]; then
+                  echo "  -> aarch64 manifest: $manifest_basename"
+                  cp "$manifest_file" artifacts/sdk/aarch64/
+                else
+                  echo "  -> Unknown architecture manifest, defaulting to x86_64: $manifest_basename"
+                  cp "$manifest_file" artifacts/sdk/x86_64/
+                fi
+              fi
             fi
           done
           
-          # Show what we collected
+          # Show what we collected for each architecture
           echo "Collected SDK artifacts:"
-          ls -la artifacts/sdk/
+          echo ""
+          echo "x86_64 SDKs:"
+          if [ "$(ls -A artifacts/sdk/x86_64 2>/dev/null)" ]; then
+            ls -la artifacts/sdk/x86_64/
+            echo "x86_64 SDK sizes:"
+            du -sh artifacts/sdk/x86_64/* 2>/dev/null || echo "No x86_64 SDK files"
+          else
+            echo "  No x86_64 SDK files found"
+          fi
           
-          # Show SDK file sizes
-          du -sh artifacts/sdk/* 2>/dev/null || echo "No SDK files found"
+          echo ""
+          echo "aarch64 SDKs:"
+          if [ "$(ls -A artifacts/sdk/aarch64 2>/dev/null)" ]; then
+            ls -la artifacts/sdk/aarch64/
+            echo "aarch64 SDK sizes:"
+            du -sh artifacts/sdk/aarch64/* 2>/dev/null || echo "No aarch64 SDK files"
+          else
+            echo "  No aarch64 SDK files found"
+          fi
+          
+          # Create summary for easy reference
+          echo ""
+          echo "SDK Summary:"
+          X86_COUNT=$(find artifacts/sdk/x86_64 -name "*.sh" -type f 2>/dev/null | wc -l)
+          AARCH64_COUNT=$(find artifacts/sdk/aarch64 -name "*.sh" -type f 2>/dev/null | wc -l)
+          echo "  x86_64 SDKs: $X86_COUNT"
+          echo "  aarch64 SDKs: $AARCH64_COUNT"
+          echo "  Total SDKs: $((X86_COUNT + AARCH64_COUNT))"
         else
           echo "Warning: No SDK directory found at $DEPLOY_SDK_DIR"
           echo "SDK build may have failed or SDK files are in a different location"
@@ -539,71 +640,162 @@ jobs:
         # Create target directory
         mkdir -p "$SDK_DIR"
         
-        if [ -d "artifacts/sdk" ] && [ "$(ls -A artifacts/sdk)" ]; then
-          if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-            echo "Publishing tagged release SDK..."
-            
-            # Find SDK installer file
-            SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
-            
-            if [ -n "$SDK_FILE" ]; then
-              SDK_BASENAME=$(basename "$SDK_FILE")
-              # Extract the base name without extension for versioning
-              SDK_NAME_NO_EXT="${SDK_BASENAME%.sh}"
+        # Check if we have SDK artifacts
+        if [ -d "artifacts/sdk" ] && [ "$(find artifacts/sdk -name "*.sh" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "Processing SDK artifacts for multiple architectures..."
+          
+          # Process each architecture
+          for arch in x86_64 aarch64; do
+            if [ -d "artifacts/sdk/$arch" ] && [ "$(ls -A artifacts/sdk/$arch 2>/dev/null)" ]; then
+              echo ""
+              echo "Publishing $arch SDK artifacts..."
               
-              # Copy SDK with versioned name
-              cp "$SDK_FILE" "$SDK_DIR/${SDK_NAME_NO_EXT}-$TAG_NAME.sh"
-              echo "Published SDK: ${SDK_NAME_NO_EXT}-$TAG_NAME.sh"
+              # Create architecture-specific directory
+              mkdir -p "$SDK_DIR/$arch"
               
-              # If not a prerelease, also copy with original name for latest release
-              if [ "$IS_PRERELEASE" = "false" ]; then
-                cp "$SDK_FILE" "$SDK_DIR/$SDK_BASENAME"
-                echo "Published SDK: $SDK_BASENAME (latest)"
-              fi
-              
-              # Copy SDK manifest if available
-              SDK_MANIFEST=$(find artifacts/sdk -name "*.manifest" -type f | head -1)
-              if [ -n "$SDK_MANIFEST" ]; then
-                MANIFEST_BASENAME=$(basename "$SDK_MANIFEST")
-                MANIFEST_NAME_NO_EXT="${MANIFEST_BASENAME%.manifest}"
+              if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+                echo "Publishing tagged release SDK for $arch..."
                 
-                cp "$SDK_MANIFEST" "$SDK_DIR/${MANIFEST_NAME_NO_EXT}-$TAG_NAME.manifest"
-                echo "Published SDK manifest: ${MANIFEST_NAME_NO_EXT}-$TAG_NAME.manifest"
+                # Find SDK installer file for this architecture
+                SDK_FILE=$(find "artifacts/sdk/$arch" -name "*.sh" -type f | head -1)
                 
-                if [ "$IS_PRERELEASE" = "false" ]; then
-                  cp "$SDK_MANIFEST" "$SDK_DIR/$MANIFEST_BASENAME"
-                  echo "Published SDK manifest: $MANIFEST_BASENAME (latest)"
+                if [ -n "$SDK_FILE" ]; then
+                  SDK_BASENAME=$(basename "$SDK_FILE")
+                  
+                  # Create a consistent SDK filename using Calculinux versioning
+                  # Original: calculinux-distro-glibc-x86_64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
+                  # Target:   calculinux-sdk-luckfox-lyra-x86_64-1.0.0-alpha4.sh
+                  CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$arch-$TAG_NAME.sh"
+                  CALCULINUX_SDK_LATEST="calculinux-sdk-${{ matrix.machine }}-$arch.sh"
+                  
+                  # Copy SDK with Calculinux versioned name
+                  cp "$SDK_FILE" "$SDK_DIR/$arch/$CALCULINUX_SDK_NAME"
+                  echo "  Published $arch SDK: $CALCULINUX_SDK_NAME"
+                  
+                  # If not a prerelease, also copy with latest name for easy discovery
+                  if [ "$IS_PRERELEASE" = "false" ]; then
+                    cp "$SDK_FILE" "$SDK_DIR/$arch/$CALCULINUX_SDK_LATEST"
+                    echo "  Published $arch SDK: $CALCULINUX_SDK_LATEST (latest)"
+                  fi
+                  
+                  # Also keep the original SDK filename for advanced users who need the detailed info
+                  cp "$SDK_FILE" "$SDK_DIR/$arch/$SDK_BASENAME"
+                  echo "  Published $arch SDK: $SDK_BASENAME (detailed)"
+                  
+                  # Copy SDK manifest if available
+                  SDK_MANIFEST=$(find "artifacts/sdk/$arch" -name "*.manifest" -type f | head -1)
+                  if [ -n "$SDK_MANIFEST" ]; then
+                    MANIFEST_BASENAME=$(basename "$SDK_MANIFEST")
+                    
+                    # Create consistent manifest names to match SDK names
+                    CALCULINUX_MANIFEST_NAME="calculinux-sdk-${{ matrix.machine }}-$arch-$TAG_NAME.manifest"
+                    CALCULINUX_MANIFEST_LATEST="calculinux-sdk-${{ matrix.machine }}-$arch.manifest"
+                    
+                    cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_NAME"
+                    echo "  Published $arch SDK manifest: $CALCULINUX_MANIFEST_NAME"
+                    
+                    if [ "$IS_PRERELEASE" = "false" ]; then
+                      cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_LATEST"
+                      echo "  Published $arch SDK manifest: $CALCULINUX_MANIFEST_LATEST (latest)"
+                    fi
+                    
+                    # Also keep the original manifest filename
+                    cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$MANIFEST_BASENAME"
+                    echo "  Published $arch SDK manifest: $MANIFEST_BASENAME (detailed)"
+                  fi
+                else
+                  echo "  Warning: No $arch SDK installer (.sh) files found"
+                fi
+              else
+                echo "Publishing continuous development SDK for $arch..."
+                
+                # Copy all SDK files for this architecture to SDK directory
+                if ls "artifacts/sdk/$arch"/*.sh 1> /dev/null 2>&1; then
+                  echo "  Copying $arch SDK installers to $SDK_DIR/$arch"
+                  
+                  # For continuous builds, use consistent naming but without version tags
+                  for sdk_file in "artifacts/sdk/$arch"/*.sh; do
+                    if [ -f "$sdk_file" ]; then
+                      SDK_BASENAME=$(basename "$sdk_file")
+                      
+                      # Create consistent SDK filename for continuous builds
+                      CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$arch.sh"
+                      
+                      # Copy with both names
+                      cp "$sdk_file" "$SDK_DIR/$arch/$CALCULINUX_SDK_NAME"
+                      cp "$sdk_file" "$SDK_DIR/$arch/$SDK_BASENAME"
+                      
+                      echo "    Published: $CALCULINUX_SDK_NAME"
+                      echo "    Published: $SDK_BASENAME (detailed)"
+                    fi
+                  done
+                else
+                  echo "  No $arch SDK installer files found"
+                fi
+                
+                # Copy SDK manifests if available
+                if ls "artifacts/sdk/$arch"/*.manifest 1> /dev/null 2>&1; then
+                  echo "  Copying $arch SDK manifests to $SDK_DIR/$arch"
+                  
+                  for manifest_file in "artifacts/sdk/$arch"/*.manifest; do
+                    if [ -f "$manifest_file" ]; then
+                      MANIFEST_BASENAME=$(basename "$manifest_file")
+                      
+                      # Create consistent manifest filename for continuous builds
+                      CALCULINUX_MANIFEST_NAME="calculinux-sdk-${{ matrix.machine }}-$arch.manifest"
+                      
+                      # Copy with both names
+                      cp "$manifest_file" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_NAME"
+                      cp "$manifest_file" "$SDK_DIR/$arch/$MANIFEST_BASENAME"
+                      
+                      echo "    Published: $CALCULINUX_MANIFEST_NAME"
+                      echo "    Published: $MANIFEST_BASENAME (detailed)"
+                    fi
+                  done
                 fi
               fi
             else
-              echo "Warning: No SDK installer (.sh) files found in artifacts/sdk"
+              echo "  No $arch SDK artifacts found"
             fi
-          else
-            echo "Publishing continuous development SDK..."
-            
-            # Copy all SDK files to SDK directory
-            if ls artifacts/sdk/*.sh 1> /dev/null 2>&1; then
-              echo "Copying SDK installers to $SDK_DIR"
-              cp artifacts/sdk/*.sh "$SDK_DIR/"
-              echo "Published SDK installers:"
-              ls -la "$SDK_DIR"/*.sh
+          done
+          
+          echo ""
+          echo "SDK publishing summary:"
+          echo "SDK published to: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/"
+          
+          # Show final directory structure
+          for arch in x86_64 aarch64; do
+            if [ -d "$SDK_DIR/$arch" ] && [ "$(ls -A "$SDK_DIR/$arch" 2>/dev/null)" ]; then
+              SDK_COUNT=$(find "$SDK_DIR/$arch" -name "*.sh" -type f | wc -l)
+              MANIFEST_COUNT=$(find "$SDK_DIR/$arch" -name "*.manifest" -type f | wc -l)
+              echo "  $arch: $SDK_COUNT SDK installer(s), $MANIFEST_COUNT manifest(s)"
+              echo "    URL: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/$arch/"
             else
-              echo "No SDK installer files found to publish"
+              echo "  $arch: No files published"
             fi
-            
-            # Copy SDK manifests if available
-            if ls artifacts/sdk/*.manifest 1> /dev/null 2>&1; then
-              echo "Copying SDK manifests to $SDK_DIR"
-              cp artifacts/sdk/*.manifest "$SDK_DIR/"
-              echo "Published SDK manifests:"
-              ls -la "$SDK_DIR"/*.manifest
+          done
+          
+          # Legacy compatibility: create symlinks for backward compatibility with simple names
+          if [ -d "$SDK_DIR/x86_64" ] && [ "$(ls -A "$SDK_DIR/x86_64" 2>/dev/null)" ]; then
+            echo ""
+            echo "Creating legacy compatibility links for x86_64 SDK..."
+            # Create symlinks in the root SDK directory pointing to the consistent Calculinux names
+            cd "$SDK_DIR"
+            if [ -f "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh" ]; then
+              ln -sf "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh" "calculinux-sdk-${{ matrix.machine }}.sh"
+              echo "  Created legacy link: calculinux-sdk-${{ matrix.machine }}.sh -> x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh"
             fi
+            if [ -f "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest" ]; then
+              ln -sf "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest" "calculinux-sdk-${{ matrix.machine }}.manifest"
+              echo "  Created legacy link: calculinux-sdk-${{ matrix.machine }}.manifest -> x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest"
+            fi
+            cd - > /dev/null
           fi
           
           echo "SDK published successfully"
-          echo "SDK available at: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/"
         else
           echo "Warning: No SDK artifacts found to publish"
+          echo "Expected to find SDK installer files (.sh) in artifacts/sdk/{x86_64,aarch64}/"
         fi
 
     - name: Generate build information
@@ -640,8 +832,10 @@ jobs:
           artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
           artifacts/uboot-${{ matrix.machine }}-*.bin
           artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
-          artifacts/sdk/*.sh
-          artifacts/sdk/*.manifest
+          artifacts/sdk/x86_64/*.sh
+          artifacts/sdk/x86_64/*.manifest
+          artifacts/sdk/aarch64/*.sh
+          artifacts/sdk/aarch64/*.manifest
         retention-days: 30
 
     - name: Comment artifact links on PR
@@ -788,7 +982,10 @@ jobs:
         # Find actual build artifacts
         WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
         RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
-        SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
+        
+        # Find SDK files for both architectures
+        X86_64_SDK_FILE=$(find artifacts/sdk/x86_64 -name "*.sh" -type f | head -1)
+        AARCH64_SDK_FILE=$(find artifacts/sdk/aarch64 -name "*.sh" -type f | head -1)
         
         # Create download links section for tagged releases
         DOWNLOAD_LINKS=""
@@ -804,13 +1001,28 @@ jobs:
           RAUCB_VERSIONED="calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
           DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
         fi
-        if [ -n "$SDK_FILE" ]; then
-          SDK_FILENAME=$(basename "$SDK_FILE")
-          # Extract base name without extension for versioning
-          SDK_NAME_NO_EXT="${SDK_FILENAME%.sh}"
-          # Published filename: {sdk-name}-{tag}.sh
-          SDK_VERSIONED="${SDK_NAME_NO_EXT}-$TAG_NAME.sh"
-          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain**: [$SDK_VERSIONED]($SDK_URL$SDK_VERSIONED)\n"
+        
+        # Add SDK links for each architecture
+        if [ -n "$X86_64_SDK_FILE" ]; then
+          # Use consistent Calculinux SDK naming instead of complex Yocto names
+          CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-x86_64-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (x86_64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/x86_64/$CALCULINUX_SDK_NAME)\n"
+        fi
+        
+        if [ -n "$AARCH64_SDK_FILE" ]; then
+          # Use consistent Calculinux SDK naming instead of complex Yocto names
+          CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-aarch64-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (aarch64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/aarch64/$CALCULINUX_SDK_NAME)\n"
+        fi
+        
+        # If we have SDKs but couldn't determine architecture, provide generic links
+        if [ -z "$X86_64_SDK_FILE" ] && [ -z "$AARCH64_SDK_FILE" ]; then
+          # Fallback: look for any SDK file and use consistent naming
+          ANY_SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
+          if [ -n "$ANY_SDK_FILE" ]; then
+            CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$TAG_NAME.sh"
+            DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain**: [$CALCULINUX_SDK_NAME]($SDK_URL$CALCULINUX_SDK_NAME)\n"
+          fi
         fi
         
         # Add package feed link
