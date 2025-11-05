@@ -2,17 +2,16 @@ DESCRIPTION = "Basilisk II — 680x0 Apple Macintosh emulator (build from macemu
 HOMEPAGE = "https://github.com/kanjitalk755/macemu"
 SECTION = "emulator"
 LICENSE = "GPL-2.0-or-later"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=00000000000000000000000000000000"
+LIC_FILES_CHKSUM = "file://BasiliskII/COPYING;md5=0636e73ff0215e8d672dc4c32c317bb3"
 
 PN = "basilisk-ii"
 PV = "1.0+git${SRCPV}"
 
 SRC_URI = "git://github.com/kanjitalk755/macemu;protocol=https;branch=master \
            file://0001-fix-tun-tap-check.patch \
-           file://0002-fix-static-inline-functions.patch \
            file://0003-fix-register-keyword.patch \
            file://0004-fix-sscanf-format.patch \
-           file://0005-fix-static-inline-mac-functions.patch"
+        "
 SRCREV = "ac3273276215ffb3d0e40c8ed2e86f60882ec04d"
 
 # The macemu repository contains multiple emulators. Basilisk II's Unix port
@@ -75,15 +74,13 @@ do_configure() {
 
         ./configure --host=${TARGET_SYS} --build=${BUILD_SYS} --prefix=${prefix} ${EXTRA_OECONF}
 
-        # Handle cross-compilation: use a host-built generator for cpudefs.cpp
-        if [ "${BUILD_SYS}" != "${TARGET_SYS}" ]; then
-            sed -i 's#cpudefs\.cpp: $(OBJ_DIR)/build68k$(EXEEXT) \./$(UAE_PATH)/table68k#cpudefs.cpp: obj/host-tools/build68k-host ./$(UAE_PATH)/table68k#' Makefile
-            sed -i 's#$(OBJ_DIR)/build68k$(EXEEXT) <\./$(UAE_PATH)/table68k >cpudefs\.cpp#obj/host-tools/build68k-host <./$(UAE_PATH)/table68k >$@#' Makefile
-            sed -i 's#^cpuemu\.cpp: $(OBJ_DIR)/gencpu$(EXEEXT)#cpuemu.cpp: obj/host-tools/gencpu-host#' Makefile
-            sed -i $'s#^\t$(OBJ_DIR)/gencpu$(EXEEXT)#\tobj/host-tools/gencpu-host#' Makefile
-            sed -i 's#^compemu\.cpp: $(OBJ_DIR)/gencomp$(EXEEXT)#compemu.cpp: obj/host-tools/gencomp-host#' Makefile
-            sed -i $'s#^\t$(OBJ_DIR)/gencomp$(EXEEXT)#\tobj/host-tools/gencomp-host#' Makefile
-        fi
+        # Handle cross-compilation: use host-built generators for CPU code generation
+        sed -i 's#cpudefs\.cpp: $(OBJ_DIR)/build68k$(EXEEXT) \./$(UAE_PATH)/table68k#cpudefs.cpp: obj/host-tools/build68k-host ./$(UAE_PATH)/table68k#' Makefile
+        sed -i 's#$(OBJ_DIR)/build68k$(EXEEXT) <\./$(UAE_PATH)/table68k >cpudefs\.cpp#obj/host-tools/build68k-host <./$(UAE_PATH)/table68k >$@#' Makefile
+        sed -i 's#^cpuemu\.cpp: $(OBJ_DIR)/gencpu$(EXEEXT)#cpuemu.cpp: obj/host-tools/gencpu-host#' Makefile
+        sed -i $'s#^\t$(OBJ_DIR)/gencpu$(EXEEXT)#\tobj/host-tools/gencpu-host#' Makefile
+        sed -i 's#^compemu\.cpp: $(OBJ_DIR)/gencomp$(EXEEXT)#compemu.cpp: obj/host-tools/gencomp-host#' Makefile
+        sed -i $'s#^\t$(OBJ_DIR)/gencomp$(EXEEXT)#\tobj/host-tools/gencomp-host#' Makefile
     else
         bbnote "No autogen.sh script found; skipping configure step"
     fi
@@ -97,29 +94,29 @@ do_configure:append() {
 }
 
 do_compile:prepend() {
-    if [ "${BUILD_SYS}" != "${TARGET_SYS}" ]; then
-        bbnote "Preparing host-side CPU generators"
-        cd ${S}/BasiliskII/src/Unix
-        mkdir -p obj/host-tools
+    bbnote "Preparing host-side CPU generators"
+    cd ${S}/BasiliskII/src/Unix
+    mkdir -p obj/host-tools
 
-        host_cppflags="-I. -I.. -I../include -I../CrossPlatform -I../uae_cpu_2021 -I../uae_cpu_2021/compiler -I../slirp"
-        host_defs="-DHAVE_CONFIG_H -DOS_linux -DDIRECT_ADDRESSING -DFPU_MPFR -DUPDATE_UAE -D_REENTRANT -DDATADIR=\"/usr/share/BasiliskII\""
-        host_cc="${BUILD_CC}"
-        host_cxx="${BUILD_CXX:-${BUILD_CC}}"
+    host_cppflags="-I. -I.. -I../include -I../CrossPlatform -I../uae_cpu_2021 -I../uae_cpu_2021/compiler -I../slirp"
+    host_defs="-DHAVE_CONFIG_H -DOS_linux -DDIRECT_ADDRESSING -DFPU_MPFR -DUPDATE_UAE -D_REENTRANT -DDATADIR=\"/usr/share/BasiliskII\""
+    host_cc="${BUILD_CC}"
+    host_cxx="${BUILD_CXX:-${BUILD_CC}}"
 
-        ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/build68k.c -o obj/host-tools/build68k-host.o
-        ${host_cc} ${BUILD_LDFLAGS} -o obj/host-tools/build68k-host obj/host-tools/build68k-host.o
+    ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/build68k.c -o obj/host-tools/build68k-host.o
+    ${host_cc} ${BUILD_LDFLAGS} -o obj/host-tools/build68k-host obj/host-tools/build68k-host.o
 
-        obj/host-tools/build68k-host < ../uae_cpu_2021/table68k > cpudefs.cpp
+    obj/host-tools/build68k-host < ../uae_cpu_2021/table68k > cpudefs.cpp
 
-        ${host_cxx} ${host_cppflags} ${host_defs} ${BUILD_CXXFLAGS:-${BUILD_CFLAGS}} -c cpudefs.cpp -o obj/host-tools/cpudefs-host.o
-        ${host_cxx} ${host_cppflags} ${host_defs} ${BUILD_CXXFLAGS:-${BUILD_CFLAGS}} -c ../uae_cpu_2021/readcpu.cpp -o obj/host-tools/readcpu-host.o
+    ${host_cxx} ${host_cppflags} ${host_defs} ${BUILD_CXXFLAGS:-${BUILD_CFLAGS}} -c cpudefs.cpp -o obj/host-tools/cpudefs-host.o
+    ${host_cxx} ${host_cppflags} ${host_defs} ${BUILD_CXXFLAGS:-${BUILD_CFLAGS}} -c ../uae_cpu_2021/readcpu.cpp -o obj/host-tools/readcpu-host.o
 
-        ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/gencpu.c -o obj/host-tools/gencpu-host.o
-        ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencpu-host obj/host-tools/gencpu-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
+    ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/gencpu.c -o obj/host-tools/gencpu-host.o
+    ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencpu-host obj/host-tools/gencpu-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
 
-        ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/compiler/gencomp.c -o obj/host-tools/gencomp-host.o
-        ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencomp-host obj/host-tools/gencomp-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
+    ${host_cc} ${host_cppflags} ${host_defs} ${BUILD_CFLAGS} -c ../uae_cpu_2021/compiler/gencomp.c -o obj/host-tools/gencomp-host.o
+            ${host_cxx} ${BUILD_LDFLAGS} -o obj/host-tools/gencomp-host obj/host-tools/gencomp-host.o obj/host-tools/readcpu-host.o obj/host-tools/cpudefs-host.o
+}
 
         obj/host-tools/gencpu-host
         obj/host-tools/gencomp-host
@@ -129,31 +126,13 @@ do_compile:prepend() {
 do_compile() {
     bbnote "Compiling Basilisk II"
     cd ${S}/BasiliskII/src/Unix
-    # Prefer oe_runmake which respects OEToolchain variables
-    if [ -f "Makefile" ]; then
-        oe_runmake || oe_runmake V=1 || true
-    else
-        # Try to find subdir Makefile (BasiliskII typical layouts vary)
-        if [ -f "${S}/BasiliskII/Makefile" ]; then
-            cd ${S}/BasiliskII
-            oe_runmake || oe_runmake V=1 || true
-        else
-            bbwarn "No Makefile found; build may require custom commands."
-        fi
-    fi
+    oe_runmake
 }
 
 do_install() {
-    bbnote "Installing Basilisk II binaries"
+    bbnote "Installing Basilisk II binary"
     install -d ${D}${bindir}
-    # Install any built binary we can find (heuristic)
-    if [ -f "${S}/BasiliskII/src/Unix/basilisk" ]; then
-        install -m 0755 ${S}/BasiliskII/src/Unix/basilisk ${D}${bindir}/basilisk-ii
-    elif [ -f "${S}/BasiliskII/basilisk" ]; then
-        install -m 0755 ${S}/BasiliskII/basilisk ${D}${bindir}/basilisk-ii
-    else
-        bbwarn "No built binary found to install. You may need to adjust do_compile/do_install."
-    fi
+    install -m 0755 ${S}/BasiliskII/src/Unix/BasiliskII ${D}${bindir}/basilisk-ii
 }
 
 FILES_${PN} = "${bindir}/basilisk-ii"
