@@ -1,0 +1,26 @@
+From 1cb7104ce468cf4978168d70065a887918baf101 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@example.com>
+Date: Tue, 4 Nov 2025 19:37:00 -0500
+Subject: [PATCH] aic8800: fix pointer comparison in wext helper
+
+The existing condition checking for the BSSID pointer compares the
+address of the first element in the array, which is always non-null and
+causes newer compilers to fail the build with -Werror=address. Only test
+for the presence of the scan result entry itself before copying the
+address.
+
+Upstream-Status: Pending
+
+--- a/aic8800_fdrv/aicwf_wext_linux.c
++++ b/aic8800_fdrv/aicwf_wext_linux.c
+@@ -400,8 +400,8 @@
+ 	iwe->cmd = SIOCGIWAP;
+ 	iwe->u.ap_addr.sa_family = ARPHRD_ETHER;
+ 
+-	if(scan_re->bss && &scan_re->bss->bssid[0]){
+-	memcpy(iwe->u.ap_addr.sa_data, scan_re->bss->bssid, ETH_ALEN);
++	if (scan_re->bss) {
++		memcpy(iwe->u.ap_addr.sa_data, scan_re->bss->bssid, ETH_ALEN);
+ 	}
+ 
+ 	start = iwe_stream_add_event(info, start, stop, iwe, IW_EV_ADDR_LEN);

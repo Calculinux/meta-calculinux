@@ -6,7 +6,8 @@ LIC_FILES_CHKSUM = "file://../../../../../LICENSE;md5=1ebbd3e34237af26da5dc08a4e
 inherit module
 
 PV = "1.1.0+git${SRCPV}"
-SRC_URI = "git://github.com/radxa-pkg/aic8800.git;protocol=https;branch=main"
+SRC_URI = "git://github.com/radxa-pkg/aic8800.git;protocol=https;branch=main \
+           file://0001-fix-wext-bssid-check.patch"
 SRCREV = "451a1c8f14dad821034017ccb902eaf0a2b8c2ee"
 
 S = "${WORKDIR}/git/src/USB/driver_fw/drivers/aic8800"
