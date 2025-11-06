@@ -1,0 +1,30 @@
+From 0f4bf71b1d8834178cc75adc4343418ee1e38b57 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@example.com>
+Date: Tue, 4 Nov 2025 08:45:00 +0000
+Subject: [PATCH] platformio: group static libraries during link
+
+Ensure the PlatformIO SCons environment wraps library flags with
+--start-group/--end-group so that circular dependencies between the
+Adafruit BusIO archive and downstream sensor libraries resolve.
+
+---
+
+diff --git a/bin/platformio-custom.py b/bin/platformio-custom.py
+index 600f9447f..a5f085a42 100644
+--- a/bin/platformio-custom.py
++++ b/bin/platformio-custom.py
+@@ -131,3 +131,14 @@ for lb in env.GetLibBuilders():
+     if lb.name == "meshtastic-device-ui":
+         lb.env.Append(CPPDEFINES=[("APP_VERSION", verObj["long"])])
+         break
++
++linkcom_template = str(env["LINKCOM"])
++if "$_LIBFLAGS" in linkcom_template and "--start-group" not in linkcom_template:
++    env["LINKCOM"] = linkcom_template.replace(
++        "$_LIBFLAGS", "-Wl,--start-group $_LIBFLAGS -Wl,--end-group"
++    )
++    print("Updated LINKCOM for grouped static libraries")
++else:
++    print("LINKCOM already grouped or missing library placeholder")
++
++print("LINKCOM:", env["LINKCOM"])

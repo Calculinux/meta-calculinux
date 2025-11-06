@@ -1,0 +1,26 @@
+From: Calculinux Build Team <build@calculinux.org>
+Subject: [PATCH] portduino: select buildroot board for Yocto builds
+
+The buildroot board profile configures PlatformIO to reuse the cross
+compiler and flags supplied via TARGET_* environment variables. Switching
+Portduino's native environment to this board ensures the Yocto toolchain
+is honoured instead of trying to detect and use the build host compiler.
+
+Signed-off-by: Calculinux Build Team <build@calculinux.org>
+Upstream-Status: Pending
+
+---
+ variants/portduino/platformio.ini | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/variants/portduino/platformio.ini
++++ b/variants/portduino/platformio.ini
+@@ -1,7 +1,7 @@
+ extends = portduino_base
+ build_flags = ${portduino_base.build_flags} -I variants/portduino
+   -D ARCH_PORTDUINO
+-board = cross_platform
++board = buildroot
+ lib_deps = ${portduino_base.lib_deps}
+ build_src_filter = ${portduino_base.build_src_filter}
+ 
