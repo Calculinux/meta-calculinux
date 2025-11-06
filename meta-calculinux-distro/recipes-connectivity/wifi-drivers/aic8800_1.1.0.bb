@@ -6,8 +6,7 @@ LIC_FILES_CHKSUM = "file://../../../../../LICENSE;md5=1ebbd3e34237af26da5dc08a4e
 inherit module
 
 PV = "1.1.0+git${SRCPV}"
-SRC_URI = "git://github.com/radxa-pkg/aic8800.git;protocol=https;branch=main \
-           file://0001-fix-wext-bssid-check.patch"
+SRC_URI = "git://github.com/radxa-pkg/aic8800.git;protocol=https;branch=main"
 SRCREV = "451a1c8f14dad821034017ccb902eaf0a2b8c2ee"
 
 S = "${WORKDIR}/git/src/USB/driver_fw/drivers/aic8800"
@@ -25,6 +24,44 @@ EXTRA_OEMAKE += " \
     CONFIG_AIC_LOADFW_SUPPORT=m \
     CONFIG_AIC8800_WLAN_SUPPORT=m \
 "
+
+DEBIAN_PATCHES = " \
+    fix-sdio-firmware-path.patch \
+    fix-sdio-fall-through.patch \
+    fix-debug-file-with-no-debug-symbols.patch \
+    fix-pcie-build.patch \
+    fix-pcie-firmware-path.patch \
+    fix-usb-firmware-path.patch \
+    fix-linux-6.1-build.patch \
+    fix-aic_btusb.patch \
+    fix-linux-6.7-build.patch \
+    fix-linux-6.5-build.patch \
+    fix-linux-6.9-build.patch \
+    fix-linux-6.12-build.patch \
+    fix-linux-6.13-build.patch \
+    fix-linux-6.14-build.patch \
+    fix-linux-6.15-build.patch \
+    fix-aic_btusb-implicit-declare-compat_ptr.patch \
+    fix-allwinner-dkms.patch \
+    fix-linux-6.16-build.patch \
+    fix-usb-build.patch \
+    fix-aic_btusb-use-bluez-by-default.patch \
+    fix-usbc1-controller-wifi-rate-of-sun60iw2p1.patch \
+    fix-linux-6.17-build.patch \
+"
+
+do_apply_debian_patches() {
+    for patch in ${DEBIAN_PATCHES}; do
+        patch_file="${WORKDIR}/git/debian/patches/${patch}"
+        if [ ! -f "${patch_file}" ]; then
+            bbfatal "Missing upstream patch ${patch}"
+        fi
+        bbnote "Applying upstream Debian patch ${patch}"
+        patch -d ${WORKDIR}/git -p1 --forward < "${patch_file}"
+    done
+}
+
+addtask apply_debian_patches after do_patch before do_configure
 
 do_compile() {
     unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
