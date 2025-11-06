@@ -52,12 +52,6 @@ DEPENDS += " \
     openssl-native \
     python3-native \
     python3-platformio-native \
-    python3-click-native \
-    python3-semantic-version-native \
-    python3-requests-native \
-    python3-tabulate-native \
-    python3-pyserial-native \
-    python3-pyelftools-native \
     pkgconfig-native \
     yaml-cpp \
     zlib \
