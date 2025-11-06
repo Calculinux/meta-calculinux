@@ -57,7 +57,21 @@ do_apply_debian_patches() {
             bbfatal "Missing upstream patch ${patch}"
         fi
         bbnote "Applying upstream Debian patch ${patch}"
-        patch -d ${WORKDIR}/git -p1 --forward < "${patch_file}"
+        set +e
+        patch -d ${WORKDIR}/git -p1 --forward --silent < "${patch_file}"
+        status=$?
+        set -e
+        case ${status} in
+            0)
+                bbnote "Applied ${patch}"
+                ;;
+            1)
+                bbnote "Skipping ${patch} (already applied upstream)"
+                ;;
+            *)
+                bbfatal "Failed to apply ${patch} (patch exited with status ${status})"
+                ;;
+        esac
     done
 }
 
