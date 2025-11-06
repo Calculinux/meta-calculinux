@@ -10,6 +10,18 @@
 - Prefer these patterns for all future build steps unless explicitly instructed otherwise.
 - Always wait for a build to finish before declaring it a success or failure.
 
+## VERY IMPORTANT GUIDELINES
+* DO NOT attempt to create patches without using a diff tool against actual modified source code.*
+You are not able to reliably detect spacing and formatting differences that cause patches to be invalid.
+
+* ALWAYS generate patches by modifying actual source code and using diff tools to create the patch files.*
+
+Do not **ever** edit a patch file directly. You must correct the source file to get correct patch content. you may change the file names and paths to be patched, you may add commentary above the patch, and you may remove hunks from additional files if necessary, but you must not attempt to 'fix' patches.
+
+If you need to modify a patch, follow the same process: modify the source code, then regenerate the patch using diff tools.
+
+You may add comments to the patch file for clarity above the patch content, but do not alter the actual patch content. Use the editor tool only to add comments.
+
 ## Instructions for Creating Patches and Recipes
 - When creating patches, follow this process:
   - Retrieve the sources to be patched
