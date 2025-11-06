@@ -22,7 +22,8 @@ env:
   OPKG_REPO_DIR: /mnt/opkg-repo
 
 permissions:
-  contents: write  # Needed for creating releases
+  contents: write      # Needed for creating releases
+  pull-requests: write # Needed for commenting on PRs
 
 # To add a new machine configuration, do something similar to the following:
 # 
@@ -174,6 +175,54 @@ jobs:
         # Run the build with kas-container
         ./kas-container build ${{ matrix.kas_file }}
 
+    - name: Build SDK
+      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
+      run: |
+
+        echo "Building SDK for ${{ matrix.name }} (x86_64 architecture)..."
+        echo "This will generate a cross-compilation toolchain and sysroot for development for use on x86_64 hosts"
+        
+        # Create temporary kas file for x86_64 SDK
+        cat > kas-sdk-x86_64.yaml << EOF
+        header:
+          version: 18
+          includes:
+            - ${{ matrix.kas_file }}
+        
+        local_conf_header:
+          sdk_x86_64: |
+            SDKMACHINE = "x86_64"
+        EOF
+        
+        # Build the SDK using the temporary kas configuration
+        ./kas-container --ssh-dir ~/.ssh build --update kas-sdk-x86_64.yaml --target calculinux-image -c populate_sdk
+        
+        echo "x86_64 SDK build completed successfully"
+
+    - name: Build AArch64 SDK
+      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
+      run: |
+
+        echo "Building SDK for ${{ matrix.name }} (aarch64 architecture)..."
+        echo "This will generate a cross-compilation toolchain and sysroot for development for use on aarch64 hosts"
+        
+        # Create temporary kas file for aarch64 SDK
+        cat > kas-sdk-aarch64.yaml << EOF
+        header:
+          version: 18
+          includes:
+            - ${{ matrix.kas_file }}
+        
+        local_conf_header:
+          sdk_aarch64: |
+            SDKMACHINE = "aarch64"
+        EOF
+        
+        # Build the AArch64 SDK using the temporary kas configuration
+        ./kas-container --ssh-dir ~/.ssh build --update kas-sdk-aarch64.yaml --target calculinux-image -c populate_sdk
+        
+        echo "aarch64 SDK build completed successfully"
+
     - name: Collect build artifacts (images)
       run: |
         echo "Collecting build artifacts..."
@@ -235,6 +284,120 @@ jobs:
           ls -la artifacts/packages/
         else
           echo "Warning: No IPK packages directory found"
+        fi
+
+    - name: Collect build artifacts (SDK)
+      run: |
+        echo "Collecting SDK artifacts..."
+        
+        # Find build directory
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+        DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
+        
+        # Always create SDK directory structure, even if empty
+        mkdir -p artifacts/sdk/x86_64 artifacts/sdk/aarch64
+        
+        if [ -d "$DEPLOY_SDK_DIR" ]; then
+          echo "Found SDK directory: $DEPLOY_SDK_DIR"
+          
+          # Process each SDK file to determine its architecture and organize accordingly
+          find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do
+            if [ -f "$sdk_file" ]; then
+              sdk_basename=$(basename "$sdk_file")
+              echo "Processing SDK installer: $sdk_basename"
+              
+              # Determine architecture from filename
+              # SDK filenames typically contain architecture info, e.g.:
+              # calculinux-distro-glibc-x86_64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
+              # calculinux-distro-glibc-aarch64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
+              if [[ "$sdk_basename" =~ -x86_64- ]]; then
+                echo "  -> x86_64 SDK: $sdk_basename"
+                cp "$sdk_file" artifacts/sdk/x86_64/
+                SDK_ARCH="x86_64"
+              elif [[ "$sdk_basename" =~ -aarch64- ]]; then
+                echo "  -> aarch64 SDK: $sdk_basename"
+                cp "$sdk_file" artifacts/sdk/aarch64/
+                SDK_ARCH="aarch64"
+              else
+                echo "  -> Unknown architecture, defaulting to x86_64: $sdk_basename"
+                cp "$sdk_file" artifacts/sdk/x86_64/
+                SDK_ARCH="x86_64"
+              fi
+              
+              # Look for corresponding manifest file
+              manifest_file="${sdk_file%.sh}.manifest"
+              if [ -f "$manifest_file" ]; then
+                manifest_basename=$(basename "$manifest_file")
+                echo "    Found manifest: $manifest_basename"
+                cp "$manifest_file" "artifacts/sdk/$SDK_ARCH/"
+              fi
+            fi
+          done
+          
+          # Also look for standalone manifest files
+          find "$DEPLOY_SDK_DIR" -name "*.manifest" -type f | while read manifest_file; do
+            if [ -f "$manifest_file" ]; then
+              manifest_basename=$(basename "$manifest_file")
+              # Skip if we already copied it above
+              if [ ! -f "artifacts/sdk/x86_64/$manifest_basename" ] && [ ! -f "artifacts/sdk/aarch64/$manifest_basename" ]; then
+                echo "Processing standalone manifest: $manifest_basename"
+                
+                # Determine architecture from manifest filename
+                if [[ "$manifest_basename" =~ -x86_64- ]]; then
+                  echo "  -> x86_64 manifest: $manifest_basename"
+                  cp "$manifest_file" artifacts/sdk/x86_64/
+                elif [[ "$manifest_basename" =~ -aarch64- ]]; then
+                  echo "  -> aarch64 manifest: $manifest_basename"
+                  cp "$manifest_file" artifacts/sdk/aarch64/
+                else
+                  echo "  -> Unknown architecture manifest, defaulting to x86_64: $manifest_basename"
+                  cp "$manifest_file" artifacts/sdk/x86_64/
+                fi
+              fi
+            fi
+          done
+          
+          # Show what we collected for each architecture
+          echo "Collected SDK artifacts:"
+          echo ""
+          echo "x86_64 SDKs:"
+          if [ "$(ls -A artifacts/sdk/x86_64 2>/dev/null)" ]; then
+            ls -la artifacts/sdk/x86_64/
+            echo "x86_64 SDK sizes:"
+            du -sh artifacts/sdk/x86_64/* 2>/dev/null || echo "No x86_64 SDK files"
+          else
+            echo "  No x86_64 SDK files found"
+          fi
+          
+          echo ""
+          echo "aarch64 SDKs:"
+          if [ "$(ls -A artifacts/sdk/aarch64 2>/dev/null)" ]; then
+            ls -la artifacts/sdk/aarch64/
+            echo "aarch64 SDK sizes:"
+            du -sh artifacts/sdk/aarch64/* 2>/dev/null || echo "No aarch64 SDK files"
+          else
+            echo "  No aarch64 SDK files found"
+          fi
+          
+          # Create summary for easy reference
+          echo ""
+          echo "SDK Summary:"
+          X86_COUNT=$(find artifacts/sdk/x86_64 -name "*.sh" -type f 2>/dev/null | wc -l)
+          AARCH64_COUNT=$(find artifacts/sdk/aarch64 -name "*.sh" -type f 2>/dev/null | wc -l)
+          echo "  x86_64 SDKs: $X86_COUNT"
+          echo "  aarch64 SDKs: $AARCH64_COUNT"
+          echo "  Total SDKs: $((X86_COUNT + AARCH64_COUNT))"
+        else
+          echo "No SDK directory found at $DEPLOY_SDK_DIR"
+          echo "This is expected when SDK build was skipped (not on develop branch or tagged release)"
+          echo "SDK artifacts directories created but remain empty"
+          
+          # Create summary for skipped SDK build
+          echo ""
+          echo "SDK Summary:"
+          echo "  x86_64 SDKs: 0 (SDK build skipped)"
+          echo "  aarch64 SDKs: 0 (SDK build skipped)"
+          echo "  Total SDKs: 0 (SDK build skipped)"
         fi
 
     - name: Sync packages to repository
@@ -468,6 +631,179 @@ jobs:
 
         echo "Images published successfully"
 
+    - name: Publish SDK to webserver
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      run: |
+        echo "Publishing SDK to webserver..."
+        
+        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
+        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
+        SDK_DIR="$OPKG_REPO_DIR/sdk/$FEED_NAME/$SUBFOLDER"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
+        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
+        TAG_NAME="${{ github.ref_name }}"
+        
+        # Create target directory
+        mkdir -p "$SDK_DIR"
+        
+        # Check if we have SDK artifacts
+        if [ -d "artifacts/sdk" ] && [ "$(find artifacts/sdk -name "*.sh" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
+          echo "Processing SDK artifacts for multiple architectures..."
+          
+          # Process each architecture
+          for arch in x86_64 aarch64; do
+            if [ -d "artifacts/sdk/$arch" ] && [ "$(ls -A artifacts/sdk/$arch 2>/dev/null)" ]; then
+              echo ""
+              echo "Publishing $arch SDK artifacts..."
+              
+              # Create architecture-specific directory
+              mkdir -p "$SDK_DIR/$arch"
+              
+              if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+                echo "Publishing tagged release SDK for $arch..."
+                
+                # Find SDK installer file for this architecture
+                SDK_FILE=$(find "artifacts/sdk/$arch" -name "*.sh" -type f | head -1)
+                
+                if [ -n "$SDK_FILE" ]; then
+                  SDK_BASENAME=$(basename "$SDK_FILE")
+                  
+                  # Create a consistent SDK filename using Calculinux versioning
+                  # Original: calculinux-distro-glibc-x86_64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
+                  # Target:   calculinux-sdk-luckfox-lyra-x86_64-1.0.0-alpha4.sh
+                  CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$arch-$TAG_NAME.sh"
+                  CALCULINUX_SDK_LATEST="calculinux-sdk-${{ matrix.machine }}-$arch.sh"
+                  
+                  # Copy SDK with Calculinux versioned name
+                  cp "$SDK_FILE" "$SDK_DIR/$arch/$CALCULINUX_SDK_NAME"
+                  echo "  Published $arch SDK: $CALCULINUX_SDK_NAME"
+                  
+                  # If not a prerelease, also copy with latest name for easy discovery
+                  if [ "$IS_PRERELEASE" = "false" ]; then
+                    cp "$SDK_FILE" "$SDK_DIR/$arch/$CALCULINUX_SDK_LATEST"
+                    echo "  Published $arch SDK: $CALCULINUX_SDK_LATEST (latest)"
+                  fi
+                  
+                  # Also keep the original SDK filename for advanced users who need the detailed info
+                  cp "$SDK_FILE" "$SDK_DIR/$arch/$SDK_BASENAME"
+                  echo "  Published $arch SDK: $SDK_BASENAME (detailed)"
+                  
+                  # Copy SDK manifest if available
+                  SDK_MANIFEST=$(find "artifacts/sdk/$arch" -name "*.manifest" -type f | head -1)
+                  if [ -n "$SDK_MANIFEST" ]; then
+                    MANIFEST_BASENAME=$(basename "$SDK_MANIFEST")
+                    
+                    # Create consistent manifest names to match SDK names
+                    CALCULINUX_MANIFEST_NAME="calculinux-sdk-${{ matrix.machine }}-$arch-$TAG_NAME.manifest"
+                    CALCULINUX_MANIFEST_LATEST="calculinux-sdk-${{ matrix.machine }}-$arch.manifest"
+                    
+                    cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_NAME"
+                    echo "  Published $arch SDK manifest: $CALCULINUX_MANIFEST_NAME"
+                    
+                    if [ "$IS_PRERELEASE" = "false" ]; then
+                      cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_LATEST"
+                      echo "  Published $arch SDK manifest: $CALCULINUX_MANIFEST_LATEST (latest)"
+                    fi
+                    
+                    # Also keep the original manifest filename
+                    cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$MANIFEST_BASENAME"
+                    echo "  Published $arch SDK manifest: $MANIFEST_BASENAME (detailed)"
+                  fi
+                else
+                  echo "  Warning: No $arch SDK installer (.sh) files found"
+                fi
+              else
+                echo "Publishing continuous development SDK for $arch..."
+                
+                # Copy all SDK files for this architecture to SDK directory
+                if ls "artifacts/sdk/$arch"/*.sh 1> /dev/null 2>&1; then
+                  echo "  Copying $arch SDK installers to $SDK_DIR/$arch"
+                  
+                  # For continuous builds, use consistent naming but without version tags
+                  for sdk_file in "artifacts/sdk/$arch"/*.sh; do
+                    if [ -f "$sdk_file" ]; then
+                      SDK_BASENAME=$(basename "$sdk_file")
+                      
+                      # Create consistent SDK filename for continuous builds
+                      CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$arch.sh"
+                      
+                      # Copy with both names
+                      cp "$sdk_file" "$SDK_DIR/$arch/$CALCULINUX_SDK_NAME"
+                      cp "$sdk_file" "$SDK_DIR/$arch/$SDK_BASENAME"
+                      
+                      echo "    Published: $CALCULINUX_SDK_NAME"
+                      echo "    Published: $SDK_BASENAME (detailed)"
+                    fi
+                  done
+                else
+                  echo "  No $arch SDK installer files found"
+                fi
+                
+                # Copy SDK manifests if available
+                if ls "artifacts/sdk/$arch"/*.manifest 1> /dev/null 2>&1; then
+                  echo "  Copying $arch SDK manifests to $SDK_DIR/$arch"
+                  
+                  for manifest_file in "artifacts/sdk/$arch"/*.manifest; do
+                    if [ -f "$manifest_file" ]; then
+                      MANIFEST_BASENAME=$(basename "$manifest_file")
+                      
+                      # Create consistent manifest filename for continuous builds
+                      CALCULINUX_MANIFEST_NAME="calculinux-sdk-${{ matrix.machine }}-$arch.manifest"
+                      
+                      # Copy with both names
+                      cp "$manifest_file" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_NAME"
+                      cp "$manifest_file" "$SDK_DIR/$arch/$MANIFEST_BASENAME"
+                      
+                      echo "    Published: $CALCULINUX_MANIFEST_NAME"
+                      echo "    Published: $MANIFEST_BASENAME (detailed)"
+                    fi
+                  done
+                fi
+              fi
+            else
+              echo "  No $arch SDK artifacts found"
+            fi
+          done
+          
+          echo ""
+          echo "SDK publishing summary:"
+          echo "SDK published to: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/"
+          
+          # Show final directory structure
+          for arch in x86_64 aarch64; do
+            if [ -d "$SDK_DIR/$arch" ] && [ "$(ls -A "$SDK_DIR/$arch" 2>/dev/null)" ]; then
+              SDK_COUNT=$(find "$SDK_DIR/$arch" -name "*.sh" -type f | wc -l)
+              MANIFEST_COUNT=$(find "$SDK_DIR/$arch" -name "*.manifest" -type f | wc -l)
+              echo "  $arch: $SDK_COUNT SDK installer(s), $MANIFEST_COUNT manifest(s)"
+              echo "    URL: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/$arch/"
+            else
+              echo "  $arch: No files published"
+            fi
+          done
+          
+          # Legacy compatibility: create symlinks for backward compatibility with simple names
+          if [ -d "$SDK_DIR/x86_64" ] && [ "$(ls -A "$SDK_DIR/x86_64" 2>/dev/null)" ]; then
+            echo ""
+            echo "Creating legacy compatibility links for x86_64 SDK..."
+            # Create symlinks in the root SDK directory pointing to the consistent Calculinux names
+            cd "$SDK_DIR"
+            if [ -f "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh" ]; then
+              ln -sf "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh" "calculinux-sdk-${{ matrix.machine }}.sh"
+              echo "  Created legacy link: calculinux-sdk-${{ matrix.machine }}.sh -> x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh"
+            fi
+            if [ -f "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest" ]; then
+              ln -sf "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest" "calculinux-sdk-${{ matrix.machine }}.manifest"
+              echo "  Created legacy link: calculinux-sdk-${{ matrix.machine }}.manifest -> x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest"
+            fi
+            cd - > /dev/null
+          fi
+          
+          echo "SDK published successfully"
+        else
+          echo "Warning: No SDK artifacts found to publish"
+          echo "Expected to find SDK installer files (.sh) in artifacts/sdk/{x86_64,aarch64}/"
+        fi
+
     - name: Generate build information
       run: |
         # Create build info file
@@ -502,7 +838,98 @@ jobs:
           artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
           artifacts/uboot-${{ matrix.machine }}-*.bin
           artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
+          artifacts/sdk/x86_64/*.sh
+          artifacts/sdk/x86_64/*.manifest
+          artifacts/sdk/aarch64/*.sh
+          artifacts/sdk/aarch64/*.manifest
         retention-days: 30
+
+    - name: Comment artifact links on PR
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          try {
+            const runId = context.runId;
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.pull_request.number;
+
+            core.info(`Attempting to comment on PR #${issueNumber} for run ${runId}`);
+
+            const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
+              owner,
+              repo,
+              run_id: runId,
+              per_page: 100,
+            });
+
+            const artifacts = artifactsResponse.data.artifacts ?? [];
+            core.info(`Found ${artifacts.length} artifacts`);
+
+            if (artifacts.length === 0) {
+              core.info('No artifacts found for this run; skipping PR comment.');
+              return;
+            }
+
+            const formatSize = (bytes) => {
+              if (!bytes || bytes <= 0) {
+                return 'size unknown';
+              }
+              const mb = bytes / (1024 * 1024);
+              return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
+            };
+
+            const artifactLines = artifacts
+              .map((artifact) => {
+                const artifactUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
+                return `- [${artifact.name}](${artifactUrl}) (${formatSize(artifact.size_in_bytes)})`;
+              })
+              .join('\n');
+
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+            const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
+
+            // Check for existing comments
+            core.info('Checking for existing artifact comments...');
+            const existingComments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              },
+              (response) => response.data.filter((comment) => comment.body?.startsWith('<!-- calculinux-artifacts -->'))
+            );
+
+            if (existingComments.length > 0) {
+              const commentToUpdate = existingComments[0];
+              core.info(`Updating existing comment (ID: ${commentToUpdate.id})`);
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: commentToUpdate.id,
+                body,
+              });
+              core.info(`✅ Updated existing artifacts comment (ID: ${commentToUpdate.id}).`);
+            } else {
+              core.info('Creating new artifact comment...');
+              const newComment = await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body,
+              });
+              core.info(`✅ Created new artifacts comment (ID: ${newComment.data.id}).`);
+            }
+          } catch (error) {
+            core.error(`❌ Failed to comment on PR: ${error.message}`);
+            core.error(`Error details: ${JSON.stringify(error, null, 2)}`);
+            
+            // Don't fail the entire workflow for comment failures
+            core.warning('PR comment failed, but continuing workflow execution');
+          }
 
     - name: Create release
       if: steps.feed-config.outputs.is_tagged_release == 'true'
@@ -512,6 +939,156 @@ jobs:
         generate_release_notes: true
         draft: false
         prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
+
+    - name: Send Discord notification
+      if: steps.feed-config.outputs.is_tagged_release == 'true' && success()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        # Skip notification if Discord webhook is not configured
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "Discord webhook not configured, skipping notification"
+          exit 0
+        fi
+        
+        # For tagged releases only
+        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
+        TAG_NAME="${{ github.ref_name }}"
+        COMMIT_SHA="${{ github.sha }}"
+        RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
+        
+        # Set notification color and build type based on tag
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          # Determine prerelease type
+          if [[ "$TAG_NAME" =~ alpha ]]; then
+            BUILD_TYPE="Alpha Release"
+            COLOR="16776960"  # Yellow
+          elif [[ "$TAG_NAME" =~ beta ]]; then
+            BUILD_TYPE="Beta Release"
+            COLOR="16753920"  # Orange
+          elif [[ "$TAG_NAME" =~ rc ]]; then
+            BUILD_TYPE="Release Candidate"
+            COLOR="8421504"   # Gray
+          else
+            BUILD_TYPE="Pre-release"
+            COLOR="16776960"  # Yellow
+          fi
+        else
+          BUILD_TYPE="Stable Release"
+          COLOR="65280"     # Green
+        fi
+        
+        VERSION="$TAG_NAME"
+        DOWNLOAD_BASE="https://opkg.calculinux.org"
+        IMAGE_URL="$DOWNLOAD_BASE/image/${{ steps.feed-config.outputs.feed_name }}/release/"
+        UPDATE_URL="$DOWNLOAD_BASE/update/${{ steps.feed-config.outputs.feed_name }}/release/"
+        PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ steps.feed-config.outputs.feed_name }}/release/"
+        SDK_URL="$DOWNLOAD_BASE/sdk/${{ steps.feed-config.outputs.feed_name }}/release/"
+        
+        # Find actual build artifacts
+        WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
+        RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
+        
+        # Find SDK files for both architectures
+        X86_64_SDK_FILE=$(find artifacts/sdk/x86_64 -name "*.sh" -type f | head -1)
+        AARCH64_SDK_FILE=$(find artifacts/sdk/aarch64 -name "*.sh" -type f | head -1)
+        
+        # Create download links section for tagged releases
+        DOWNLOAD_LINKS=""
+        if [ -n "$WIC_FILE" ]; then
+          WIC_FILENAME=$(basename "$WIC_FILE")
+          # Published filename: calculinux-image-{machine}.rootfs-{tag}.wic.gz
+          WIC_VERSIONED="calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📱 **Full Image**: [$WIC_VERSIONED]($IMAGE_URL$WIC_VERSIONED)\n"
+        fi
+        if [ -n "$RAUCB_FILE" ]; then
+          RAUCB_FILENAME=$(basename "$RAUCB_FILE")
+          # Published filename: calculinux-bundle-{machine}-{tag}.raucb
+          RAUCB_VERSIONED="calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
+        fi
+        
+        # Add SDK links for each architecture
+        if [ -n "$X86_64_SDK_FILE" ]; then
+          # Use consistent Calculinux SDK naming instead of complex Yocto names
+          CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-x86_64-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (x86_64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/x86_64/$CALCULINUX_SDK_NAME)\n"
+        fi
+        
+        if [ -n "$AARCH64_SDK_FILE" ]; then
+          # Use consistent Calculinux SDK naming instead of complex Yocto names
+          CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-aarch64-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (aarch64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/aarch64/$CALCULINUX_SDK_NAME)\n"
+        fi
+        
+        # If we have SDKs but couldn't determine architecture, provide generic links
+        if [ -z "$X86_64_SDK_FILE" ] && [ -z "$AARCH64_SDK_FILE" ]; then
+          # Fallback: look for any SDK file and use consistent naming
+          ANY_SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
+          if [ -n "$ANY_SDK_FILE" ]; then
+            CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$TAG_NAME.sh"
+            DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain**: [$CALCULINUX_SDK_NAME]($SDK_URL$CALCULINUX_SDK_NAME)\n"
+          fi
+        fi
+        
+        # Add package feed link
+        DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📦 **Package Feed**: [Browse packages]($PACKAGES_URL)\n"
+        
+        # Create Discord embed payload
+        cat > discord_payload.json << EOF
+        {
+          "embeds": [
+            {
+              "title": "🚀 New Calculinux $BUILD_TYPE Available!",
+              "description": "A new Calculinux build has been published for **${{ matrix.machine }}**",
+              "color": $COLOR,
+              "fields": [
+                {
+                  "name": "📋 Version",
+                  "value": "$VERSION",
+                  "inline": true
+                },
+                {
+                  "name": "🏷️ Build Type",
+                  "value": "$BUILD_TYPE",
+                  "inline": true
+                },
+                {
+                  "name": "💻 Target Device",
+                  "value": "${{ matrix.machine }}",
+                  "inline": true
+                },
+                {
+                  "name": "📥 Downloads",
+                  "value": "$DOWNLOAD_LINKS",
+                  "inline": false
+                }
+              ],
+              "footer": {
+                "text": "Build #${{ github.run_number }} • Calculinux"
+              },
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+              "url": "$RELEASE_URL"
+            }
+          ]
+        }
+        EOF
+        
+        # Send Discord notification
+        echo "Sending Discord notification for $BUILD_TYPE..."
+        HTTP_CODE=$(curl -s -o discord_response.json -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d @discord_payload.json \
+          "$DISCORD_WEBHOOK_URL")
+        
+        if [ "$HTTP_CODE" -eq 204 ]; then
+          echo "✅ Discord notification sent successfully"
+        else
+          echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
+          echo "Response:"
+          cat discord_response.json || echo "No response body"
+          exit 1
+        fi
 
     - name: Show disk space after build
       if: always()

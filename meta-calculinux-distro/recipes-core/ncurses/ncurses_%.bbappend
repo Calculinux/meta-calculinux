@@ -3,16 +3,17 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 # Add GPM (General Purpose Mouse) support for console mouse handling (target only)
 #DEPENDS:append:class-target = " gpm"
 
-# Override to use ABI version 6 to enable extended color functions
-# This provides init_extended_pair, alloc_pair, and free_pair functions
-# and is source compatible with the v5 ABI, so as long as we are compiling
-# against this library there should be no compatibility issues.
-
+ENABLE_WIDEC = "true"
 EXTRA_OECONF += "--with-abi-version=6"
 
-# Ensure wide character and UTF-8 support is enabled
-# This is critical for proper box drawing and Unicode character rendering
-EXTRA_OECONF += "--enable-widec --enable-ext-colors --enable-ext-mouse"
+# The base recipe attempts to relocate the versioned shared objects into ${base_libdir}
+# when that directory doesn't exist yet.  With ABI 6 (wide-character libraries only),
+# the "normal" libncurses.so.* files are never produced, so the relocation step fails.
+# Pre-create ${base_libdir} for native SDK builds so the relocation block is skipped and
+# the install step can proceed; we handle the compatibility symlinks in the append below.
+do_install:prepend:class-nativesdk() {
+    install -d ${D}${base_libdir}
+}
 
 # Enable GPM support for target builds only (overrides --without-gpm from base recipe)
 #EXTRA_OECONF:append:class-target = " --with-gpm"
@@ -52,21 +53,17 @@ do_install:append() {
         fi
     done
     
-    # Create linker scripts (not symlinks) for non-wide libraries that reference both
-    # the wide version AND libtinfo (which contains terminal capability symbols like UP, BC, PC)
-    # This ensures programs linking against libncurses get all the symbols they need
-    
-    # libncurses.so linker script pointing to both libncursesw and libtinfo
-    cat > ${D}${libdir}/libncurses.so << 'EOF'
-/* GNU ld script */
-GROUP ( libncursesw.so.6 libtinfo.so.6 )
-EOF
-    
     # Create versioned symlinks for libncurses
     ln -sf libncursesw.so.6.5 ${D}${libdir}/libncurses.so.6.5
     ln -sf libncursesw.so.6 ${D}${libdir}/libncurses.so.6
     ln -sf libncursesw.so.5 ${D}${libdir}/libncurses.so.5
     
+    # Ensure libncurses.so remains an ld script that pulls in both the wide
+    # library and libtinfo so legacy linkers resolve termcap symbols like UP/BC.
+    cat <<'EOF' > ${D}${libdir}/libncurses.so
+INPUT(-lncursesw -ltinfo)
+EOF
+
     # For other libraries, simple symlinks to wide versions are sufficient
     ln -sf libpanelw.so.6.5 ${D}${libdir}/libpanel.so.6.5
     ln -sf libpanelw.so.6 ${D}${libdir}/libpanel.so.6
@@ -103,5 +100,22 @@ EOF
         if [ -f ticw.pc ]; then
             ln -sf ticw.pc tic.pc
         fi
+    fi
+
+    # Ensure top-level headers are available for projects that expect
+    # <curses.h> rather than <ncursesw/curses.h> in the SDK sysroot.
+    if [ -d ${D}${includedir}/ncursesw ]; then
+        for header in $(find ${D}${includedir}/ncursesw -maxdepth 1 -name "*.h"); do
+            base=$(basename $header)
+            if [ ! -e ${D}${includedir}/$base ]; then
+                ln -sf ncursesw/$base ${D}${includedir}/$base
+            fi
+        done
+    fi
+
+    # Drop the placeholder ${base_libdir} if it remains empty after the install so
+    # packaging QA doesn't flag an unshipped directory.
+    if [ -d ${D}${base_libdir} ] && [ -z "$(ls -A ${D}${base_libdir})" ]; then
+        rmdir ${D}${base_libdir} || true
     fi
 }
