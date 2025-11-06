@@ -176,6 +176,7 @@ jobs:
         ./kas-container build ${{ matrix.kas_file }}
 
     - name: Build SDK
+      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
       run: |
 
         echo "Building SDK for ${{ matrix.name }} (x86_64 architecture)..."
@@ -199,6 +200,7 @@ jobs:
         echo "x86_64 SDK build completed successfully"
 
     - name: Build AArch64 SDK
+      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
       run: |
 
         echo "Building SDK for ${{ matrix.name }} (aarch64 architecture)..."
@@ -292,11 +294,11 @@ jobs:
         BUILD_DIR=$(find build -name "tmp" -type d | head -1)
         DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
         
+        # Always create SDK directory structure, even if empty
+        mkdir -p artifacts/sdk/x86_64 artifacts/sdk/aarch64
+        
         if [ -d "$DEPLOY_SDK_DIR" ]; then
           echo "Found SDK directory: $DEPLOY_SDK_DIR"
-          
-          # Create SDK directory structure in artifacts for both architectures
-          mkdir -p artifacts/sdk/x86_64 artifacts/sdk/aarch64
           
           # Process each SDK file to determine its architecture and organize accordingly
           find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do
@@ -386,12 +388,16 @@ jobs:
           echo "  aarch64 SDKs: $AARCH64_COUNT"
           echo "  Total SDKs: $((X86_COUNT + AARCH64_COUNT))"
         else
-          echo "Warning: No SDK directory found at $DEPLOY_SDK_DIR"
-          echo "SDK build may have failed or SDK files are in a different location"
+          echo "No SDK directory found at $DEPLOY_SDK_DIR"
+          echo "This is expected when SDK build was skipped (not on develop branch or tagged release)"
+          echo "SDK artifacts directories created but remain empty"
           
-          # Try to find SDK files elsewhere
-          echo "Searching for SDK files in build directory..."
-          find "$BUILD_DIR" -name "*.sh" -path "*/sdk*" -type f 2>/dev/null | head -5 || echo "No SDK installer files found"
+          # Create summary for skipped SDK build
+          echo ""
+          echo "SDK Summary:"
+          echo "  x86_64 SDKs: 0 (SDK build skipped)"
+          echo "  aarch64 SDKs: 0 (SDK build skipped)"
+          echo "  Total SDKs: 0 (SDK build skipped)"
         fi
 
     - name: Sync packages to repository
