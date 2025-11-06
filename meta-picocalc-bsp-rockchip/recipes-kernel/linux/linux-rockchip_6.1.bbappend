@@ -8,7 +8,6 @@ SRC_URI = " \
     git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1 \
     file://rk3506-luckfox-lyra.dtsi;subdir=git/arch/${ARCH}/boot/dts/ \
     file://rk3506g-luckfox-lyra.dts;subdir=git/arch/${ARCH}/boot/dts/ \
-    file://rk3506_luckfox_defconfig;subdir=git/arch/${ARCH}/configs/ \
     file://base-configs.cfg \
     file://wifi.cfg \
     file://rauc.cfg \
