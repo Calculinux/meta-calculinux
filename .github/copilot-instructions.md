@@ -1,5 +1,6 @@
 # Copilot Instructions
 
+## Instructions for Builds
 - When launching build commands, ensure the repository's ./build is a symlink to '../'
 - Always launch build commands from the repository's `./build` directory.
 - From within `./build`, call the helper from the meta-calculinux directory: `./meta-calculinux/kas-container ...`.
@@ -7,6 +8,7 @@
   - `./meta-calculinux/kas-container shell ./meta-calculinux/kas-luckfox-lyra-bundle.yaml -c "bitbake aic8800"`
   - `./meta-calculinux/kas-container build ./meta-calculinux/kas-luckfox-lyra-bundle.yaml`
 - Prefer these patterns for all future build steps unless explicitly instructed otherwise.
+- Always wait for a build to finish before declaring it a success or failure.
 
 ## VERY IMPORTANT GUIDELINES
 * DO NOT attempt to create patches without using a diff tool against actual modified source code.*
@@ -20,6 +22,7 @@ If you need to modify a patch, follow the same process: modify the source code, 
 
 You may add comments to the patch file for clarity above the patch content, but do not alter the actual patch content. Use the editor tool only to add comments.
 
+## Instructions for Creating Patches and Recipes
 - When creating patches, follow this process:
   - Retrieve the sources to be patched
   - Make a working copy
