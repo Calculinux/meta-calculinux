@@ -24,6 +24,7 @@ RDEPENDS:${PN} = " \
     kiwix-tools \
     lsof \
     mc \
+    meshtasticd \
     nano \
     nmap \
     nodejs \

@@ -40,7 +40,7 @@ repos:
       meta-calculinux-distro:
       meta-picocalc-bsp-rockchip:
       meta-calculinux-apps:
-
+      meta-meshtastic:
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
