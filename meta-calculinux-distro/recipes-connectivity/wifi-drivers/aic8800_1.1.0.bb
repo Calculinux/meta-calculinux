@@ -102,3 +102,10 @@ FILES:${PN} += " \
 RPROVIDES:${PN} += "kernel-module-aic8800_fdrv"
 
 KERNEL_MODULE_AUTOLOAD:${PN} = "aic_load_fw aic8800_fdrv"
+
+# QA: Upstream build embeds absolute build paths (TMPDIR) in module debug objects.
+# We suppress only the 'buildpaths' check for the produced packages rather than
+# disabling QA globally. Prefer fixing upstream to avoid leaking build paths.
+INSANE_SKIP:pn-aic8800 = "buildpaths"
+# -dbg package contains debug info that also references TMPDIR
+INSANE_SKIP:pn-aic8800-dbg = "buildpaths"
