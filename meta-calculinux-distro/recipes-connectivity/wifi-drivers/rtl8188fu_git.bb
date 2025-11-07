@@ -14,7 +14,6 @@ B = "${S}"
 inherit module
 
 MODULE_DIR="${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"
-MAKE_TARGETS = "modules"
 
 EXTRA_OEMAKE += "MODULE_NAME=rtl8188fu \
                  USER_EXTRA_CFLAGS='-Wno-address' \
