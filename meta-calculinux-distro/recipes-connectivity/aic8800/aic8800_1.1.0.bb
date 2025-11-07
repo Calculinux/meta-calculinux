@@ -96,10 +96,18 @@ do_install() {
 FILES:${PN} += " \
     ${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/aic_load_fw.ko \
     ${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/aic8800_fdrv.ko \
-    ${base_libdir}/firmware/aic8800D80 \
 "
 
-RPROVIDES:${PN} += "kernel-module-aic8800_fdrv"
+PACKAGES += "${PN}-firmware"
+FILES:${PN}-firmware = "${base_libdir}/firmware/aic8800D80"
+
+# Provide the kernel-module virtual packages (versioned and unversioned) so
+# dependency resolution during image construction succeeds without needing an
+# external provider.
+RPROVIDES:${PN} += "kernel-module-aic-load-fw kernel-module-aic8800-fdrv"
+RPROVIDES:${PN} += "kernel-module-aic-load-fw-${KERNEL_VERSION} kernel-module-aic8800-fdrv-${KERNEL_VERSION}"
+
+RDEPENDS:${PN} += "${PN}-firmware"
 
 KERNEL_MODULE_AUTOLOAD:${PN} = "aic_load_fw aic8800_fdrv"
 
