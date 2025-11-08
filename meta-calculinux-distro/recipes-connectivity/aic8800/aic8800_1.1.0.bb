@@ -51,10 +51,17 @@ DEBIAN_PATCHES = " \
 "
 
 do_apply_debian_patches() {
+    cache_dir="${WORKDIR}/debian-upstream-patches"
+    mkdir -p "${cache_dir}"
     for patch in ${DEBIAN_PATCHES}; do
         patch_file="${WORKDIR}/git/debian/patches/${patch}"
         if [ ! -f "${patch_file}" ]; then
-            bbfatal "Missing upstream patch ${patch}"
+            bbwarn "Missing upstream patch ${patch} in checkout, attempting to extract from ${SRCREV}"
+            if git -C "${WORKDIR}/git" show "${SRCREV}:debian/patches/${patch}" > "${cache_dir}/${patch}" 2>/dev/null; then
+                patch_file="${cache_dir}/${patch}"
+            else
+                bbfatal "Missing upstream patch ${patch}"
+            fi
         fi
         bbnote "Applying upstream Debian patch ${patch}"
         set +e
