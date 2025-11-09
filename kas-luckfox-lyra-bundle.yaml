@@ -46,6 +46,7 @@ local_conf_header:
     INHERIT:append = " rockchip-image"
     
     EXTRA_WIFI_DRIVERS = "\
+      aic8800 \
       rtl8723du \
       rtl8812au \
       rtl8814au \
