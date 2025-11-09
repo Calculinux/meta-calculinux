@@ -35,7 +35,7 @@ FILES:${PN} = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/n
 FILES:${PN}-firmware = "${nonarch_base_libdir}/firmware/aic8800"
 
 RDEPENDS:${PN} += "${PN}-firmware"
-RPROVIDES:${PN} += "kernel-module-aic_load_fw kernel-module-aic8800_fdrv"
+RPROVIDES:${PN} += "kernel-module-aic-load-fw-${KERNEL_VERSION} kernel-module-aic8800-fdrv-${KERNEL_VERSION}"
 
 KERNEL_MODULE_AUTOLOAD:${PN} = "aic_load_fw aic8800_fdrv"
 
