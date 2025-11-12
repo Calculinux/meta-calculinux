@@ -1,0 +1,240 @@
+name: Clean BitBake Recipe
+
+on:
+  workflow_dispatch:
+    inputs:
+      recipe:
+        description: 'Recipe name to clean (e.g., ncurses, linux-luckfox, u-boot)'
+        required: true
+        type: string
+      runner:
+        description: 'Runner to use for cleaning'
+        required: true
+        type: choice
+        default: 'self-hosted-linux-x64'
+        options:
+          - 'self-hosted-linux-x64'
+          - 'self-hosted-linux-arm64'
+          - 'ubuntu-latest'
+      machine:
+        description: 'Target machine configuration'
+        required: true
+        type: choice
+        default: 'luckfox-lyra'
+        options:
+          - 'luckfox-lyra'
+      clean_type:
+        description: 'Type of cleaning operation'
+        required: true
+        type: choice
+        default: 'cleanall'
+        options:
+          - 'cleanall'
+          - 'cleansstate'
+          - 'cleanstamp'
+
+env:
+  # Yocto build directories that need persistent storage
+  DL_DIR: ${{ github.workspace }}/../yocto-cache/downloads
+  SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
+
+permissions:
+  contents: read
+
+jobs:
+  clean:
+    name: Clean Recipe - ${{ inputs.recipe }}
+    runs-on: ${{ fromJson(inputs.runner == 'self-hosted-linux-x64' && '["self-hosted", "Linux", "X64"]' || inputs.runner == 'self-hosted-linux-arm64' && '["self-hosted", "Linux", "ARM64"]' || '["ubuntu-latest"]') }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up build environment
+      run: |
+        # Create cache directories if they don't exist
+        mkdir -p $DL_DIR $SSTATE_DIR
+        
+        # Show disk space before cleaning
+        echo "Disk space before cleaning:"
+        df -h
+        
+        # Show current sstate cache size
+        echo "Sstate cache size before cleaning:"
+        du -sh $SSTATE_DIR || echo "Sstate cache directory not found"
+
+    - name: Get machine configuration
+      id: machine-config
+      run: |
+        case "${{ inputs.machine }}" in
+          "luckfox-lyra")
+            echo "kas_file=kas-luckfox-lyra-bundle.yaml" >> $GITHUB_OUTPUT
+            echo "dockerfile=Dockerfile.aarch64" >> $GITHUB_OUTPUT
+            ;;
+          *)
+            echo "ERROR: Unsupported machine: ${{ inputs.machine }}"
+            exit 1
+            ;;
+        esac
+
+    - name: Validate recipe and clean type
+      run: |
+        RECIPE="${{ inputs.recipe }}"
+        CLEAN_TYPE="${{ inputs.clean_type }}"
+        
+        echo "Validating inputs:"
+        echo "  Recipe: $RECIPE"
+        echo "  Clean type: $CLEAN_TYPE"
+        echo "  Machine: ${{ inputs.machine }}"
+        echo "  Runner: ${{ inputs.runner }}"
+        echo "  Kas file: ${{ steps.machine-config.outputs.kas_file }}"
+        
+        # Basic validation
+        if [ -z "$RECIPE" ]; then
+          echo "ERROR: Recipe name cannot be empty"
+          exit 1
+        fi
+        
+        # Check if recipe name contains only valid characters
+        if ! echo "$RECIPE" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+          echo "ERROR: Recipe name contains invalid characters. Use only letters, numbers, hyphens, and underscores."
+          exit 1
+        fi
+        
+        echo "Input validation passed"
+
+    - name: Clean recipe
+      run: |
+        RECIPE="${{ inputs.recipe }}"
+        CLEAN_TYPE="${{ inputs.clean_type }}"
+        KAS_FILE="${{ steps.machine-config.outputs.kas_file }}"
+        
+        echo "===================="
+        echo "CLEANING RECIPE: $RECIPE"
+        echo "CLEAN TYPE: $CLEAN_TYPE"
+        echo "MACHINE: ${{ inputs.machine }}"
+        echo "===================="
+        
+        # Check if the kas file exists
+        if [ ! -f "$KAS_FILE" ]; then
+          echo "ERROR: Kas file not found: $KAS_FILE"
+          exit 1
+        fi
+        
+        # Check recipe existence first
+        echo "Checking if recipe '$RECIPE' exists..."
+        if ! ./kas-container shell $KAS_FILE -c "bitbake -e $RECIPE > /dev/null 2>&1"; then
+          echo "ERROR: Recipe '$RECIPE' not found or has parsing errors."
+          echo "Please check the recipe name and ensure it's available in the current configuration."
+          
+          echo ""
+          echo "Attempting to list similar recipes:"
+          ./kas-container shell $KAS_FILE -c "bitbake-layers show-recipes | grep -i '$RECIPE' || echo 'No similar recipes found'"
+          exit 1
+        fi
+        
+        echo "Recipe '$RECIPE' found. Proceeding with $CLEAN_TYPE..."
+        
+        # Execute the cleaning operation
+        case "$CLEAN_TYPE" in
+          "cleanall")
+            echo "Performing 'cleanall' - removes all output for the recipe"
+            ./kas-container shell $KAS_FILE -c "bitbake -c cleanall $RECIPE"
+            ;;
+          "cleansstate")
+            echo "Performing 'cleansstate' - removes shared state cache for the recipe"
+            ./kas-container shell $KAS_FILE -c "bitbake -c cleansstate $RECIPE"
+            ;;
+          "cleanstamp")
+            echo "Performing 'cleanstamp' - removes task stamps for the recipe"
+            ./kas-container shell $KAS_FILE -c "bitbake -c cleanstamp $RECIPE"
+            ;;
+          *)
+            echo "ERROR: Unknown clean type: $CLEAN_TYPE"
+            exit 1
+            ;;
+        esac
+        
+        echo "✅ Successfully completed $CLEAN_TYPE for recipe '$RECIPE'"
+
+    - name: Show cleanup results
+      run: |
+        echo "===================="
+        echo "CLEANUP RESULTS"
+        echo "===================="
+        
+        echo "Disk space after cleaning:"
+        df -h
+        
+        echo ""
+        echo "Sstate cache size after cleaning:"
+        du -sh $SSTATE_DIR || echo "Sstate cache directory not found"
+        
+        echo ""
+        echo "Recent cleanup activity in build directory:"
+        BUILD_DIR=$(find build -name "tmp" -type d | head -1 | sed 's|/tmp||')
+        if [ -d "$BUILD_DIR" ]; then
+          echo "Build directory: $BUILD_DIR"
+          
+          # Show work directory for this recipe if it exists
+          WORK_DIR=$(find "$BUILD_DIR/tmp/work" -name "*${{ inputs.recipe }}*" -type d 2>/dev/null | head -5)
+          if [ -n "$WORK_DIR" ]; then
+            echo "Remaining work directories for ${{ inputs.recipe }}:"
+            echo "$WORK_DIR"
+          else
+            echo "No work directories found for ${{ inputs.recipe }} (this is expected after cleanall)"
+          fi
+          
+          # Show stamps directory for this recipe if it exists
+          STAMPS_DIR=$(find "$BUILD_DIR/tmp/stamps" -name "*${{ inputs.recipe }}*" -type f 2>/dev/null | head -5)
+          if [ -n "$STAMPS_DIR" ]; then
+            echo "Remaining stamp files for ${{ inputs.recipe }}:"
+            echo "$STAMPS_DIR"
+          else
+            echo "No stamp files found for ${{ inputs.recipe }} (this is expected after cleanall/cleanstamp)"
+          fi
+        else
+          echo "No build directory found"
+        fi
+
+    - name: Generate cleanup summary
+      run: |
+        cat > cleanup-summary.txt << EOF
+        Calculinux Recipe Cleanup Summary
+        =================================
+        
+        Workflow Run: ${{ github.run_number }}
+        Date: $(date -u)
+        Repository: ${{ github.repository }}
+        Branch: ${{ github.ref_name }}
+        Commit: ${{ github.sha }}
+        
+        Cleanup Details:
+        - Recipe: ${{ inputs.recipe }}
+        - Clean Type: ${{ inputs.clean_type }}
+        - Machine: ${{ inputs.machine }}
+        - Runner: ${{ inputs.runner }}
+        - Kas File: ${{ steps.machine-config.outputs.kas_file }}
+        
+        Operation completed successfully at $(date -u)
+        EOF
+        
+        echo "Cleanup summary:"
+        cat cleanup-summary.txt
+
+    - name: Upload cleanup summary
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cleanup-summary-${{ inputs.recipe }}-${{ github.run_number }}
+        path: cleanup-summary.txt
+        retention-days: 30
+
+    - name: Cleanup docker containers
+      if: always()
+      run: |
+        # Clean up docker containers and images to free space
+        docker system prune -f || true
+        echo "Docker cleanup completed"

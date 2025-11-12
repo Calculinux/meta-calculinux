@@ -40,12 +40,13 @@ repos:
       meta-calculinux-distro:
       meta-picocalc-bsp-rockchip:
       meta-calculinux-apps:
-
+      meta-meshtastic:
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
     
     EXTRA_WIFI_DRIVERS = "\
+      aic8800 \
       rtl8723du \
       rtl8812au \
       rtl8814au \

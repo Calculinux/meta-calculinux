@@ -2,6 +2,7 @@
 *.tmp
 *.temp
 *~
+tmp/*
 
 # Backup files
 *.bak
@@ -34,12 +35,12 @@ Thumbs.db
 *.so
 
 # Default build folder
-build/*
+build
 
 # Yocto specific ignores
-meta-arm/*
-meta-openembedded/*
-meta-rauc/*
-meta-rockchip/*
-meta-rtlwifi/*
-poky/*
+meta-arm
+meta-openembedded
+meta-rauc
+meta-rockchip
+meta-rtlwifi
+poky

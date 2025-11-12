@@ -1,0 +1,15 @@
+--- a/BasiliskII/src/Unix/configure.ac
++++ b/BasiliskII/src/Unix/configure.ac
+@@ -988,5 +988,7 @@
+-  ], [
+-    struct ifreq ifr;
+-    memset(&ifr, 0, sizeof(ifr));
+-    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+-  ],
++    int main() {
++      struct ifreq ifr;
++      memset(&ifr, 0, sizeof(ifr));
++      ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
++      return 0;
++    }
++  ],
