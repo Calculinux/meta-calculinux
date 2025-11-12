@@ -29,4 +29,8 @@ KERNEL_MODULE_AUTOLOAD:${PN} = "dtbocfg"
 
 FILES:${PN} += "${nonarch_base_libdir}/modules/${KERNEL_VERSION}"
 
+RPROVIDES:${PN} += "kernel-module-dtbocfg kernel-module-dtbocfg-${KERNEL_VERSION}"
+RREPLACES:${PN} += "kernel-module-dtbocfg kernel-module-dtbocfg-${KERNEL_VERSION}"
+RCONFLICTS:${PN} += "kernel-module-dtbocfg kernel-module-dtbocfg-${KERNEL_VERSION}"
+
 COMPATIBLE_MACHINE = "luckfox-lyra"
