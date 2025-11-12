@@ -10,6 +10,7 @@ SRC_URI = " \
     file://rk3506g-luckfox-lyra.dts;subdir=git/arch/${ARCH}/boot/dts/ \
     file://base-configs.cfg \
     file://wifi.cfg \
+    file://dto.cfg \
     file://rauc.cfg \
     file://cgroups.cfg \
     file://fonts.cfg \
