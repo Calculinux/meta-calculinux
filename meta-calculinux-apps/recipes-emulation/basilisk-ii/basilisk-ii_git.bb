@@ -8,9 +8,10 @@ PN = "basilisk-ii"
 PV = "1.0+git${SRCPV}"
 
 SRC_URI = "git://github.com/kanjitalk755/macemu;protocol=https;branch=master \
-           file://0001-fix-tun-tap-check.patch \
+           file://0002-fix-configure-for-cross-compilation.patch \
            file://0003-fix-register-keyword.patch \
            file://0004-fix-sscanf-format.patch \
+           file://0005-fix-makefile-for-cross-compilation.patch \
         "
 SRCREV = "ac3273276215ffb3d0e40c8ed2e86f60882ec04d"
 
@@ -42,23 +43,8 @@ python __anonymous() {
 }
 
 do_configure() {
-    bbnote "Configuring Basilisk II (best-effort scaffold)"
+    bbnote "Configuring Basilisk II"
     cd ${S}/BasiliskII/src/Unix
-    if [ -f "configure.ac" ]; then
-        # Replace obsolete autoconf macros that attempt to run test programs
-        # (AC_TRY_*) with their modern equivalents which are cross-compile
-        # friendly (AC_RUN_IFELSE/AC_COMPILE_IFELSE/AC_LINK_IFELSE). Doing
-        # this here avoids creating a permanent patch file while we iterate.
-        bbnote "Patching configure.ac for cross-compile friendly macros"
-        sed -i 's/AC_TRY_RUN/AC_RUN_IFELSE/g' configure.ac || true
-        sed -i 's/AC_TRY_COMPILE/AC_COMPILE_IFELSE/g' configure.ac || true
-        sed -i 's/AC_TRY_LINK/AC_LINK_IFELSE/g' configure.ac || true
-        # Fix utils_macosx.mm inclusion for non-macOS
-        sed -i 's/EXTRASYSSRCS="\$EXTRASYSSRCS \.\.\/MacOSX\/utils_macosx\.mm"/case "\$target_os" in darwin*) EXTRASYSSRCS="\$EXTRASYSSRCS ..\/MacOSX\/utils_macosx.mm" ;; esac/' configure.ac || true
-        # Fix clip_macosx inclusion for non-macOS SDL video
-        sed -i 's/EXTRASYSSRCS="\$EXTRASYSSRCS \.\.\/MacOSX\/clip_macosx\.cpp"/case "\$target_os" in darwin*) EXTRASYSSRCS="\$EXTRASYSSRCS ..\/MacOSX\/clip_macosx.cpp" ;; *) EXTRASYSSRCS="\$EXTRASYSSRCS ..\/dummy\/clip_dummy.cpp" ;; esac/' configure.ac || true
-        sed -i 's/EXTRASYSSRCS="\$EXTRASYSSRCS \.\.\/MacOSX\/clip_macosx64\.mm \.\.\/pict\.c"/case "\$target_os" in darwin*) EXTRASYSSRCS="\$EXTRASYSSRCS ..\/MacOSX\/clip_macosx64.mm ..\/pict.c" ;; *) EXTRASYSSRCS="\$EXTRASYSSRCS ..\/dummy\/clip_dummy.cpp" ;; esac/' configure.ac || true
-    fi
 
     if [ -x "autogen.sh" ]; then
         bbnote "Running autogen.sh to generate configure"
@@ -73,24 +59,6 @@ do_configure() {
         export SDL_LIBS="`pkg-config --libs sdl2`"
 
         ./configure --host=${TARGET_SYS} --build=${BUILD_SYS} --prefix=${prefix} ${EXTRA_OECONF}
-
-        # Handle cross-compilation: use host-built generators for CPU code generation
-        # Replace all references to the build tools with our host-built versions
-        sed -i 's#cpudefs\.cpp: \$(OBJ_DIR)/build68k\$(EXEEXT) \./\$(UAE_PATH)/table68k#cpudefs.cpp: obj/host-tools/build68k-host ./$(UAE_PATH)/table68k#' Makefile
-        sed -i 's#\$(OBJ_DIR)/build68k\$(EXEEXT) <\./\$(UAE_PATH)/table68k >cpudefs\.cpp#obj/host-tools/build68k-host <./$(UAE_PATH)/table68k >$@#' Makefile
-        sed -i 's#\$(OBJ_DIR)/build68k\$(EXEEXT)#obj/host-tools/build68k-host#g' Makefile
-        sed -i 's#obj/build68k\$(EXEEXT)#obj/host-tools/build68k-host#g' Makefile
-        sed -i 's#obj/build68k#obj/host-tools/build68k-host#g' Makefile
-        sed -i 's#^cpuemu\.cpp: \$(OBJ_DIR)/gencpu\$(EXEEXT)#cpuemu.cpp: obj/host-tools/gencpu-host#' Makefile
-        sed -i $'s#^\t\$(OBJ_DIR)/gencpu\$(EXEEXT)#\tobj/host-tools/gencpu-host#' Makefile
-        sed -i 's#\$(OBJ_DIR)/gencpu\$(EXEEXT)#obj/host-tools/gencpu-host#g' Makefile
-        sed -i 's#obj/gencpu\$(EXEEXT)#obj/host-tools/gencpu-host#g' Makefile
-        sed -i 's#obj/gencpu#obj/host-tools/gencpu-host#g' Makefile
-        sed -i 's#^compemu\.cpp: \$(OBJ_DIR)/gencomp\$(EXEEXT)#compemu.cpp: obj/host-tools/gencomp-host#' Makefile
-        sed -i $'s#^\t\$(OBJ_DIR)/gencomp\$(EXEEXT)#\tobj/host-tools/gencomp-host#' Makefile
-        sed -i 's#\$(OBJ_DIR)/gencomp\$(EXEEXT)#obj/host-tools/gencomp-host#g' Makefile
-        sed -i 's#obj/gencomp\$(EXEEXT)#obj/host-tools/gencomp-host#g' Makefile
-        sed -i 's#obj/gencomp#obj/host-tools/gencomp-host#g' Makefile
     else
         bbnote "No autogen.sh script found; skipping configure step"
     fi

@@ -1,0 +1,19 @@
+diff --git a/BasiliskII/src/Unix/Makefile.in b/BasiliskII/src/Unix/Makefile.in
+index 3e565c6..5f1344e 100644
+--- a/BasiliskII/src/Unix/Makefile.in
++++ b/BasiliskII/src/Unix/Makefile.in
+@@ -214,11 +214,11 @@ $(OBJ_DIR)/%.o: %.rc
+ 	windres --include-dir ../Windows -i $< -o $@
+ 
+ $(OBJ_DIR)/build68k$(EXEEXT): $(OBJ_DIR)/build68k.o
+-	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k$(EXEEXT) $(OBJ_DIR)/build68k.o
++	$(BUILD_CC) $(BUILD_LDFLAGS) -o $(OBJ_DIR)/build68k$(EXEEXT) $(OBJ_DIR)/build68k.o
+ $(OBJ_DIR)/gencpu$(EXEEXT): $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+-	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencpu$(EXEEXT) $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
++	$(BUILD_CXX) $(BUILD_LDFLAGS) -o $(OBJ_DIR)/gencpu$(EXEEXT) $(OBJ_DIR)/gencpu.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+ $(OBJ_DIR)/gencomp$(EXEEXT): $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+-	$(CXX) $(LDFLAGS) -o $(OBJ_DIR)/gencomp$(EXEEXT) $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
++	$(BUILD_CXX) $(BUILD_LDFLAGS) -o $(OBJ_DIR)/gencomp$(EXEEXT) $(OBJ_DIR)/gencomp.o $(OBJ_DIR)/readcpu.o $(OBJ_DIR)/cpudefs.o
+ 
+ UAE_PATH = @UAE_PATH@
+ 
