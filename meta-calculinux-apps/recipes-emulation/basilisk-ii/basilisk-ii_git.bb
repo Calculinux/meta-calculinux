@@ -75,12 +75,22 @@ do_configure() {
         ./configure --host=${TARGET_SYS} --build=${BUILD_SYS} --prefix=${prefix} ${EXTRA_OECONF}
 
         # Handle cross-compilation: use host-built generators for CPU code generation
-        sed -i 's#cpudefs\.cpp: $(OBJ_DIR)/build68k$(EXEEXT) \./$(UAE_PATH)/table68k#cpudefs.cpp: obj/host-tools/build68k-host ./$(UAE_PATH)/table68k#' Makefile
-        sed -i 's#$(OBJ_DIR)/build68k$(EXEEXT) <\./$(UAE_PATH)/table68k >cpudefs\.cpp#obj/host-tools/build68k-host <./$(UAE_PATH)/table68k >$@#' Makefile
-        sed -i 's#^cpuemu\.cpp: $(OBJ_DIR)/gencpu$(EXEEXT)#cpuemu.cpp: obj/host-tools/gencpu-host#' Makefile
-        sed -i $'s#^\t$(OBJ_DIR)/gencpu$(EXEEXT)#\tobj/host-tools/gencpu-host#' Makefile
-        sed -i 's#^compemu\.cpp: $(OBJ_DIR)/gencomp$(EXEEXT)#compemu.cpp: obj/host-tools/gencomp-host#' Makefile
-        sed -i $'s#^\t$(OBJ_DIR)/gencomp$(EXEEXT)#\tobj/host-tools/gencomp-host#' Makefile
+        # Replace all references to the build tools with our host-built versions
+        sed -i 's#cpudefs\.cpp: \$(OBJ_DIR)/build68k\$(EXEEXT) \./\$(UAE_PATH)/table68k#cpudefs.cpp: obj/host-tools/build68k-host ./$(UAE_PATH)/table68k#' Makefile
+        sed -i 's#\$(OBJ_DIR)/build68k\$(EXEEXT) <\./\$(UAE_PATH)/table68k >cpudefs\.cpp#obj/host-tools/build68k-host <./$(UAE_PATH)/table68k >$@#' Makefile
+        sed -i 's#\$(OBJ_DIR)/build68k\$(EXEEXT)#obj/host-tools/build68k-host#g' Makefile
+        sed -i 's#obj/build68k\$(EXEEXT)#obj/host-tools/build68k-host#g' Makefile
+        sed -i 's#obj/build68k#obj/host-tools/build68k-host#g' Makefile
+        sed -i 's#^cpuemu\.cpp: \$(OBJ_DIR)/gencpu\$(EXEEXT)#cpuemu.cpp: obj/host-tools/gencpu-host#' Makefile
+        sed -i $'s#^\t\$(OBJ_DIR)/gencpu\$(EXEEXT)#\tobj/host-tools/gencpu-host#' Makefile
+        sed -i 's#\$(OBJ_DIR)/gencpu\$(EXEEXT)#obj/host-tools/gencpu-host#g' Makefile
+        sed -i 's#obj/gencpu\$(EXEEXT)#obj/host-tools/gencpu-host#g' Makefile
+        sed -i 's#obj/gencpu#obj/host-tools/gencpu-host#g' Makefile
+        sed -i 's#^compemu\.cpp: \$(OBJ_DIR)/gencomp\$(EXEEXT)#compemu.cpp: obj/host-tools/gencomp-host#' Makefile
+        sed -i $'s#^\t\$(OBJ_DIR)/gencomp\$(EXEEXT)#\tobj/host-tools/gencomp-host#' Makefile
+        sed -i 's#\$(OBJ_DIR)/gencomp\$(EXEEXT)#obj/host-tools/gencomp-host#g' Makefile
+        sed -i 's#obj/gencomp\$(EXEEXT)#obj/host-tools/gencomp-host#g' Makefile
+        sed -i 's#obj/gencomp#obj/host-tools/gencomp-host#g' Makefile
     else
         bbnote "No autogen.sh script found; skipping configure step"
     fi
