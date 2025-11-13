@@ -38,7 +38,6 @@ IMAGE_INSTALL += " \
     iw \
     iwd \
     kbd-keymaps \
-    kernel-module-rtl8188fu \
     kernel-modules \
     links \
     man-db \
@@ -50,7 +49,6 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
-    rtl8188fu \
     shadow \
     sudo \
     systemd-analyze \
