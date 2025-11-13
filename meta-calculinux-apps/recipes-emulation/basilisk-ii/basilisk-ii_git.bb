@@ -23,24 +23,11 @@ S = "${WORKDIR}/git"
 DEPENDS = "libsdl2 libpng jpeg zlib alsa-lib gmp mpfr autoconf-native automake-native libtool-native pkgconfig-native"
 HOSTTOOLS += "gcc g++"
 
-# Build without X11 support by default for this device. Some macemu forks
-# provide configure flags to disable X11; we'll pass a conservative flag and
-# users can adjust if upstream uses a different option.
 EXTRA_OECONF = "--disable-x11 --enable-sdl-video --enable-sdl-sound --disable-macosx-gui --disable-macosx-sound"
 
 inherit pkgconfig
 
 BB_NO_NETWORK = "0"
-
-# Try to be flexible: if an autotools ./configure exists, use it. Otherwise
-# fallback to direct make in the source directory. We'll patch after an initial
-# build attempt if cross-compilation issues appear.
-python __anonymous() {
-    import os
-    s = d.getVar('S')
-    if not os.path.isdir(s):
-        bb.warn('Directory %s does not exist in fetched sources; check upstream layout.' % s)
-}
 
 do_configure() {
     bbnote "Configuring Basilisk II"
