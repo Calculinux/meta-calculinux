@@ -61,7 +61,12 @@ do_configure:append() {
 do_compile() {
     bbnote "Compiling Basilisk II"
     cd ${S}/BasiliskII/src/Unix
-    oe_runmake
+    oe_runmake \
+        BUILD_CC="${BUILD_CC}" \
+        BUILD_CXX="${BUILD_CXX}" \
+        BUILD_CFLAGS="${BUILD_CFLAGS}" \
+        BUILD_CXXFLAGS="${BUILD_CXXFLAGS}" \
+        BUILD_LDFLAGS="${BUILD_LDFLAGS}"
 }
 
 do_install() {
