@@ -12,8 +12,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=78e4545921c790f53f837dd922313bbb"
 SRC_URI = "git://github.com/benklop/glkterm.git;protocol=https;branch=main"
 SRCREV = "${AUTOREV}"
 
-# Version (git live version)
-PV = "1.0+git${SRCPV}"
+# Version (git live version) - bumped to 1.1 for binary relocation
+PV = "1.1+git${SRCPV}"
 
 # Working directory
 S = "${WORKDIR}/git"
@@ -55,8 +55,8 @@ PACKAGECONFIG[scott] = "-DWITH_SCOTT=ON,-DWITH_SCOTT=OFF"
 PACKAGECONFIG[tads] = "-DWITH_TADS=ON,-DWITH_TADS=OFF"
 PACKAGECONFIG[taylor] = "-DWITH_TAYLOR=ON,-DWITH_TAYLOR=OFF"
 
-# Extra CMake arguments
-EXTRA_OECMAKE = ""
+# Extra CMake arguments - install interpreters to /usr/share/glkterm/bin to avoid conflicts
+EXTRA_OECMAKE = "-DCMAKE_INSTALL_BINDIR=${datadir}/${PN}/bin"
 
 # Remove problematic build-path files
 do_install:append() {
@@ -64,9 +64,8 @@ do_install:append() {
     rm -f ${D}${includedir}/Make.glkterm
 }
 
-# Package files
-FILES:${PN} = "${bindir}/* \
-               ${datadir}/${PN}/* \
+# Package files - interpreters now installed in /usr/share/glkterm/bin
+FILES:${PN} = "${datadir}/${PN}/* \
                ${libdir}/${PN}/*"
 
 # Development files (if any)
