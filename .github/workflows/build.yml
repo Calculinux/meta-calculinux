@@ -135,36 +135,54 @@ jobs:
 
     - name: Configure package feed for image
       run: |
-        echo "Configuring package feed..."
+        echo "Configuring package feed and version..."
         
         DISTRO_CODENAME="${{ steps.feed-config.outputs.distro_codename }}"
         FEED_SUBFOLDER="${{ steps.feed-config.outputs.feed_subfolder }}"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
         
-        # Create build/conf directory if it doesn't exist
-        mkdir -p build/conf
+        # Determine DISTRO_VERSION based on feed configuration
+        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+          # Tagged release - use the tag name as version
+          DISTRO_VERSION="${{ github.ref_name }}"
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          # Main branch continuous
+          DISTRO_VERSION="1.0.0-continuous+$(git rev-parse --short HEAD)"
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          # Develop branch
+          DISTRO_VERSION="1.0.0-develop+$(git rev-parse --short HEAD)"
+        else
+          # Other branches
+          DISTRO_VERSION="1.0.0-branch+$(git rev-parse --short HEAD)"
+        fi
         
-        # Create auto.conf to override feed configuration
-        cat > build/conf/auto.conf << EOF
-        # Auto-generated feed configuration for CI builds
-        # This file is created by the GitHub Actions workflow
+        # Create a kas override file that includes the base configuration
+        # and adds CI-specific overrides via local_conf_header
+        cat > kas-ci-override.yaml << EOF
+        header:
+          version: 18
+          includes:
+            - ${{ matrix.kas_file }}
         
-        # Override DISTRO_CODENAME for develop builds
-        DISTRO_CODENAME = "${DISTRO_CODENAME}"
-        
-        # Set the feed subfolder (continuous or release)
-        CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
-        
-        # Resulting feed path: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/
+        local_conf_header:
+          ci_overrides: |
+            # CI build overrides (injected by GitHub Actions workflow)
+            DISTRO_CODENAME = "${DISTRO_CODENAME}"
+            CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
+            DISTRO_VERSION = "${DISTRO_VERSION}"
         EOF
         
-        echo "Package feed configured:"
+        echo "Package feed and version configured:"
         echo "  DISTRO_CODENAME = ${DISTRO_CODENAME}"
         echo "  CALCULINUX_FEED_SUBFOLDER = ${FEED_SUBFOLDER}"
+        echo "  DISTRO_VERSION = ${DISTRO_VERSION}"
         echo "  Full feed URL: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/"
+        echo ""
+        echo "Created kas-ci-override.yaml for CI build"
 
     - name: Build Yocto image and packages
       run: |
-        echo "Building ${{ matrix.name }} using ${{ matrix.kas_file }}"
+        echo "Building ${{ matrix.name }} using kas-ci-override.yaml"
         echo "This will build:"
         echo "  - ${{ matrix.target }} (base image with overlayfs)"
         echo "  - packagegroup-meta-calculinux-apps (IPK packages)"
@@ -172,8 +190,9 @@ jobs:
         echo "All packages install to /usr (standard paths)"
         echo "Runtime: /usr is overlayfs - base in lower layer, user packages in upper layer"
         
-        # Run the build with kas-container
-        ./kas-container build ${{ matrix.kas_file }}
+        # Run the build with kas-container using CI override file
+        # This file includes the base kas configuration and adds CI-specific overrides
+        ./kas-container build kas-ci-override.yaml
 
     - name: Build SDK
       if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
@@ -183,11 +202,12 @@ jobs:
         echo "This will generate a cross-compilation toolchain and sysroot for development for use on x86_64 hosts"
         
         # Create temporary kas file for x86_64 SDK
+        # This includes the CI override file (which itself includes the base kas file)
         cat > kas-sdk-x86_64.yaml << EOF
         header:
           version: 18
           includes:
-            - ${{ matrix.kas_file }}
+            - kas-ci-override.yaml
         
         local_conf_header:
           sdk_x86_64: |
@@ -207,11 +227,12 @@ jobs:
         echo "This will generate a cross-compilation toolchain and sysroot for development for use on aarch64 hosts"
         
         # Create temporary kas file for aarch64 SDK
+        # This includes the CI override file (which itself includes the base kas file)
         cat > kas-sdk-aarch64.yaml << EOF
         header:
           version: 18
           includes:
-            - ${{ matrix.kas_file }}
+            - kas-ci-override.yaml
         
         local_conf_header:
           sdk_aarch64: |
