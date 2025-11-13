@@ -9,6 +9,10 @@ repos:
   poky:
     url: https://git.yoctoproject.org/poky.git
     commit: db04028d9070f05c3b5dee728473fb234bd24f05
+    patches:
+      0001-compress-doc.patch:
+        repo: meta-calculinux
+        path: patches/compress_doc.patch
     layers:
       meta:
       meta-poky:

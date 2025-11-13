@@ -1,0 +1,37 @@
+diff --git a/meta/classes-recipe/compress_doc.bbclass b/meta/classes-recipe/compress_doc.bbclass
+index d603caf858..e4178ad3c8 100644
+--- a/meta/classes-recipe/compress_doc.bbclass
++++ b/meta/classes-recipe/compress_doc.bbclass
+@@ -230,18 +230,29 @@ python compress_doc_updatealternatives () {
+     mandir = d.getVar("mandir")
+     infodir = d.getVar("infodir")
+     compress_mode = d.getVar('DOC_COMPRESS')
++    bindir = d.getVar('bindir') or d.getVar('base_bindir')
+     for pkg in (d.getVar('PACKAGES') or "").split():
+         old_names = (d.getVar('ALTERNATIVE:%s' % pkg) or "").split()
+         new_names = []
+         for old_name in old_names:
+-            old_link     = d.getVarFlag('ALTERNATIVE_LINK_NAME', old_name)
+-            old_target   = d.getVarFlag('ALTERNATIVE_TARGET_%s' % pkg, old_name) or \
++            old_link = d.getVarFlag('ALTERNATIVE_LINK_NAME', old_name)
++            if not old_link and bindir:
++                old_link = "%s/%s" % (bindir, old_name)
++                d.setVarFlag('ALTERNATIVE_LINK_NAME', old_name, old_link)
++            if not old_link:
++                bb.warn('%s: Skipping compress_doc update-alternatives for %s:%s due to missing link metadata' % (d.getVar('BPN'), pkg, old_name))
++                continue
++
++            old_target = d.getVarFlag('ALTERNATIVE_TARGET_%s' % pkg, old_name) or \
+                 d.getVarFlag('ALTERNATIVE_TARGET', old_name) or \
+                 d.getVar('ALTERNATIVE_TARGET_%s' % pkg) or \
+                 d.getVar('ALTERNATIVE_TARGET') or \
+                 old_link
++            if not old_target:
++                bb.warn('%s: Skipping compress_doc update-alternatives for %s:%s due to missing target metadata' % (d.getVar('BPN'), pkg, old_name))
++                continue
+             # Sometimes old_target is specified as relative to the link name.
+-            old_target   = os.path.join(os.path.dirname(old_link), old_target)
++            old_target = os.path.join(os.path.dirname(old_link or ''), old_target)
+ 
+             # The updatealternatives used for compress doc
+             if mandir in old_target or infodir in old_target:
