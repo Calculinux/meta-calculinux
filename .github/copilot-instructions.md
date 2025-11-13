@@ -1,10 +1,12 @@
 # Copilot Instructions
 
 ## Instructions for Builds
-- When launching build commands, ensure the repository's ./build is a symlink to '../'
-- Always launch build commands from the repository's `./build` directory.
-- From within `./build`, call the helper from the meta-calculinux directory: `./meta-calculinux/kas-container ...`.
-- When in doubt, mirror one of these canonical invocations:
+- **CRITICAL**: NEVER run build commands from within the `meta-calculinux` directory itself. This creates unwanted build artifacts that must be cleaned up.
+- **ALWAYS** run build commands from the `calculinux-build` directory (parent of `meta-calculinux`).
+- The canonical build location is: `/home/<username>/repos/calculinux/calculinux-build/`. Note this is user specific however and may be different for different users.
+- From the `calculinux-build` directory, call the kas-container helper script: `./meta-calculinux/kas-container ...`
+- The `meta-calculinux` repository contains a convenience symlink `./build` that points to `../` (the calculinux-build directory), but you should use the full path instead.
+- When in doubt, mirror one of these canonical invocations from `/home/<username>/repos/calculinux/calculinux-build/`:
   - `./meta-calculinux/kas-container shell ./meta-calculinux/kas-luckfox-lyra-bundle.yaml -c "bitbake aic8800"`
   - `./meta-calculinux/kas-container build ./meta-calculinux/kas-luckfox-lyra-bundle.yaml`
 - Prefer these patterns for all future build steps unless explicitly instructed otherwise.
