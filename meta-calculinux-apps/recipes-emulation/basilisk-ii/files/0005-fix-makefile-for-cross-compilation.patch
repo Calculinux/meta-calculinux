@@ -1,25 +1,28 @@
 diff --git a/BasiliskII/src/Unix/Makefile.in b/BasiliskII/src/Unix/Makefile.in
-index 3e565c6..00422b5 100644
+index 3e565c6..62b2c26 100644
 --- a/BasiliskII/src/Unix/Makefile.in
 +++ b/BasiliskII/src/Unix/Makefile.in
-@@ -211,14 +211,26 @@ $(OBJ_DIR)/%.guio : %.cpp
- 
- # Windows resources
+@@ -213,12 +213,29 @@ $(OBJ_DIR)/%.guio : %.cpp
  $(OBJ_DIR)/%.o: %.rc
-+# Build tool object files must be compiled with BUILD_CC/BUILD_CXX for the build machine
-+$(OBJ_DIR)/build68k.o: @top_srcdir@/$(UAE_PATH)/build68k.c
-+	$(BUILD_CC) $(CPPFLAGS) $(DEFS) $(BUILD_CFLAGS) -c $< -o $@
-+$(OBJ_DIR)/gencpu.o: @top_srcdir@/$(UAE_PATH)/gencpu.c
-+	$(BUILD_CC) $(CPPFLAGS) $(DEFS) $(BUILD_CFLAGS) -c $< -o $@
-+$(OBJ_DIR)/gencomp.o: @top_srcdir@/$(UAE_PATH)/compiler/gencomp.c
-+	$(BUILD_CC) $(CPPFLAGS) $(DEFS) $(BUILD_CFLAGS) -c $< -o $@
-+$(OBJ_DIR)/readcpu.o: @top_srcdir@/$(UAE_PATH)/readcpu.cpp
-+	$(BUILD_CXX) $(CPPFLAGS) $(DEFS) $(BUILD_CXXFLAGS) -c $< -o $@
-+$(OBJ_DIR)/cpudefs.o: cpudefs.cpp
-+	$(BUILD_CXX) $(CPPFLAGS) $(DEFS) $(BUILD_CXXFLAGS) -c $< -o $@
-+
  	windres --include-dir ../Windows -i $< -o $@
  
++# Build tool object files must be compiled for build host, not target
++$(OBJ_DIR)/build68k.o: build68k.c
++	$(BUILD_CC) $(BUILD_CFLAGS) -c $< -o $@
++
++$(OBJ_DIR)/gencpu.o: gencpu.c
++	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++
++$(OBJ_DIR)/gencomp.o: gencomp.c
++	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++
++$(OBJ_DIR)/readcpu.o: readcpu.cpp
++	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++
++$(OBJ_DIR)/cpudefs.o: cpudefs.cpp
++	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++
++
  $(OBJ_DIR)/build68k$(EXEEXT): $(OBJ_DIR)/build68k.o
 -	$(CC) $(LDFLAGS) -o $(OBJ_DIR)/build68k$(EXEEXT) $(OBJ_DIR)/build68k.o
 +	$(BUILD_CC) $(BUILD_LDFLAGS) -o $(OBJ_DIR)/build68k$(EXEEXT) $(OBJ_DIR)/build68k.o
