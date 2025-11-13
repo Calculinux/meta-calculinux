@@ -14,6 +14,7 @@ PACKAGES = "${PN}"
 # These will be built as IPKs and made available in the package feed
 RDEPENDS:${PN} = " \
     android-adbd \
+    basilisk-ii \
     cargo \
     circumflex \
     emacs-full \
