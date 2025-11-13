@@ -41,6 +41,15 @@ repos:
       meta-picocalc-bsp-rockchip:
       meta-calculinux-apps:
       meta-meshtastic:
+  meta-complementary:
+    url: https://github.com/andrerclaudio/yocto-digest.git
+    commit: c4b3d2a4dd51530c9c8bfd0975e3ab9c47162084
+    layers:
+      tools/meta-complementary:
+    patches:
+      0001-meta-complementary-changes.patch:
+        repo: meta-calculinux
+        path: patches/meta-complementary.patch
 local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"

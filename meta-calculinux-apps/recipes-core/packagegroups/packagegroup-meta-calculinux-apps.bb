@@ -17,6 +17,7 @@ RDEPENDS:${PN} = " \
     cargo \
     circumflex \
     emacs-full \
+    fastfetch \
     glkcli \
     glkterm \
     iotop \

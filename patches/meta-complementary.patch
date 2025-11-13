@@ -1,0 +1,10 @@
+diff --git a/tools/meta-complementary/conf/layer.conf b/tools/meta-complementary/conf/layer.conf
+index 32e2e14..406707d 100644
+--- a/tools/meta-complementary/conf/layer.conf
++++ b/tools/meta-complementary/conf/layer.conf
+@@ -10,4 +10,4 @@ BBFILE_PATTERN_meta-complementary = "^${LAYERDIR}/"
+ BBFILE_PRIORITY_meta-complementary = "6"
+ 
+ LAYERDEPENDS_meta-complementary = "core"
+-LAYERSERIES_COMPAT_meta-complementary = "scarthgap"
++LAYERSERIES_COMPAT_meta-complementary = "scarthgap styhead walnascar"
