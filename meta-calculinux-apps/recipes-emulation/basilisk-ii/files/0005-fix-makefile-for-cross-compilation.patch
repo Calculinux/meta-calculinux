@@ -1,5 +1,5 @@
 diff --git a/BasiliskII/src/Unix/Makefile.in b/BasiliskII/src/Unix/Makefile.in
-index 3e565c6..62b2c26 100644
+index 3e565c6..18164ad 100644
 --- a/BasiliskII/src/Unix/Makefile.in
 +++ b/BasiliskII/src/Unix/Makefile.in
 @@ -213,12 +213,29 @@ $(OBJ_DIR)/%.guio : %.cpp
@@ -8,19 +8,19 @@ index 3e565c6..62b2c26 100644
  
 +# Build tool object files must be compiled for build host, not target
 +$(OBJ_DIR)/build68k.o: build68k.c
-+	$(BUILD_CC) $(BUILD_CFLAGS) -c $< -o $@
++	$(BUILD_CC) $(CPPFLAGS) $(DEFS) $(BUILD_CFLAGS) -c $< -o $@
 +
 +$(OBJ_DIR)/gencpu.o: gencpu.c
-+	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++	$(BUILD_CXX) $(CPPFLAGS) $(DEFS) $(BUILD_CXXFLAGS) -c $< -o $@
 +
 +$(OBJ_DIR)/gencomp.o: gencomp.c
-+	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++	$(BUILD_CXX) $(CPPFLAGS) $(DEFS) $(BUILD_CXXFLAGS) -c $< -o $@
 +
 +$(OBJ_DIR)/readcpu.o: readcpu.cpp
-+	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++	$(BUILD_CXX) $(CPPFLAGS) $(DEFS) $(BUILD_CXXFLAGS) -c $< -o $@
 +
 +$(OBJ_DIR)/cpudefs.o: cpudefs.cpp
-+	$(BUILD_CXX) $(BUILD_CXXFLAGS) -c $< -o $@
++	$(BUILD_CXX) $(CPPFLAGS) $(DEFS) $(BUILD_CXXFLAGS) -c $< -o $@
 +
 +
  $(OBJ_DIR)/build68k$(EXEEXT): $(OBJ_DIR)/build68k.o
