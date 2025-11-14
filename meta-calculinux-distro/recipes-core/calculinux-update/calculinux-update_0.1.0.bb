@@ -45,6 +45,4 @@ EOF
 do_install() {
     install_python_package
     install_entrypoint
-    install -d ${D}${datadir}/licenses/${PN}
-    install -m 0644 ${S}/LICENSE ${D}${datadir}/licenses/${PN}/
 }
