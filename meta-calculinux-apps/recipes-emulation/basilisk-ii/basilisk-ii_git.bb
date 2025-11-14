@@ -77,4 +77,5 @@ do_install() {
 
 FILES_${PN} = "${bindir}/basilisk-ii"
 
-RDEPENDS_${PN} = ""
+# Basilisk II links against libasound, so ensure ALSA gets brought in at runtime
+RDEPENDS:${PN} += "alsa-lib"
