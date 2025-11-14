@@ -15,8 +15,8 @@ SRC_URI = "git://github.com/benklop/glkcli.git;protocol=https;branch=main \
            file://0001-Remove-panic-abort-for-cross-compilation-compatibility.patch"
 SRCREV = "${AUTOREV}"
 
-# Version (git live version)
-PV = "1.0+git${SRCPV}"
+# Version (git live version) - bumped to 1.1 for glkterm path configuration
+PV = "1.1+git${SRCPV}"
 
 # Working directory
 S = "${WORKDIR}/git"
@@ -34,6 +34,9 @@ RDEPENDS:${PN} = "glkterm"
 export OPENSSL_DIR = "${STAGING_DIR_HOST}${prefix}"
 export OPENSSL_LIB_DIR = "${STAGING_DIR_HOST}${libdir}"
 export OPENSSL_INCLUDE_DIR = "${STAGING_DIR_HOST}${includedir}"
+
+# Configure glkterm interpreter location at compile time
+export GLKTERM_BIN_DIR = "${datadir}/glkterm/bin"
 
 # Include the auto-generated crates file
 require ${BPN}-crates.inc
