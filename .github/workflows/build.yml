@@ -704,7 +704,7 @@ jobs:
         UPDATE_DIR="$OPKG_REPO_DIR/update/$FEED_NAME/$SUBFOLDER"
         IMAGE_DIR="$OPKG_REPO_DIR/image/$FEED_NAME/$SUBFOLDER"
         export BASE_URL UPDATE_DIR IMAGE_DIR FEED_NAME SUBFOLDER MACHINE DISTRO_VERSION GIT_SHA
-        python <<'PY'
+        python3 <<'PY'
         import hashlib
         import json
         import os
