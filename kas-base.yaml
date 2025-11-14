@@ -33,7 +33,6 @@ local_conf_header:
     RM_OLD_IMAGE = "1"
     INHERIT += "rm_work"
     KERNEL_CLASSES += "kernel-fitimage"
-    KERNEL_IMAGETYPES += "fitImage"
   diskmon: |
     BB_DISKMON_DIRS ??= "\
         STOPTASKS,${TMPDIR},1G,100K \
