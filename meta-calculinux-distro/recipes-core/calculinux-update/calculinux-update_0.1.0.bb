@@ -26,8 +26,6 @@ FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR}"
 install_python_package() {
     install -d ${D}${PYTHON_SITEPACKAGES_DIR}
     cp -r ${S}/src/calculinux_update ${D}${PYTHON_SITEPACKAGES_DIR}/
-    PYTHONPATH=${D}${PYTHON_SITEPACKAGES_DIR}:${PYTHONPATH} \
-        ${PYTHON} -m compileall -q ${D}${PYTHON_SITEPACKAGES_DIR}/calculinux_update
 }
 
 install_entrypoint() {
