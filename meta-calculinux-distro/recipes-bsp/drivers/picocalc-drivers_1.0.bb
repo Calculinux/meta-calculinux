@@ -24,7 +24,7 @@ INSANE_SKIP:${PN} += "buildpaths debug-files"
 INSANE_SKIP:${PN}-dbg += "buildpaths"
 
 # Define logical package groups - custom packages first, then standard packages
-PACKAGES = "${PN}-mfd ${PN}-kbd ${PN}-lcd ${PN}-lcd-drm ${PN}-snd-pwm ${PN}-snd-softpwm ${PN}-dbg ${PN}-src ${PN}-staticdev ${PN}-dev ${PN}-doc ${PN}-locale ${PN}"
+PACKAGES = "${PN}-mfd ${PN}-kbd ${PN}-lcd-fb ${PN}-lcd-drm ${PN}-snd-pwm ${PN}-snd-softpwm ${PN}-dbg ${PN}-src ${PN}-staticdev ${PN}-dev ${PN}-doc ${PN}-locale ${PN}"
 
 # Package descriptions
 SUMMARY:${PN}-mfd = "PicoCalc MFD drivers (core, BMS, backlight, keyboard, LED)"
