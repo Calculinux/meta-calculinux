@@ -27,7 +27,7 @@ repos:
       meta-multimedia:
   meta-games:
     url: https://github.com/cazfi/meta-games.git
-    commit: dd7479cc0e9df3bc98a80f8e36ba40a90afd4bbf
+    commit: dd7479c971ec7b287e35cbae9946bdf4371c839b
     patches:
       0001-scarthgap-compat.patch:
         repo: meta-calculinux
