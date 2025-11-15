@@ -9,6 +9,7 @@ SRC_URI = " \
     file://rk3506-luckfox-lyra.dtsi;subdir=git/arch/${ARCH}/boot/dts/ \
     file://rk3506g-luckfox-lyra.dts;subdir=git/arch/${ARCH}/boot/dts/ \
     file://base-configs.cfg \
+    file://display.cfg \
     file://wifi.cfg \
     file://rauc.cfg \
     file://cgroups.cfg \
@@ -17,6 +18,18 @@ SRC_URI = " \
     file://removed.cfg \
     file://utf8.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
+"
+
+KERNEL_CONFIG_FRAGMENTS += " \
+    base-configs.cfg \
+    display.cfg \
+    wifi.cfg \
+    rauc.cfg \
+    cgroups.cfg \
+    fonts.cfg \
+    led.cfg \
+    removed.cfg \
+    utf8.cfg \
 "
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
