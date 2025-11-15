@@ -1,0 +1,8 @@
+--- a/conf/layer.conf	2025-11-15 02:39:28.545055038 -0500
++++ b/conf/layer.conf	2025-11-15 02:39:33.341417872 -0500
+@@ -9,4 +9,4 @@
+ BBFILE_PRIORITY_games-layer = "15"
+ 
+ LAYERDEPENDS_games-layer = "core openembedded-layer filesystems-layer gnome-layer networking-layer multimedia-layer meta-python qt6-layer"
+-LAYERSERIES_COMPAT_games-layer = "whinlatter"
++LAYERSERIES_COMPAT_games-layer = "scarthgap whinlatter walnascar"

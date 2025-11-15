@@ -36,6 +36,7 @@ RDEPENDS:${PN} = " \
     rsync \
     rust \
     screen \
+    scummvm \
     sysstat \
     tcpdump \
     tmux \

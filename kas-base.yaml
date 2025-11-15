@@ -4,7 +4,7 @@ header:
 
 distro: calculinux-distro
 
-# scarthgap checkout
+# walnascar checkout
 repos:
   poky:
     url: https://git.yoctoproject.org/poky.git
@@ -25,6 +25,15 @@ repos:
       meta-networking:
       meta-filesystems:
       meta-multimedia:
+  meta-games:
+    url: https://github.com/cazfi/meta-games.git
+    commit: dd7479cc0e9df3bc98a80f8e36ba40a90afd4bbf
+    patches:
+      0001-scarthgap-compat.patch:
+        repo: meta-calculinux
+        path: patches/meta-games-scarthgap-compat.patch
+    layers:
+      .:
   meta-calculinux:
     layers:
       meta-calculinux-distro:
