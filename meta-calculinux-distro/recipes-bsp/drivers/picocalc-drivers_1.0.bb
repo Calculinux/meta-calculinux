@@ -50,7 +50,7 @@ FILES:${PN}-mfd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picoca
                    ${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_mfd_led.ko"
 
 FILES:${PN}-kbd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_kbd.ko"
-FILES:${PN}-lcd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/ili9488.ko"
+FILES:${PN}-lcd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/ili9488_fb.ko"
 FILES:${PN}-snd-pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_pwm.ko"
 FILES:${PN}-snd-softpwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_softpwm.ko"
 
@@ -94,7 +94,7 @@ do_install() {
     install -m 0644 ${S}/picocalc_mfd_kbd/picocalc_mfd_kbd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_mfd_led/picocalc_mfd_led.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_kbd/picocalc_kbd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_lcd/ili9488.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/picocalc_lcd/ili9488_fb.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
