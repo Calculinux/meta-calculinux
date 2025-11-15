@@ -1,0 +1,66 @@
+diff --git a/BasiliskII/src/SDL/video_sdl2.cpp b/BasiliskII/src/SDL/video_sdl2.cpp
+index 590b7a62..51c9f5cc 100644
+--- a/BasiliskII/src/SDL/video_sdl2.cpp
++++ b/BasiliskII/src/SDL/video_sdl2.cpp
+@@
+-static void ApplyGammaRamp() {
+-	if (sdl_window) {
+-		int result;
+-		if (!init_gamma_valid) {
+-			result = SDL_GetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
+-			if (result < 0)
+-				fprintf(stderr, "SDL_GetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
+-			init_gamma_valid = true;
+-		}
+-		const char *s = PrefsFindString("gammaramp");
+-		if (!s) s = "off";
+-		if (strcmp(s, "off") && (strcmp(s, "fullscreen") || display_type == DISPLAY_SCREEN))
+-			result = SDL_SetWindowGammaRamp(sdl_window, last_gamma_red, last_gamma_green, last_gamma_blue);
+-		else
+-			result = SDL_SetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
+-		if (result < 0)
+-			fprintf(stderr, "SDL_SetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
+-	}
+-}
++static bool gamma_ramp_supported = true;
++static bool gamma_ramp_active = false;
++
++static void ApplyGammaRamp() {
++	if (!sdl_window || !gamma_ramp_supported)
++		return;
++
++	int result;
++	if (!init_gamma_valid) {
++		result = SDL_GetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
++		if (result < 0)
++			fprintf(stderr, "SDL_GetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
++		init_gamma_valid = true;
++	}
++
++	const char *s = PrefsFindString("gammaramp");
++	if (!s)
++		s = "off";
++
++	if (!strcmp(s, "off")) {
++		if (!gamma_ramp_active)
++			return;
++		result = SDL_SetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
++		if (result == 0)
++			gamma_ramp_active = false;
++	} else if (!strcmp(s, "fullscreen") && display_type != DISPLAY_SCREEN) {
++		if (!gamma_ramp_active)
++			return;
++		result = SDL_SetWindowGammaRamp(sdl_window, init_gamma_red, init_gamma_green, init_gamma_blue);
++		if (result == 0)
++			gamma_ramp_active = false;
++	} else {
++		result = SDL_SetWindowGammaRamp(sdl_window, last_gamma_red, last_gamma_green, last_gamma_blue);
++		if (result == 0)
++			gamma_ramp_active = true;
++	}
++
++	if (result < 0) {
++		fprintf(stderr, "SDL_SetWindowGammaRamp returned %d, SDL error: %s\n", result, SDL_GetError());
++		gamma_ramp_supported = false;
++	}
++}
