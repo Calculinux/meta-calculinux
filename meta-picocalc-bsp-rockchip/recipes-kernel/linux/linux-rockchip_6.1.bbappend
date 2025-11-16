@@ -58,4 +58,4 @@ do_install:append() {
     install -D -m 0644  "${B}/.config.gz" "${D}${datadir}/kernel/config.gz"
 }
 
-FILES:${PN}-doc += "${datadir}/kernel"
+FILES:${KERNEL_PACKAGE_NAME} += "${datadir}/kernel"
