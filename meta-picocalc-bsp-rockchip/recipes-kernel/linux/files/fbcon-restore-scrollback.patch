@@ -1,6 +1,6 @@
-From: Multiple Authors
+From: Multiple Authors <nekocharm@jumba.jookiba.outlook.com>
 Subject: fbcon: Restore software scrollback functionality
-Date: 2025-11-15
+Date: Fri, 15 Nov 2025 12:00:00 +0000
 
 This patch restores the software scrollback functionality that was removed
 from the Linux kernel. It adds scrollback buffer support to the framebuffer
@@ -538,7 +538,7 @@ Signed-off-by: nekocharm <jumba.jookiba@outlook.com>
 +{
 +	if (softback_lines)
 +		fbcon_scrolldelta(vc, softback_lines);
-+ 	return 0;
++	return 0;
  }
  
  void fbcon_suspended(struct fb_info *info)
