@@ -5,8 +5,14 @@ PACKAGECONFIG[directfb] = "-DSDL_DIRECTFB=ON,-DSDL_DIRECTFB=OFF,directfb"
 PACKAGECONFIG:remove = "fbcon directfb"
 PACKAGECONFIG:append = " kmsdrm"
 
+# Ensure libdrm and mesa (which provides libgbm) are available for kmsdrm backend
+DEPENDS:append = " libdrm mesa"
+
+# Runtime dependencies for kmsdrm
+RDEPENDS:${PN}:append = " libdrm libgbm"
+
 # Bump PR to force rebuild with KMSDRM support
-PR = "r3"
+PR = "r6"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append = " file://sdl2-defaults.sh"
