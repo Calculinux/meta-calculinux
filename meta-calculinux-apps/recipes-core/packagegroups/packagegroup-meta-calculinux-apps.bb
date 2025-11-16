@@ -30,12 +30,15 @@ RDEPENDS:${PN} = " \
     nmap \
     nodejs \
     nodejs-npm \
+    notcurses \
+    notcurses-demos \
     python3 \
     python3-pip \
     reddit-tui \
     rsync \
     rust \
     screen \
+    sdl2-test \
     sysstat \
     tcpdump \
     tmux \
