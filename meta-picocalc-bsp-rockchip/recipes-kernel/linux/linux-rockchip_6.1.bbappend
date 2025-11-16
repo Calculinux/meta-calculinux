@@ -18,6 +18,7 @@ SRC_URI = " \
     file://removed.cfg \
     file://utf8.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
+    file://fbcon-restore-scrollback.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \
