@@ -43,12 +43,15 @@ IMAGE_INSTALL += " \
     man-db \
     mtd-utils \
     musl-locales \
+    notcurses \
+    notcurses-tools \
     ntp \
     openssh \
     opkg \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
+    sdl2-test \
     shadow \
     sudo \
     systemd-analyze \

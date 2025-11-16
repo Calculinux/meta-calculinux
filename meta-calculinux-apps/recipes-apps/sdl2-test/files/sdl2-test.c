@@ -37,13 +37,20 @@ void init_app(App *app) {
     printf("SDL initialized successfully\n");
     printf("SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver());
     
+    // List available video drivers
+    int num_drivers = SDL_GetNumVideoDrivers();
+    printf("Available video drivers (%d):\n", num_drivers);
+    for (int i = 0; i < num_drivers; i++) {
+        printf("  %d: %s\n", i, SDL_GetVideoDriver(i));
+    }
+    
     app->window = SDL_CreateWindow(
         "PicoCalc SDL2 Test",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
-        SDL_WINDOW_SHOWN
+        SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN
     );
     
     if (!app->window) {
@@ -53,6 +60,16 @@ void init_app(App *app) {
     }
     
     printf("Window created successfully\n");
+    
+    // List available render drivers
+    int num_render_drivers = SDL_GetNumRenderDrivers();
+    printf("Available render drivers (%d):\n", num_render_drivers);
+    for (int i = 0; i < num_render_drivers; i++) {
+        SDL_RendererInfo info;
+        if (SDL_GetRenderDriverInfo(i, &info) == 0) {
+            printf("  %d: %s (flags: 0x%x)\n", i, info.name, info.flags);
+        }
+    }
     
     app->renderer = SDL_CreateRenderer(app->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!app->renderer) {
