@@ -40,6 +40,7 @@ IMAGE_INSTALL += " \
     kbd-keymaps \
     kernel-modules \
     kmscube \
+    libdrm-tests \
     libsdl2 \
     links \
     man-db \
