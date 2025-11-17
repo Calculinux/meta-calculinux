@@ -7,17 +7,19 @@ PACKAGECONFIG[directfb] = "-DSDL_DIRECTFB=ON,-DSDL_DIRECTFB=OFF,directfb"
 PACKAGECONFIG:remove = "directfb opengl gles2"
 PACKAGECONFIG:append = " kmsdrm fbcon"
 
-# Runtime dependencies for kmsdrm backend:
-# - libdrm: DRM/KMS interface library
-# - libgbm: Generic Buffer Manager for allocating graphics buffers
-# Note: mesa and EGL not needed since OpenGL/GLES are disabled for this SPI display
-RDEPENDS:${PN}:append = " libdrm libgbm"
+# Runtime dependency for kmsdrm backend:
+# - libdrm: dynamically loaded at runtime, so it isn't captured by shlibdeps
+# GBM/EGL paths are disabled, so libgbm is no longer needed.
+RDEPENDS:${PN}:append = " libdrm"
 
 # Bump PR to force rebuild without OpenGL/EGL dependencies
-PR = "r14"
+PR = "r15"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI:append = " file://sdl2-defaults.sh"
+SRC_URI:append = " \
+    file://sdl2-defaults.sh \
+    file://0001-kmsdrm-add-dumb-buffer-support.patch \
+"
 
 do_install:append() {
     install -d ${D}${sysconfdir}/profile.d
