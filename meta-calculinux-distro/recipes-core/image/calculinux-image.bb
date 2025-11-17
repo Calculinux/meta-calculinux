@@ -39,6 +39,7 @@ IMAGE_INSTALL += " \
     iwd \
     kbd-keymaps \
     kernel-modules \
+    kmscube \
     libsdl2 \
     links \
     man-db \
