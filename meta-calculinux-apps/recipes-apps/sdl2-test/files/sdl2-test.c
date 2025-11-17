@@ -29,7 +29,7 @@ typedef struct {
 } App;
 
 void init_app(App *app) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) < 0) {
         fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
         exit(1);
     }
@@ -44,6 +44,8 @@ void init_app(App *app) {
         printf("  %d: %s\n", i, SDL_GetVideoDriver(i));
     }
     
+    SDL_SetHint(SDL_HINT_GRAB_KEYBOARD, "1");
+
     app->window = SDL_CreateWindow(
         "PicoCalc SDL2 Test",
         SDL_WINDOWPOS_UNDEFINED,
@@ -60,6 +62,7 @@ void init_app(App *app) {
     }
     
     printf("Window created successfully\n");
+    SDL_SetWindowGrab(app->window, SDL_TRUE);
     
     // List available render drivers
     int num_render_drivers = SDL_GetNumRenderDrivers();
@@ -104,22 +107,79 @@ void cleanup_app(App *app) {
     SDL_Quit();
 }
 
+typedef enum {
+    ACTION_NONE,
+    ACTION_NEXT_TEST,
+    ACTION_QUIT
+} ControlAction;
+
+static void apply_action(App *app, ControlAction action) {
+    switch (action) {
+        case ACTION_NEXT_TEST:
+            app->test_phase = (app->test_phase + 1) % 8;
+            printf("Test phase: %d\n", app->test_phase);
+            break;
+        case ACTION_QUIT:
+            app->running = false;
+            break;
+        case ACTION_NONE:
+        default:
+            break;
+    }
+}
+
 void handle_events(App *app) {
     SDL_Event event;
+    static Uint32 last_touch_down_ms = 0;
     while (SDL_PollEvent(&event)) {
+        ControlAction action = ACTION_NONE;
+
         switch (event.type) {
             case SDL_QUIT:
-                app->running = false;
+                action = ACTION_QUIT;
                 break;
             case SDL_KEYDOWN:
+                if (event.key.repeat) {
+                    break;
+                }
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
-                    app->running = false;
-                } else if (event.key.keysym.sym == SDLK_SPACE) {
-                    app->test_phase = (app->test_phase + 1) % 8;
-                    printf("Test phase: %d\n", app->test_phase);
+                    action = ACTION_QUIT;
+                } else if (event.key.keysym.sym == SDLK_SPACE ||
+                           event.key.keysym.sym == SDLK_RETURN) {
+                    action = ACTION_NEXT_TEST;
                 }
                 break;
+            case SDL_CONTROLLERBUTTONDOWN:
+                if (event.cbutton.button == SDL_CONTROLLER_BUTTON_B ||
+                    event.cbutton.button == SDL_CONTROLLER_BUTTON_BACK) {
+                    action = ACTION_QUIT;
+                } else if (event.cbutton.button == SDL_CONTROLLER_BUTTON_A ||
+                           event.cbutton.button == SDL_CONTROLLER_BUTTON_START) {
+                    action = ACTION_NEXT_TEST;
+                }
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                if (event.button.button == SDL_BUTTON_RIGHT ||
+                    event.button.button == SDL_BUTTON_MIDDLE) {
+                    action = ACTION_QUIT;
+                } else if (event.button.button == SDL_BUTTON_LEFT) {
+                    action = ACTION_NEXT_TEST;
+                }
+                break;
+            case SDL_FINGERDOWN: {
+                Uint32 now = SDL_GetTicks();
+                if (now - last_touch_down_ms < 400) {
+                    action = ACTION_QUIT;
+                    last_touch_down_ms = 0;
+                } else {
+                    action = ACTION_NEXT_TEST;
+                    last_touch_down_ms = now;
+                }
+                break;
+            }
         }
+
+        apply_action(app, action);
     }
 }
 
@@ -292,8 +352,11 @@ int main(int argc, char *argv[]) {
     int frame = 0;
     
     printf("=== PicoCalc SDL2 Test Application ===\n");
-    printf("Press SPACE to cycle through tests\n");
-    printf("Press ESC to exit\n\n");
+    printf("Controls:\n");
+    printf("  - SPACE or ENTER: cycle tests\n");
+    printf("  - ESC: exit\n");
+    printf("  - Gamepad A/Start or left mouse click: cycle tests\n");
+    printf("  - Gamepad B/Back, right or middle click, or double-tap touch: exit\n\n");
     
     init_app(&app);
     
