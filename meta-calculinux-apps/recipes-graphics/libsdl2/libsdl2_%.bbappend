@@ -1,18 +1,20 @@
 # The Luckfox SPI LCD is driven via TinyDRM, so SDL should use the KMS/DRM
-# renderer by default. Keep other backends available for manual opt-in.
+# renderer by default. Keep other backends (fbcon, directfb) available as fallbacks.
 PACKAGECONFIG[fbcon] = "-DSDL_FBDEV=ON,-DSDL_FBDEV=OFF"
 PACKAGECONFIG[directfb] = "-DSDL_DIRECTFB=ON,-DSDL_DIRECTFB=OFF,directfb"
-PACKAGECONFIG:remove = "fbcon directfb"
-PACKAGECONFIG:append = " kmsdrm"
+# Only remove directfb (requires extra dependencies), keep fbcon as fallback
+PACKAGECONFIG:remove = "directfb"
+PACKAGECONFIG:append = " kmsdrm fbcon"
 
 # Runtime dependencies for kmsdrm backend:
 # - libdrm: DRM/KMS interface library
 # - libgbm: Generic Buffer Manager for allocating graphics buffers
 # - mesa-megadriver: Provides DRI drivers including swrast (software renderer)
-RDEPENDS:${PN}:append = " libdrm libgbm mesa-megadriver"
+# - libegl-mesa: EGL library implementation needed for SDL2's kmsdrm backend
+RDEPENDS:${PN}:append = " libdrm libgbm mesa-megadriver libegl-mesa"
 
 # Bump PR to force rebuild with KMSDRM support
-PR = "r9"
+PR = "r13"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append = " file://sdl2-defaults.sh"
