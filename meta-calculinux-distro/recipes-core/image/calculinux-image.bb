@@ -39,7 +39,6 @@ IMAGE_INSTALL += " \
     iwd \
     kbd-keymaps \
     kernel-modules \
-    kmscube \
     libdrm-tests \
     libsdl2 \
     links \
