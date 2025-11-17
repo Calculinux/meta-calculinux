@@ -7,7 +7,6 @@ DEPENDS = "libsdl2"
 
 SRC_URI = "file://sdl2-test.c \
            file://sdl2-list-backends.c \
-           file://sdl2-diagnose.sh \
            file://Makefile"
 
 S = "${WORKDIR}/sources"
@@ -26,9 +25,8 @@ do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/sdl2-test ${D}${bindir}/
     install -m 0755 ${S}/sdl2-list-backends ${D}${bindir}/
-    install -m 0755 ${S}/sdl2-diagnose.sh ${D}${bindir}/sdl2-diagnose
 }
 
-FILES:${PN} = "${bindir}/sdl2-test ${bindir}/sdl2-list-backends ${bindir}/sdl2-diagnose"
+FILES:${PN} = "${bindir}/sdl2-test ${bindir}/sdl2-list-backends"
 
-RDEPENDS:${PN} = "libsdl2 bash"
+RDEPENDS:${PN} = "libsdl2"

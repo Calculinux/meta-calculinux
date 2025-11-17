@@ -71,7 +71,15 @@ void init_app(App *app) {
         }
     }
     
-    app->renderer = SDL_CreateRenderer(app->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    const Uint32 accel_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+    app->renderer = SDL_CreateRenderer(app->window, -1, accel_flags);
+    if (!app->renderer) {
+        fprintf(stderr,
+                "Renderer creation failed with accelerated backend (%s). Attempting software renderer...\n",
+                SDL_GetError());
+        app->renderer = SDL_CreateRenderer(app->window, -1, SDL_RENDERER_SOFTWARE);
+    }
+
     if (!app->renderer) {
         fprintf(stderr, "Renderer creation failed: %s\n", SDL_GetError());
         SDL_DestroyWindow(app->window);

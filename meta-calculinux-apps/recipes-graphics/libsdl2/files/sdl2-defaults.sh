@@ -11,10 +11,8 @@ fi
 # Use KMSDRM video driver for direct rendering to DRM/KMS displays
 export SDL_VIDEODRIVER=kmsdrm
 
-# Force Mesa to use kms_swrast (KMS-aware software rasterizer with EGL support)
-# instead of the classic swrast which doesn't support EGL properly
-export MESA_LOADER_DRIVER_OVERRIDE=kms_swrast
-export EGL_PLATFORM=drm
+# Use software rendering backend by default
+export SDL_RENDER_DRIVER=software
 
 # Disable mouse cursor (useful for touch-only devices)
 # Uncomment if needed:
