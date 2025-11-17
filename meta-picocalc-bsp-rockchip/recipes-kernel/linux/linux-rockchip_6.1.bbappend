@@ -17,6 +17,7 @@ SRC_URI = " \
     file://led.cfg \
     file://removed.cfg \
     file://utf8.cfg \
+    file://filesystems.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
 "
 
@@ -30,6 +31,7 @@ KERNEL_CONFIG_FRAGMENTS += " \
     led.cfg \
     removed.cfg \
     utf8.cfg \
+    filesystems.cfg \
 "
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
