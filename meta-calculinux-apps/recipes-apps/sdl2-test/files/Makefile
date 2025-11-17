@@ -1,12 +1,15 @@
-TARGET = sdl2-test
-SRC = sdl2-test.c
+TARGETS = sdl2-test sdl2-list-backends
+SRCS = sdl2-test.c sdl2-list-backends.c
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $(TARGET) $(SRC) $(LDLIBS)
+sdl2-test: sdl2-test.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
+
+sdl2-list-backends: sdl2-list-backends.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGETS)
 
 .PHONY: all clean
