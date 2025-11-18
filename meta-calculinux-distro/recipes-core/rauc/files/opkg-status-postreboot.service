@@ -1,0 +1,11 @@
+[Unit]
+Description=Reconcile opkg overlay after RAUC update
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/opkg-status-postreboot.sh
+
+[Install]
+WantedBy=multi-user.target
