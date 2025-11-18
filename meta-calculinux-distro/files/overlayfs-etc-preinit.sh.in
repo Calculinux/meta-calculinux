@@ -35,8 +35,8 @@ then
     for overlay in $OVERLAYS; do
         echo ">> Mounting overlay for: $overlay"
 
-        overlay_rel=${overlay#/}
-        BASE="{OVERLAYFS_ETC_MOUNT_POINT}/overlay/${overlay_rel}"
+    overlay_rel=$(printf '%s' "$overlay" | sed 's|^/||')
+    BASE="{OVERLAYFS_ETC_MOUNT_POINT}/overlay/$overlay_rel"
         LOWER_DIR="$BASE/lower"
         UPPER_DIR="$BASE/upper"
         WORK_DIR="$BASE/work"
