@@ -28,7 +28,6 @@ IMAGE_INSTALL += " \
     busybox \
     cloud-utils-growpart \
     curl \
-    dtbocfg \
     e2fsprogs-resize2fs \
     file \
     gdb \

@@ -17,6 +17,7 @@ SRC_URI = " \
     file://removed.cfg \
     file://utf8.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
+    file://0001-of-configfs-overlay-interface.patch \
 "
 
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"

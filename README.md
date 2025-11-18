@@ -29,7 +29,7 @@ Other CI builds are available from the [packages server](https://opkg.calculinux
 - **Calculinux Distribution**: A custom Linux distribution designed specifically for the Clockwork Picocalc hardware
 - **Read-only Root Filesystem**: The system runs read-only on the internal MMC with an Overlay-FS on the external SD-Card for data persistence
 - **Luckfox Lyra Support**: Full board support for the Luckfox Lyra SBC
-- **Device Tree Overlays**: Runtime overlay loading via configfs using the upstream dtbocfg module
+- **Device Tree Overlays**: Runtime overlay loading via the in-kernel ConfigFS interface (drivers/of/configfs)
 - **KAS-based Build System**: Reproducible builds using KAS configuration management
 - **RAUC OTA Updates**: Over-the-air update support with dual root filesystem (A/B) for safe updates and rollbacks
 - **Development-ready**: Ready-to-use shell environment entry after build for development and debugging
@@ -94,8 +94,8 @@ bitbake virtual/kernel
 
 ## Device Tree Overlays
 
-The image now ships with the upstream `dtbocfg` kernel module enabled and auto-loaded, so overlays can be
-managed directly through ConfigFS at runtime:
+The kernel is now patched with the upstream `drivers/of/configfs` implementation, so overlays can be
+managed directly through ConfigFS at runtime without building an external module:
 
 1. Make sure ConfigFS is mounted (systemd will normally handle this via `sys-kernel-config.mount`, but you
    can do it manually with `mount -t configfs none /sys/kernel/config`).
@@ -104,8 +104,8 @@ managed directly through ConfigFS at runtime:
 3. Copy the compiled overlay blob (`*.dtbo`) into the `dtbo` attribute inside that directory.
 4. Echo `1` into the matching `status` attribute to apply the overlay, or `0` to remove it again.
 
-This matches the workflow documented upstream in the `dtbocfg` project and mirrors the example used by
-OpenWrt. Place reusable overlays in `/lib/firmware/overlays` (or another directory of your choosing) so
+This matches the workflow documented upstream in the `dtbocfg`/OpenWrt examples while keeping the code in-tree.
+Place reusable overlays in `/lib/firmware/overlays` (or another directory of your choosing) so
 they can be easily copied into ConfigFS when needed.
 
 ---
