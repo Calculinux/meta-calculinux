@@ -54,7 +54,7 @@ setexpr mmcpart fmt %d ${{mmcpart_hex}};
 saveenv;
 saveenv;
 
-setenv fit_image "boot.img"
+setenv fit_image "zboot.img"
 
 test -n "${{baudrate}}" || setenv baudrate 1500000;
 test -n "${{consoleblank}}" || setenv consoleblank 300;

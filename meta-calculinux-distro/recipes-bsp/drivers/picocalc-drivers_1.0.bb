@@ -1,19 +1,23 @@
 SUMMARY = "PicoCalc hardware drivers"
-DESCRIPTION = "Complete set of kernel drivers for PicoCalc hardware support including MFD, LCD, keyboard, sound, and power management"
+DESCRIPTION = "Complete set of kernel drivers for PicoCalc including MFD, LCD, keyboard, sound, and power management"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
-inherit module
-
-PV = "1.0+git${SRCPV}"
 PR = "r0"
 
-SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;branch=main"
-SRCREV = "${AUTOREV}"
-
-S = "${WORKDIR}/git"
+require picocalc-drivers-source.inc
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
+
+####### Build with local checkout for development
+#inherit module externalsrc
+#PV = "1.0"
+#EXTERNALSRC = "/work/picocalc-drivers"
+#EXTERNALSRC_BUILD = "/work/picocalc-drivers"
+#######
+####### Build with Github source repo
+inherit module
+#######
 
 # Skip QA checks that are problematic for all kernel modules
 INSANE_SKIP:${PN} += "buildpaths debug-files"
@@ -29,7 +33,7 @@ DESCRIPTION:${PN}-mfd = "Complete set of MFD (Multi-Function Device) drivers for
 SUMMARY:${PN}-kbd = "PicoCalc legacy keyboard driver"
 DESCRIPTION:${PN}-kbd = "GPIO-matrix keyboard driver for PicoCalc (legacy, use MFD keyboard instead)"
 
-SUMMARY:${PN}-lcd = "PicoCalc LCD driver"
+SUMMARY:${PN}-lcd = "PicoCalc Legacy FBDev LCD driver"
 DESCRIPTION:${PN}-lcd = "ILI9488 framebuffer driver for PicoCalc LCD display"
 
 SUMMARY:${PN}-snd-pwm = "PicoCalc hardware PWM sound driver"
@@ -94,3 +98,7 @@ do_install() {
     install -m 0644 ${S}/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
+
+SYSROOT_DIRS += "${datadir}/picocalc"
+
+FILES:${PN}-src += "${datadir}/picocalc/picocalc-luckfox-lyra.dtsi"

@@ -1,0 +1,297 @@
+diff --git a/BasiliskII/src/Unix/configure.ac b/BasiliskII/src/Unix/configure.ac
+index 4feeacf..37801d3 100644
+--- a/BasiliskII/src/Unix/configure.ac
++++ b/BasiliskII/src/Unix/configure.ac
+@@ -204,7 +204,7 @@ esac
+ 
+ dnl Check if we should really be assuming x86_64 even if we detected HAVE_I386 above.
+ if [[ "x$HAVE_I386" = "xyes" ]]; then
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     int main(void) {
+         #if defined(__x86_64__)
+                 return 0;
+@@ -258,7 +258,7 @@ AC_CHECK_LIB(rt, shm_open)
+ AC_CHECK_LIB(m, cos)
+ 
+ dnl AC_CHECK_SDLFRAMEWORK($1=NAME, $2=INCLUDES, $3=ACTION_IF_SUCCESSFUL, $4=ACTION_IF_UNSUCCESSFUL)
+-dnl AC_TRY_LINK uses main() but SDL needs main to take args,
++dnl AC_LINK_IFELSE uses main() but SDL needs main to take args,
+ dnl therefore main is undefined with #undef.
+ dnl Framework can be in an custom location.
+ AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
+@@ -272,7 +272,7 @@ AC_DEFUN([AC_CHECK_SDLFRAMEWORK], [
+     fi
+     saved_CPPFLAGS="$CPPFLAGS"
+     CPPFLAGS="$CPPFLAGS -I$SDL_FRAMEWORK/$1.framework/Headers"
+-    AC_TRY_LINK(
++    AC_LINK_IFELSE(
+       [$2
+ #undef main], [],
+       [AS_VAR_SET(ac_Framework, yes); $3], [AS_VAR_SET(ac_Framework, no);
+@@ -584,7 +584,7 @@ dnl Check whether sys/socket.h defines type socklen_t.
+ dnl (extracted from ac-archive/Miscellaneous)
+ AC_CACHE_CHECK([for socklen_t],
+   ac_cv_type_socklen_t, [
+-  AC_TRY_COMPILE([
++  AC_COMPILE_IFELSE([
+     #include <sys/types.h>
+     #include <sys/socket.h>
+   ], [socklen_t len = 42; return 0;],
+@@ -704,7 +704,7 @@ AC_CACHE_CHECK([whether compiler supports byte bit-fields],
+   ac_cv_have_byte_bitfields, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     struct A {
+       unsigned char b1:4;
+       unsigned char b2:4;
+@@ -736,7 +736,7 @@ AC_DEFUN([AC_CHECK_FRAMEWORK], [
+     ac_Framework, [
+     saved_LIBS="$LIBS"
+     LIBS="$LIBS -framework $1"
+-    AC_TRY_LINK(
++    AC_LINK_IFELSE(
+       [$2], [],
+       [AS_VAR_SET(ac_Framework, yes)], [AS_VAR_SET(ac_Framework, no); LIBS="$saved_LIBS"]
+     )
+@@ -814,7 +814,7 @@ irix*)
+   CFLAGS=`echo "$CFLAGS -IPA" | sed -e "s/-g//g"`
+   AC_MSG_CHECKING(if "-IPA" works)
+   dnl Do a test compile of an empty function
+-  AC_TRY_COMPILE([#if defined __GNUC__
++  AC_COMPILE_IFELSE([#if defined __GNUC__
+                   # error GCC does not support IPA yet
+                   #endif],, [AC_MSG_RESULT(yes); HAVE_IPA=yes], AC_MSG_RESULT(no))
+   CFLAGS="$ocflags"
+@@ -870,7 +870,7 @@ if [[ "x$WANT_MACOSX_GUI" = "xyes" ]]; then
+   EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/PrefsEditor.mm"
+   EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/NNThread.m"
+   EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/misc_macosx.mm"
+-  EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
++  case "$target_os" in darwin*) EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp" ;; *) EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp" ;; esac
+   EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/main_macosx.mm"
+   EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/prefs_macosx.cpp"
+ 
+@@ -904,11 +904,11 @@ if [[ "x$WANT_SDL_VIDEO" = "xyes" ]]; then
+                       [AC_MSG_RESULT(yes); LP64_DEFINED=yes],
+                       [AC_MSG_RESULT(no)])
+     if [[ "x$LP64_DEFINED" = "xyes" ]]; then
+-      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.mm ../pict.c"
++      case "$target_os" in darwin*) EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx64.mm ../pict.c" ;; *) EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp" ;; esac
+     else
+-      EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp"
++      case "$target_os" in darwin*) EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/clip_macosx.cpp" ;; *) EXTRASYSSRCS="$EXTRASYSSRCS ../dummy/clip_dummy.cpp" ;; esac
+     fi
+-    EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/utils_macosx.mm"
++    case "$target_os" in darwin*) EXTRASYSSRCS="$EXTRASYSSRCS ../MacOSX/utils_macosx.mm" ;; esac
+     CPPFLAGS="$CPPFLAGS -I../MacOSX"
+   else
+     case "$target_os" in
+@@ -973,7 +973,7 @@ AC_DEFUN([AC_TRANSLATE_DEFINE], [
+ dnl Check that the host supports TUN/TAP devices
+ AC_CACHE_CHECK([whether TUN/TAP is supported],
+   ac_cv_tun_tap_support, [
+-  AC_TRY_COMPILE([
++  AC_COMPILE_IFELSE([
+     #ifdef HAVE_SYS_SOCKET_H
+     #include <sys/socket.h>
+     #endif
+@@ -988,10 +988,12 @@ AC_CACHE_CHECK([whether TUN/TAP is supported],
+     #ifdef HAVE_STRING_H
+     #include <string.h>
+     #endif
+-  ], [
+-    struct ifreq ifr;
+-    memset(&ifr, 0, sizeof(ifr));
+-    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
++    int main() {
++      struct ifreq ifr;
++      memset(&ifr, 0, sizeof(ifr));
++      ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
++      return 0;
++    }
+   ],
+   ac_cv_tun_tap_support=yes, ac_cv_tun_tap_support=no
+   )
+@@ -1018,7 +1020,7 @@ AC_CACHE_CHECK([whether vm_protect works],
+   ac_cv_vm_protect_works=yes
+   dnl First the tests that should segfault
+   for test_def in NONE_READ NONE_WRITE READ_WRITE; do
+-    AC_TRY_RUN([
++    AC_RUN_IFELSE([
+       #define CONFIGURE_TEST_VM_MAP
+       #define TEST_VM_PROT_$test_def
+       #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1027,7 +1029,7 @@ AC_CACHE_CHECK([whether vm_protect works],
+     ac_cv_vm_protect_works="$BII_CROSS_VM_PROTECT"
+     )
+   done
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define CONFIGURE_TEST_VM_MAP
+     #define TEST_VM_PROT_RDWR_WRITE
+     #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1071,7 +1073,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANON],
+   ac_cv_mmap_anon, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define HAVE_MMAP_ANON
+     #define CONFIGURE_TEST_VM_MAP
+     #define TEST_VM_MMAP_ANON
+@@ -1090,7 +1092,7 @@ AC_CACHE_CHECK([whether mmap supports MAP_ANONYMOUS],
+   ac_cv_mmap_anonymous, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define HAVE_MMAP_ANONYMOUS
+     #define CONFIGURE_TEST_VM_MAP
+     #define TEST_VM_MMAP_ANON
+@@ -1112,7 +1114,7 @@ AC_CACHE_CHECK([whether mprotect works],
+   ac_cv_mprotect_works=yes
+   dnl First the tests that should segfault
+   for test_def in NONE_READ NONE_WRITE READ_WRITE; do
+-    AC_TRY_RUN([
++    AC_RUN_IFELSE([
+       #define CONFIGURE_TEST_VM_MAP
+       #define TEST_VM_PROT_$test_def
+       #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1121,7 +1123,7 @@ AC_CACHE_CHECK([whether mprotect works],
+     ac_cv_mprotect_works="$BII_CROSS_MPROTECT_WORKS"
+     )
+   done
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define CONFIGURE_TEST_VM_MAP
+     #define TEST_VM_PROT_RDWR_WRITE
+     #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1181,7 +1183,7 @@ AC_CACHE_CHECK([whether signal handlers need to be reinstalled],
+   ac_cv_signal_need_reinstall, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #include <stdlib.h>
+     #ifdef HAVE_UNISTD_H
+     #include <unistd.h>
+@@ -1208,7 +1210,7 @@ AC_CACHE_CHECK([whether sigaction handlers need to be reinstalled],
+   ac_cv_sigaction_need_reinstall, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #include <stdlib.h>
+     #ifdef HAVE_UNISTD_H
+     #include <unistd.h>
+@@ -1242,7 +1244,7 @@ AC_CACHE_CHECK([whether your system supports Mach exceptions],
+   ac_cv_have_mach_exceptions, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define HAVE_UNISTD_H 1
+     #define HAVE_MACH_VM 1
+     #define HAVE_MACH_TASK_SELF 1
+@@ -1273,7 +1275,7 @@ AC_CACHE_CHECK([whether your system supports Windows exceptions],
+   ac_cv_have_win32_exceptions, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define HAVE_WIN32_EXCEPTIONS 1
+     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+     #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1297,7 +1299,7 @@ if [[ -z "$sigsegv_recovery" ]]; then
+     ac_cv_have_asm_extended_signals, [
+     AC_LANG_SAVE
+     AC_LANG_CPLUSPLUS
+-    AC_TRY_RUN([
++    AC_RUN_IFELSE([
+       #ifdef HAVE_UNISTD_H
+       #include <unistd.h>
+       #endif
+@@ -1327,7 +1329,7 @@ if [[ -z "$sigsegv_recovery" ]]; then
+     ac_cv_have_extended_signals, [
+     AC_LANG_SAVE
+     AC_LANG_CPLUSPLUS
+-    AC_TRY_RUN([
++    AC_RUN_IFELSE([
+       #ifdef HAVE_UNISTD_H
+       #include <unistd.h>
+       #endif
+@@ -1353,7 +1355,7 @@ AC_CACHE_CHECK([whether we then have a subterfuge for your system],
+ ac_cv_have_sigcontext_hack, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define HAVE_SIGCONTEXT_SUBTERFUGE 1
+     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+     #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1389,7 +1391,7 @@ AC_CACHE_CHECK([whether we can skip instruction in SIGSEGV handler],
+   ac_cv_have_skip_instruction, [
+   AC_LANG_SAVE
+   AC_LANG_CPLUSPLUS
+-  AC_TRY_RUN([
++  AC_RUN_IFELSE([
+     #define HAVE_SIGSEGV_SKIP_INSTRUCTION 1
+     #define CONFIGURE_TEST_SIGSEGV_RECOVERY
+     #include "../CrossPlatform/vm_alloc.cpp"
+@@ -1433,7 +1435,7 @@ if [[ -n "$LINKER_SCRIPT_FLAGS" ]]; then
+     AC_LANG_CPLUSPLUS
+     saved_LDFLAGS="$LDFLAGS"
+     LDFLAGS="$LDFLAGS $LINKER_SCRIPT_FLAGS"
+-    AC_TRY_RUN(
++    AC_RUN_IFELSE(
+       [int main() {if ((char *)&main < (char *)0x70000000) return 1;}],
+       [ac_cv_linker_script_works=yes],
+       [ac_cv_linker_script_works=no],
+@@ -1573,7 +1575,7 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
+   AC_CACHE_CHECK([whether GCC supports constants merging], ac_cv_gcc_constants_merging, [
+     AC_LANG_SAVE
+     AC_LANG_CPLUSPLUS
+-    AC_TRY_COMPILE([],[],[ac_cv_gcc_constants_merging=yes],[ac_cv_gcc_constants_merging=no])
++    AC_COMPILE_IFELSE([],[],[ac_cv_gcc_constants_merging=yes],[ac_cv_gcc_constants_merging=no])
+     AC_LANG_RESTORE
+   ])
+   if [[ "x$ac_cv_gcc_constants_merging" != "xyes" ]]; then
+@@ -1589,7 +1591,7 @@ if [[ "x$HAVE_GCC27" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
+   AC_CACHE_CHECK([whether GCC supports store motion], ac_cv_gcc_store_motion, [
+     AC_LANG_SAVE
+     AC_LANG_CPLUSPLUS
+-    AC_TRY_COMPILE([],[],[ac_cv_gcc_store_motion=yes],[ac_cv_gcc_store_motion=no])
++    AC_COMPILE_IFELSE([],[],[ac_cv_gcc_store_motion=yes],[ac_cv_gcc_store_motion=no])
+     AC_LANG_RESTORE
+   ])
+   if [[ "x$ac_cv_gcc_store_motion" != "xyes" ]]; then
+@@ -1603,7 +1605,7 @@ if [[ "x$HAVE_GCC30" = "xyes" ]]; then
+   CFLAGS="$CFLAGS -fno-strict-aliasing"
+   AC_CACHE_CHECK([whether the compiler supports -fno-strict-aliasing],
+     ac_cv_gcc_no_strict_aliasing, [
+-    AC_TRY_COMPILE([],[],[ac_cv_gcc_no_strict_aliasing=yes],[ac_cv_gcc_no_strict_aliasing=no])
++    AC_COMPILE_IFELSE([],[],[ac_cv_gcc_no_strict_aliasing=yes],[ac_cv_gcc_no_strict_aliasing=no])
+   ])
+   if [[ "x$ac_cv_gcc_no_strict_aliasing" = "xyes" ]]; then
+     AC_SUBST(SLIRP_CFLAGS, "-fno-strict-aliasing")
+@@ -1617,7 +1619,7 @@ if [[ "x$HAVE_GCC30" = "xyes" -a "x$HAVE_ICC" = "xno" ]]; then
+   CFLAGS="$CFLAGS -mdynamic-no-pic"
+   AC_CACHE_CHECK([whether the compiler supports -mdynamic-no-pic],
+     ac_cv_gcc_mdynamic_no_pic, [
+-    AC_TRY_COMPILE([],[],[ac_cv_gcc_mdynamic_no_pic=yes],[ac_cv_gcc_mdynamic_no_pic=no])
++    AC_COMPILE_IFELSE([],[],[ac_cv_gcc_mdynamic_no_pic=yes],[ac_cv_gcc_mdynamic_no_pic=no])
+   ])
+   if [[ "x$ac_cv_gcc_mdynamic_no_pic" = "xyes" ]]; then
+     CXXFLAGS="$CXXFLAGS -mdynamic-no-pic"
+@@ -1732,7 +1734,7 @@ dnl
+ AC_DEFUN([gcc_AC_EXAMINE_OBJECT],
+ [AC_LANG_SAVE
+ AC_LANG_C
+-dnl Next bit cribbed from AC_TRY_COMPILE.
++dnl Next bit cribbed from AC_COMPILE_IFELSE.
+ cat > conftest.$ac_ext <<EOF
+ [#line __oline__ "configure"
+ #include "confdefs.h"

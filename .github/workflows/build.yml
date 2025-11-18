@@ -135,36 +135,55 @@ jobs:
 
     - name: Configure package feed for image
       run: |
-        echo "Configuring package feed..."
+        echo "Configuring package feed and version..."
         
         DISTRO_CODENAME="${{ steps.feed-config.outputs.distro_codename }}"
         FEED_SUBFOLDER="${{ steps.feed-config.outputs.feed_subfolder }}"
+        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
         
-        # Create build/conf directory if it doesn't exist
-        mkdir -p build/conf
+        # Determine DISTRO_VERSION based on feed configuration
+        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
+          # Tagged release - use the tag name as version
+          DISTRO_VERSION="${{ github.ref_name }}"
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          # Main branch continuous
+          DISTRO_VERSION="1.0.0-continuous+$(git rev-parse --short HEAD)"
+        elif [ "${{ github.ref_name }}" = "develop" ]; then
+          # Develop branch
+          DISTRO_VERSION="1.0.0-develop+$(git rev-parse --short HEAD)"
+        else
+          # Other branches
+          DISTRO_VERSION="1.0.0-branch+$(git rev-parse --short HEAD)"
+        fi
         
-        # Create auto.conf to override feed configuration
-        cat > build/conf/auto.conf << EOF
-        # Auto-generated feed configuration for CI builds
-        # This file is created by the GitHub Actions workflow
+        # Create a kas override file that includes the base configuration
+        # and adds CI-specific overrides via local_conf_header
+        cat > kas-ci-override.yaml << EOF
+        header:
+          version: 18
+          includes:
+            - ${{ matrix.kas_file }}
         
-        # Override DISTRO_CODENAME for develop builds
-        DISTRO_CODENAME = "${DISTRO_CODENAME}"
-        
-        # Set the feed subfolder (continuous or release)
-        CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
-        
-        # Resulting feed path: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/
+        local_conf_header:
+          ci_overrides: |
+            # CI build overrides (injected by GitHub Actions workflow)
+            DISTRO_CODENAME = "${DISTRO_CODENAME}"
+            CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
+            DISTRO_VERSION = "${DISTRO_VERSION}"
         EOF
         
-        echo "Package feed configured:"
+        echo "Package feed and version configured:"
         echo "  DISTRO_CODENAME = ${DISTRO_CODENAME}"
         echo "  CALCULINUX_FEED_SUBFOLDER = ${FEED_SUBFOLDER}"
+        echo "  DISTRO_VERSION = ${DISTRO_VERSION}"
         echo "  Full feed URL: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/"
+        echo ""
+        echo "Created kas-ci-override.yaml for CI build"
+        echo "DISTRO_VERSION=${DISTRO_VERSION}" >> $GITHUB_ENV
 
     - name: Build Yocto image and packages
       run: |
-        echo "Building ${{ matrix.name }} using ${{ matrix.kas_file }}"
+        echo "Building ${{ matrix.name }} using kas-ci-override.yaml"
         echo "This will build:"
         echo "  - ${{ matrix.target }} (base image with overlayfs)"
         echo "  - packagegroup-meta-calculinux-apps (IPK packages)"
@@ -172,8 +191,9 @@ jobs:
         echo "All packages install to /usr (standard paths)"
         echo "Runtime: /usr is overlayfs - base in lower layer, user packages in upper layer"
         
-        # Run the build with kas-container
-        ./kas-container build ${{ matrix.kas_file }}
+        # Run the build with kas-container using CI override file
+        # This file includes the base kas configuration and adds CI-specific overrides
+        ./kas-container build kas-ci-override.yaml
 
     - name: Build SDK
       if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
@@ -183,11 +203,12 @@ jobs:
         echo "This will generate a cross-compilation toolchain and sysroot for development for use on x86_64 hosts"
         
         # Create temporary kas file for x86_64 SDK
+        # This includes the CI override file (which itself includes the base kas file)
         cat > kas-sdk-x86_64.yaml << EOF
         header:
           version: 18
           includes:
-            - ${{ matrix.kas_file }}
+            - kas-ci-override.yaml
         
         local_conf_header:
           sdk_x86_64: |
@@ -207,11 +228,12 @@ jobs:
         echo "This will generate a cross-compilation toolchain and sysroot for development for use on aarch64 hosts"
         
         # Create temporary kas file for aarch64 SDK
+        # This includes the CI override file (which itself includes the base kas file)
         cat > kas-sdk-aarch64.yaml << EOF
         header:
           version: 18
           includes:
-            - ${{ matrix.kas_file }}
+            - kas-ci-override.yaml
         
         local_conf_header:
           sdk_aarch64: |
@@ -261,6 +283,29 @@ jobs:
           echo "Available directories:"
           find build -type d -name "deploy" || true
         fi
+
+    - name: Generate artifact checksums
+      run: |
+        set -euo pipefail
+        if [ ! -d artifacts ]; then
+          echo "No artifacts directory present"
+          exit 0
+        fi
+
+        pushd artifacts >/dev/null
+        shopt -s nullglob
+
+        for bundle in *.raucb; do
+          sha256sum "$bundle" > "$bundle.sha256"
+        done
+
+        for image in *.wic.gz *.wic.bz2 *.wic.xz; do
+          [ -e "$image" ] || continue
+          sha256sum "$image" > "$image.sha256"
+        done
+
+        ls -la | grep sha256 || true
+        popd >/dev/null
 
     - name: Collect build artifacts (packages)
       run: |
@@ -580,12 +625,16 @@ jobs:
           
           if [ -n "$RAUCB_FILE" ]; then
             # Copy RAUC bundle with versioned name
-            cp "$RAUCB_FILE" "$UPDATE_DIR/calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
+            VERSIONED_BUNDLE="$UPDATE_DIR/calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
+            cp "$RAUCB_FILE" "$VERSIONED_BUNDLE"
+            sha256sum "$VERSIONED_BUNDLE" > "${VERSIONED_BUNDLE}.sha256"
             echo "Published RAUC bundle: calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
             
             # If not a prerelease, also copy with original name for latest release
             if [ "$IS_PRERELEASE" = "false" ]; then
-              cp "$RAUCB_FILE" "$UPDATE_DIR/calculinux-bundle-${{ matrix.machine }}.raucb"
+              LATEST_BUNDLE="$UPDATE_DIR/calculinux-bundle-${{ matrix.machine }}.raucb"
+              cp "$RAUCB_FILE" "$LATEST_BUNDLE"
+              sha256sum "$LATEST_BUNDLE" > "${LATEST_BUNDLE}.sha256"
               echo "Published RAUC bundle: calculinux-bundle-${{ matrix.machine }}.raucb (latest)"
             fi
           else
@@ -594,12 +643,16 @@ jobs:
           
           if [ -n "$WIC_FILE" ]; then
             # Copy WIC image with versioned name
-            cp "$WIC_FILE" "$IMAGE_DIR/calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
+            VERSIONED_WIC="$IMAGE_DIR/calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
+            cp "$WIC_FILE" "$VERSIONED_WIC"
+            sha256sum "$VERSIONED_WIC" > "${VERSIONED_WIC}.sha256"
             echo "Published WIC image: calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
             
             # If not a prerelease, also copy with original name for latest release
             if [ "$IS_PRERELEASE" = "false" ]; then
-              cp "$WIC_FILE" "$IMAGE_DIR/calculinux-image-${{ matrix.machine }}.rootfs.wic.gz"
+              LATEST_WIC="$IMAGE_DIR/calculinux-image-${{ matrix.machine }}.rootfs.wic.gz"
+              cp "$WIC_FILE" "$LATEST_WIC"
+              sha256sum "$LATEST_WIC" > "${LATEST_WIC}.sha256"
               echo "Published WIC image: calculinux-image-${{ matrix.machine }}.rootfs.wic.gz (latest)"
             fi
           else
@@ -612,6 +665,9 @@ jobs:
           if ls artifacts/*.raucb 1> /dev/null 2>&1; then
             echo "Copying RAUC bundles to $UPDATE_DIR"
             cp artifacts/*.raucb "$UPDATE_DIR/"
+            if ls artifacts/*.raucb.sha256 1> /dev/null 2>&1; then
+              cp artifacts/*.raucb.sha256 "$UPDATE_DIR/"
+            fi
             echo "Published RAUC bundles:"
             ls -la "$UPDATE_DIR"/*.raucb
           else
@@ -622,6 +678,9 @@ jobs:
           if ls artifacts/*.wic.gz 1> /dev/null 2>&1; then
             echo "Copying WIC images to $IMAGE_DIR"
             cp artifacts/*.wic.gz "$IMAGE_DIR/"
+            if ls artifacts/*.wic.gz.sha256 1> /dev/null 2>&1; then
+              cp artifacts/*.wic.gz.sha256 "$IMAGE_DIR/"
+            fi
             echo "Published WIC images:"
             ls -la "$IMAGE_DIR"/*.wic.gz
           else
@@ -630,6 +689,94 @@ jobs:
         fi
 
         echo "Images published successfully"
+
+    - name: Generate artifact index
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      env:
+        FEED_NAME: ${{ steps.feed-config.outputs.feed_name }}
+        SUBFOLDER: ${{ steps.feed-config.outputs.subfolder }}
+        MACHINE: ${{ matrix.machine }}
+        DISTRO_VERSION: ${{ env.DISTRO_VERSION }}
+        GIT_SHA: ${{ github.sha }}
+      run: |
+        set -euo pipefail
+        BASE_URL="https://opkg.calculinux.org"
+        UPDATE_DIR="$OPKG_REPO_DIR/update/$FEED_NAME/$SUBFOLDER"
+        IMAGE_DIR="$OPKG_REPO_DIR/image/$FEED_NAME/$SUBFOLDER"
+        export BASE_URL UPDATE_DIR IMAGE_DIR FEED_NAME SUBFOLDER MACHINE DISTRO_VERSION GIT_SHA
+        python3 <<'PY'
+        import hashlib
+        import json
+        import os
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        base_url = os.environ["BASE_URL"]
+        update_dir = Path(os.environ["UPDATE_DIR"])
+        image_dir = Path(os.environ["IMAGE_DIR"])
+
+        feed = os.environ.get("FEED_NAME", "")
+        subfolder = os.environ.get("SUBFOLDER", "")
+        machine = os.environ.get("MACHINE", "")
+        git_sha = os.environ.get("GIT_SHA", "")
+        distro_version = os.environ.get("DISTRO_VERSION", "")
+
+        def read_digest(path: Path) -> str:
+            sha_file = Path(f"{path}.sha256")
+            if sha_file.exists():
+                first_token = sha_file.read_text().strip().split()
+                if first_token:
+                    return first_token[0]
+            hasher = hashlib.sha256()
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    if not chunk:
+                        break
+                    hasher.update(chunk)
+            return hasher.hexdigest()
+
+        def collect_entries(root: Path, pattern: str, url_prefix: str):
+            entries = []
+            if not root.exists():
+                return entries
+            for artifact in sorted(root.glob(pattern)):
+                if artifact.name.endswith(".sha256") or artifact.name == "index.json":
+                    continue
+                if artifact.is_symlink():
+                    continue
+                stat = artifact.stat()
+                entries.append(
+                    {
+                        "name": artifact.name,
+                        "size": stat.st_size,
+                        "last_modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                        "sha256": read_digest(artifact),
+                        "url": f"{base_url}{url_prefix}/{artifact.name}",
+                    }
+                )
+            return entries
+
+        index = {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "machine": machine,
+            "feed": feed,
+            "subfolder": subfolder,
+            "distro_version": distro_version,
+            "git_sha": git_sha,
+            "artifacts": {
+                "rauc": collect_entries(update_dir, "*.raucb", f"/update/{feed}/{subfolder}"),
+                "images": collect_entries(image_dir, "*.wic*", f"/image/{feed}/{subfolder}"),
+            },
+        }
+
+        output_path = update_dir / "index.json"
+        output_path.write_text(json.dumps(index, indent=2))
+        print(f"Wrote index to {output_path}")
+        PY
+        if [ -f "$UPDATE_DIR/index.json" ]; then
+          mkdir -p artifacts
+          cp "$UPDATE_DIR/index.json" artifacts/index.json
+        fi
 
     - name: Publish SDK to webserver
       if: steps.feed-config.outputs.is_published_branch == 'true'
@@ -835,13 +982,16 @@ jobs:
         name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
         path: |
           artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
           artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
           artifacts/uboot-${{ matrix.machine }}-*.bin
           artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
           artifacts/sdk/x86_64/*.sh
           artifacts/sdk/x86_64/*.manifest
           artifacts/sdk/aarch64/*.sh
           artifacts/sdk/aarch64/*.manifest
+          artifacts/index.json
         retention-days: 30
 
     - name: Comment artifact links on PR

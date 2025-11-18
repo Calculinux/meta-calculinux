@@ -9,25 +9,57 @@ SRC_URI = " \
     file://rk3506-luckfox-lyra.dtsi;subdir=git/arch/${ARCH}/boot/dts/ \
     file://rk3506g-luckfox-lyra.dts;subdir=git/arch/${ARCH}/boot/dts/ \
     file://base-configs.cfg \
+    file://display.cfg \
     file://wifi.cfg \
     file://dto.cfg \
     file://rauc.cfg \
     file://cgroups.cfg \
     file://fonts.cfg \
+    file://led.cfg \
     file://removed.cfg \
     file://utf8.cfg \
+    file://filesystems.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
 "
 
+KERNEL_CONFIG_FRAGMENTS += " \
+    base-configs.cfg \
+    display.cfg \
+    wifi.cfg \
+    rauc.cfg \
+    cgroups.cfg \
+    fonts.cfg \
+    led.cfg \
+    removed.cfg \
+    utf8.cfg \
+    filesystems.cfg \
+"
+
+DEPENDS += "gzip"
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
+
+ROCKCHIP_KERNEL_IMAGES = "0"
+ROCKCHIP_KERNEL_COMPRESSED = "1"
+KERNEL_IMAGETYPES = "zboot.img"
+
+# Copy PicoCalc device tree from devicetree helper recipe
+do_prepare_kernel_picocalc() {
+    PICOCALC_DT_SOURCE="${RECIPE_SYSROOT}/usr/share/picocalc/picocalc-luckfox-lyra.dtsi"
+    install -d ${S}/arch/${ARCH}/boot/dts
+    cp "${PICOCALC_DT_SOURCE}" "${S}/arch/${ARCH}/boot/dts/picocalc-luckfox-lyra.dtsi"
+}
+
+addtask prepare_kernel_picocalc after do_kernel_checkout before do_kernel_configme
+do_prepare_kernel_picocalc[depends] += "picocalc-devicetree:do_populate_sysroot"
 
 do_install:append() {
     # Remove kernel image formats that are not needed in the device image
     rm -f ${D}/boot/Image
     rm -f ${D}/boot/Image-*
-    rm -f ${D}/boot/fitImage
-    rm -f ${D}/boot/fitImage-*
-    rm -f ${D}/boot/zboot.img
-    rm -f ${D}/boot/zboot.img-*
+
+    gzip -k "${B}/.config"
+    install -D -m 0644  "${B}/.config.gz" "${D}${datadir}/kernel/config.gz"
 }
+
+FILES:${KERNEL_PACKAGE_NAME}-base += "${datadir}/kernel"
