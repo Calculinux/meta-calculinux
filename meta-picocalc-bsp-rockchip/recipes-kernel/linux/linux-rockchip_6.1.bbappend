@@ -32,6 +32,7 @@ KERNEL_CONFIG_FRAGMENTS += " \
     utf8.cfg \
 "
 
+DEPENDS += "gzip"
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
 
 ROCKCHIP_KERNEL_IMAGES = "0"
@@ -52,4 +53,9 @@ do_install:append() {
     # Remove kernel image formats that are not needed in the device image
     rm -f ${D}/boot/Image
     rm -f ${D}/boot/Image-*
+
+    gzip -k "${B}/.config"
+    install -D -m 0644  "${B}/.config.gz" "${D}${datadir}/kernel/config.gz"
 }
+
+FILES:${KERNEL_PACKAGE_NAME}-base += "${datadir}/kernel"
