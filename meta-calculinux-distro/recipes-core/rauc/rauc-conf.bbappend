@@ -1,8 +1,9 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI:append := "\
-                    file://system.conf.in \
-                  "
+                                        file://system.conf.in \
+                                        file://opkg-status-hook.sh \
+                                    "
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
 
@@ -37,3 +38,9 @@ python do_create_system_config() {
 }
 
 addtask create_system_config after do_configure before do_install
+
+do_install:append() {
+    install -d ${D}${sysconfdir}/rauc/hooks.d
+    install -m 0755 ${UNPACKDIR}/opkg-status-hook.sh \
+        ${D}${sysconfdir}/rauc/hooks.d/opkg-status-hook.sh
+}

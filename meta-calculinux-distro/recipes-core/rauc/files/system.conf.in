@@ -15,3 +15,7 @@ bootname=A
 device={RAUC_SLOT_B_DEVICE}
 type=ext4
 bootname=B
+
+[hooks]
+hooks=slot-post-install
+filename=/etc/rauc/hooks.d/opkg-status-hook.sh

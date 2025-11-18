@@ -61,3 +61,23 @@ IMAGE_INSTALL += " \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
+
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_install_opkg_image_status;"
+
+calculinux_install_opkg_image_status() {
+    status_dir="${IMAGE_ROOTFS}/var/lib/opkg"
+    status_file="${status_dir}/status"
+    image_status_file="${status_dir}/status.image"
+    image_status_dir="$(dirname "${image_status_file}")"
+
+    install -d "${status_dir}"
+    install -d "${image_status_dir}"
+
+    if [ -f "${status_file}" ]; then
+        install -m 0644 "${status_file}" "${image_status_file}"
+    else
+        : > "${image_status_file}"
+    fi
+
+    : > "${status_file}"
+}
