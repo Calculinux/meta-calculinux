@@ -7,7 +7,7 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
-SRCREV = "b3671cf86761c3861856cb10708458842c292785"
+SRCREV = "609fb655da2f322344efe327aac7589ed9d1ea88"
 
 S = "${WORKDIR}/git"
 
@@ -32,14 +32,14 @@ install_python_package() {
 
 install_entrypoint() {
     install -d ${D}${bindir}
-    cat <<'EOF' > ${D}${bindir}/calculinux-update
+    cat <<'EOF' > ${D}${bindir}/cup
 #!/usr/bin/env python3
 from calculinux_update.cli import app
 
 if __name__ == "__main__":
     app()
 EOF
-    chmod 0755 ${D}${bindir}/calculinux-update
+    chmod 0755 ${D}${bindir}/cup
 }
 
 do_install() {
