@@ -11,6 +11,7 @@ SRC_URI = " \
     file://base-configs.cfg \
     file://display.cfg \
     file://wifi.cfg \
+    file://dto.cfg \
     file://rauc.cfg \
     file://cgroups.cfg \
     file://fonts.cfg \
@@ -19,6 +20,7 @@ SRC_URI = " \
     file://utf8.cfg \
     file://filesystems.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
+    file://0001-of-configfs-overlay-interface.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \
