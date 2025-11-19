@@ -1,0 +1,48 @@
+name: 'Setup Build Environment'
+description: 'Set up Yocto build environment with cache directories and verification'
+
+inputs:
+  dl-dir:
+    description: 'Downloads directory path'
+    required: true
+  sstate-dir:
+    description: 'Shared state cache directory path'
+    required: true
+  opkg-repo-dir:
+    description: 'Package repository directory path (optional, only checked if provided)'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create cache directories
+      shell: bash
+      run: |
+        echo "Creating cache directories..."
+        mkdir -p "${{ inputs.dl-dir }}" "${{ inputs.sstate-dir }}"
+        echo "  DL_DIR: ${{ inputs.dl-dir }}"
+        echo "  SSTATE_DIR: ${{ inputs.sstate-dir }}"
+
+    - name: Verify package repository storage
+      if: inputs.opkg-repo-dir != ''
+      shell: bash
+      run: |
+        if [ ! -d "${{ inputs.opkg-repo-dir }}" ]; then
+          echo "ERROR: Package repository storage ${{ inputs.opkg-repo-dir }} not found"
+          echo "Please ensure storage is mounted at ${{ inputs.opkg-repo-dir }}"
+          exit 1
+        fi
+        echo "Package repository verified: ${{ inputs.opkg-repo-dir }}"
+
+    - name: Clean up Docker environment
+      shell: bash
+      run: |
+        echo "Cleaning up Docker environment..."
+        docker system prune -f || true
+
+    - name: Show disk space
+      shell: bash
+      run: |
+        echo "Current disk space:"
+        df -h

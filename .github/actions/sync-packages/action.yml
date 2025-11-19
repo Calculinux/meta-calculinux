@@ -1,0 +1,141 @@
+name: 'Sync Packages and Generate Indexes'
+description: 'Sync IPK packages to repository and generate opkg indexes'
+
+inputs:
+  opkg-repo-dir:
+    description: 'Package repository root directory'
+    required: true
+  feed-name:
+    description: 'Feed name (e.g., walnascar, develop)'
+    required: true
+  subfolder:
+    description: 'Subfolder (continuous, release, or branch)'
+    required: true
+  artifacts-dir:
+    description: 'Directory containing built packages'
+    required: true
+  sync-all:
+    description: 'Sync all packages instead of just newly built ones'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Sync packages to repository
+      shell: bash
+      run: |
+        echo "Syncing packages to repository..."
+        
+        FEED_PATH="ipk/${{ inputs.feed-name }}/${{ inputs.subfolder }}"
+        FEED_DIR="${{ inputs.opkg-repo-dir }}/$FEED_PATH"
+        mkdir -p "$FEED_DIR"
+        
+        # Determine sync strategy
+        SYNC_ALL="${{ inputs.sync-all }}"
+        if [ "$SYNC_ALL" = "true" ]; then
+          echo "Syncing ALL packages (manual full sync requested)"
+          BUILD_START_TIME=0
+        else
+          # Record the build start time (subtract 5 minutes for safety margin)
+          BUILD_START_TIME=$(date -d '5 minutes ago' +%s)
+          echo "Only syncing packages modified after: $(date -d @$BUILD_START_TIME)"
+        fi
+        
+        # Sync packages
+        SYNCED=0
+        SKIPPED=0
+        
+        if [ -d "${{ inputs.artifacts-dir }}/packages" ]; then
+          for arch_dir in ${{ inputs.artifacts-dir }}/packages/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch=$(basename "$arch_dir")
+              arch_dir_target="$FEED_DIR/$arch"
+              
+              mkdir -p "$arch_dir_target"
+              echo "Processing architecture: $arch"
+              
+              # Process all packages
+              while IFS= read -r -d '' ipk_file; do
+                package_name=$(basename "$ipk_file")
+                target_file="$arch_dir_target/$package_name"
+                file_mtime=$(stat -c %Y "$ipk_file")
+                
+                # Sync if package is newly built OR missing from target
+                if [ "$file_mtime" -ge "$BUILD_START_TIME" ] || [ ! -f "$target_file" ]; then
+                  if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
+                    echo "  Syncing newly built package: $package_name"
+                  else
+                    echo "  Syncing missing package: $package_name"
+                  fi
+                  cp "$ipk_file" "$arch_dir_target/"
+                  SYNCED=$((SYNCED + 1))
+                else
+                  SKIPPED=$((SKIPPED + 1))
+                fi
+              done < <(find "$arch_dir" -name "*.ipk" -type f -print0)
+              
+              # Copy package indexes if they exist
+              if [ -f "$arch_dir/Packages" ]; then
+                echo "  Copying package index for $arch"
+                cp "$arch_dir/Packages" "$arch_dir_target/"
+              fi
+              if [ -f "$arch_dir/Packages.gz" ]; then
+                cp "$arch_dir/Packages.gz" "$arch_dir_target/"
+              fi
+            fi
+          done
+          
+          echo "Packages synced: $SYNCED (newly built)"
+          echo "Packages skipped: $SKIPPED (from sstate-cache)"
+          echo "Total available: $((SYNCED + SKIPPED))"
+          
+          # Show package counts by architecture
+          for arch_dir in "$FEED_DIR"/*/; do
+            if [ -d "$arch_dir" ]; then
+              arch=$(basename "$arch_dir")
+              count=$(find "$arch_dir" -name "*.ipk" -type f | wc -l)
+              size=$(du -sh "$arch_dir" | cut -f1)
+              echo "  $arch: $count packages ($size)"
+            fi
+          done
+          
+          echo "Packages available at: https://opkg.calculinux.org/$FEED_PATH/"
+        else
+          echo "Warning: No packages found to sync"
+        fi
+
+    - name: Generate package indexes
+      shell: bash
+      run: |
+        FEED_PATH="ipk/${{ inputs.feed-name }}/${{ inputs.subfolder }}"
+        FEED_DIR="${{ inputs.opkg-repo-dir }}/$FEED_PATH"
+        
+        echo "Generating Packages.gz files for feed: $FEED_PATH"
+        
+        for arch_dir in "$FEED_DIR"/*/; do
+          if [ -d "$arch_dir" ]; then
+            arch=$(basename "$arch_dir")
+            echo "Generating Packages.gz for architecture: $arch"
+            
+            cd "$arch_dir"
+            
+            # Generate Packages file
+            opkg-make-index -p Packages .
+            
+            # Compress to Packages.gz
+            gzip -f Packages
+            
+            # Verify the file was created
+            if [ -f "Packages.gz" ]; then
+              echo "  Successfully generated Packages.gz for $arch"
+            else
+              echo "  ERROR: Failed to generate Packages.gz for $arch"
+              exit 1
+            fi
+            
+            cd - > /dev/null
+          fi
+        done
+        
+        echo "Package index generation complete"
