@@ -45,7 +45,7 @@ permissions:
 jobs:
   build:
     name: Build Yocto Images and Packages
-    if: !(github.event_name == 'pull_request' && github.event.action == 'closed')
+    if: ${{ !(github.event_name == 'pull_request' && github.event.action == 'closed') }}
     runs-on: [self-hosted, Linux, X64]
     
     strategy:
@@ -330,7 +330,7 @@ jobs:
         cp "$SRC_BUNDLE" "$TARGET"
         sha256sum "$TARGET" > "${TARGET}.sha256"
 
-  python3 .github/scripts/refresh_pr_channel_index.py \
+        python3 .github/scripts/refresh_pr_channel_index.py \
           --root "$PR_DIR" \
           --base-url "$UPDATE_BASE_URL" \
           --channel-path "/update/${MACHINE}/pr" \
@@ -1323,7 +1323,7 @@ jobs:
           rm -f "${TARGET}.sha256"
         fi
 
-  python3 .github/scripts/refresh_pr_channel_index.py \
+        python3 .github/scripts/refresh_pr_channel_index.py \
           --root "$PR_DIR" \
           --base-url "$UPDATE_BASE_URL" \
           --channel-path "/update/${MACHINE}/pr" \
