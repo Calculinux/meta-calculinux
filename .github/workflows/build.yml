@@ -65,126 +65,58 @@ jobs:
         fetch-depth: 0
 
     - name: Set up build environment
-      run: |
-        # Create cache directories if they don't exist
-        mkdir -p $DL_DIR $SSTATE_DIR
-        
-        # Verify package repository storage exists
-        if [ ! -d "$OPKG_REPO_DIR" ]; then
-          echo "ERROR: Package repository storage $OPKG_REPO_DIR not found"
-          echo "Please ensure storage is mounted at /mnt/opkg-repo"
-          exit 1
-        fi
-        
-        # Clean up any leftover containers and images from previous builds
-        docker system prune -f || true
-        
-        # Show disk space before build
-        df -h
+      uses: ./.github/actions/setup-build-env
+      with:
+        dl-dir: ${{ env.DL_DIR }}
+        sstate-dir: ${{ env.SSTATE_DIR }}
+        opkg-repo-dir: ${{ env.OPKG_REPO_DIR }}
 
     - name: Determine feed configuration
       id: feed-config
       run: |
-        # Get distro codename for all scenarios
-        DISTRO_CODENAME=$(./kas-container shell ${{ matrix.kas_file }} -c "bitbake -e | grep '^DISTRO_CODENAME=' | cut -d'\"' -f2")
-        
-        if [ "${{ github.ref_name }}" = "main" ]; then
-          # Use distro codename for stable releases (e.g., walnascar, scarthgap)
-          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
-          echo "subfolder=continuous" >> $GITHUB_OUTPUT
-          echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          echo "is_tagged_release=false" >> $GITHUB_OUTPUT
-          echo "is_published_branch=true" >> $GITHUB_OUTPUT
-          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
-          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
-        elif [ "${{ github.ref_name }}" = "develop" ]; then
-          # Use "develop" for all development builds
-          echo "feed_name=develop" >> $GITHUB_OUTPUT
-          echo "subfolder=continuous" >> $GITHUB_OUTPUT
-          echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          echo "is_tagged_release=false" >> $GITHUB_OUTPUT
-          echo "is_published_branch=true" >> $GITHUB_OUTPUT
-          echo "distro_codename=develop" >> $GITHUB_OUTPUT
-          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref }}" =~ ^refs/tags/ ]]; then
-          # Tagged releases - publish to release folder
-          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
-          echo "subfolder=release" >> $GITHUB_OUTPUT
-          echo "is_published_branch=true" >> $GITHUB_OUTPUT
-          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
-          echo "feed_subfolder=release" >> $GITHUB_OUTPUT
-          # Check if this is a prerelease (contains rc, beta, or alpha)
-          if [[ "${{ github.ref_name }}" =~ (rc|beta|alpha) ]]; then
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          fi
-          echo "is_tagged_release=true" >> $GITHUB_OUTPUT
-        else
-          # Pull requests or other refs - don't publish
-          echo "feed_name=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
-          echo "subfolder=branch" >> $GITHUB_OUTPUT
-          echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          echo "is_tagged_release=false" >> $GITHUB_OUTPUT
-          echo "is_published_branch=false" >> $GITHUB_OUTPUT
-          echo "distro_codename=${DISTRO_CODENAME}" >> $GITHUB_OUTPUT
-          echo "feed_subfolder=continuous" >> $GITHUB_OUTPUT
+        set -euo pipefail
+        REF_TYPE="branch"
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          REF_TYPE="tag"
         fi
-        
-        echo "Feed configuration complete"
-        echo "Image will use feed: https://opkg.calculinux.org/ipk/$(cat $GITHUB_OUTPUT | grep distro_codename | cut -d'=' -f2)/$(cat $GITHUB_OUTPUT | grep feed_subfolder | cut -d'=' -f2)/"
 
-    - name: Configure package feed for image
+        TMP_FILE=$(mktemp)
+        bash .github/scripts/determine-feed-config.sh "${{ matrix.kas_file }}" "${{ github.ref_name }}" "$REF_TYPE" > "$TMP_FILE"
+        cat "$TMP_FILE"
+        while IFS='=' read -r key value; do
+          [ -z "$key" ] && continue
+          echo "$key=$value" >> "$GITHUB_OUTPUT"
+        done < "$TMP_FILE"
+        rm -f "$TMP_FILE"
+
+    - name: Prepare build configuration
+      id: prepare-config
       run: |
-        echo "Configuring package feed and version..."
-        
-        DISTRO_CODENAME="${{ steps.feed-config.outputs.distro_codename }}"
-        FEED_SUBFOLDER="${{ steps.feed-config.outputs.feed_subfolder }}"
-        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
-        
-        # Determine DISTRO_VERSION based on feed configuration
-        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-          # Tagged release - use the tag name as version
-          DISTRO_VERSION="${{ github.ref_name }}"
-        elif [ "${{ github.ref_name }}" = "main" ]; then
-          # Main branch continuous
-          DISTRO_VERSION="1.0.0-continuous+$(git rev-parse --short HEAD)"
-        elif [ "${{ github.ref_name }}" = "develop" ]; then
-          # Develop branch
-          DISTRO_VERSION="1.0.0-develop+$(git rev-parse --short HEAD)"
-        else
-          # Other branches
-          DISTRO_VERSION="1.0.0-branch+$(git rev-parse --short HEAD)"
-        fi
-        
-        # Create a kas override file that includes the base configuration
-        # and adds CI-specific overrides via local_conf_header
-        cat > kas-ci-override.yaml << EOF
-        header:
-          version: 18
-          includes:
-            - ${{ matrix.kas_file }}
-        
-        local_conf_header:
-          ci_overrides: |
-            # CI build overrides (injected by GitHub Actions workflow)
-            DISTRO_CODENAME = "${DISTRO_CODENAME}"
-            CALCULINUX_FEED_SUBFOLDER = "${FEED_SUBFOLDER}"
-            DISTRO_VERSION = "${DISTRO_VERSION}"
-        EOF
-        
-        echo "Package feed and version configured:"
-        echo "  DISTRO_CODENAME = ${DISTRO_CODENAME}"
-        echo "  CALCULINUX_FEED_SUBFOLDER = ${FEED_SUBFOLDER}"
-        echo "  DISTRO_VERSION = ${DISTRO_VERSION}"
-        echo "  Full feed URL: https://opkg.calculinux.org/ipk/${DISTRO_CODENAME}/${FEED_SUBFOLDER}/"
-        echo ""
-        echo "Created kas-ci-override.yaml for CI build"
-        echo "DISTRO_VERSION=${DISTRO_VERSION}" >> $GITHUB_ENV
+        set -euo pipefail
+        echo "Preparing build configuration and CI overrides..."
+
+        TMP_FILE=$(mktemp)
+        bash .github/scripts/prepare-build-config.sh \
+          "${{ matrix.kas_file }}" \
+          "${{ steps.feed-config.outputs.distro_codename }}" \
+          "${{ steps.feed-config.outputs.feed_subfolder }}" \
+          "${{ github.ref_name }}" \
+          "${{ steps.feed-config.outputs.is_tagged_release }}" \
+          > "$TMP_FILE"
+
+        cat "$TMP_FILE"
+        while IFS='=' read -r key value; do
+          [ -z "$key" ] && continue
+          echo "$key=$value" >> "$GITHUB_OUTPUT"
+          if [ "$key" = "distro_version" ]; then
+            echo "DISTRO_VERSION=$value" >> "$GITHUB_ENV"
+          fi
+        done < "$TMP_FILE"
+        rm -f "$TMP_FILE"
 
     - name: Build Yocto image and packages
       run: |
-        echo "Building ${{ matrix.name }} using kas-ci-override.yaml"
+        echo "Building ${{ matrix.name }} using ${{ steps.prepare-config.outputs.kas_override_file }}"
         echo "This will build:"
         echo "  - ${{ matrix.target }} (base image with overlayfs)"
         echo "  - packagegroup-meta-calculinux-apps (IPK packages)"
@@ -194,816 +126,67 @@ jobs:
         
         # Run the build with kas-container using CI override file
         # This file includes the base kas configuration and adds CI-specific overrides
-        ./kas-container build kas-ci-override.yaml
+  ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
 
-    - name: Build SDK
+    - name: Build SDKs
       if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
+      env:
+        KAS_OVERRIDE_FILE: ${{ steps.prepare-config.outputs.kas_override_file }}
       run: |
-
-        echo "Building SDK for ${{ matrix.name }} (x86_64 architecture)..."
-        echo "This will generate a cross-compilation toolchain and sysroot for development for use on x86_64 hosts"
-        
-        # Create temporary kas file for x86_64 SDK
-        # This includes the CI override file (which itself includes the base kas file)
-        cat > kas-sdk-x86_64.yaml << EOF
-        header:
-          version: 18
-          includes:
-            - kas-ci-override.yaml
-        
-        local_conf_header:
-          sdk_x86_64: |
-            SDKMACHINE = "x86_64"
-        EOF
-        
-        # Build the SDK using the temporary kas configuration
-        ./kas-container --ssh-dir ~/.ssh build --update kas-sdk-x86_64.yaml --target calculinux-image -c populate_sdk
-        
-        echo "x86_64 SDK build completed successfully"
-
-    - name: Build AArch64 SDK
-      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
-      run: |
-
-        echo "Building SDK for ${{ matrix.name }} (aarch64 architecture)..."
-        echo "This will generate a cross-compilation toolchain and sysroot for development for use on aarch64 hosts"
-        
-        # Create temporary kas file for aarch64 SDK
-        # This includes the CI override file (which itself includes the base kas file)
-        cat > kas-sdk-aarch64.yaml << EOF
-        header:
-          version: 18
-          includes:
-            - kas-ci-override.yaml
-        
-        local_conf_header:
-          sdk_aarch64: |
-            SDKMACHINE = "aarch64"
-        EOF
-        
-        # Build the AArch64 SDK using the temporary kas configuration
-        ./kas-container --ssh-dir ~/.ssh build --update kas-sdk-aarch64.yaml --target calculinux-image -c populate_sdk
-        
-        echo "aarch64 SDK build completed successfully"
+        set -euo pipefail
+        for sdk_arch in x86_64 aarch64; do
+          echo "Building SDK for ${{ matrix.name }} (host architecture: ${sdk_arch})..."
+          bash .github/scripts/build-sdk.sh "$sdk_arch" "$KAS_OVERRIDE_FILE"
+        done
 
     - name: Collect build artifacts (images)
       run: |
-        echo "Collecting build artifacts..."
-        
-        # Find the build directory
-        BUILD_DIR=$(find build -name "tmp" -type d | head -1 | sed 's|/tmp||')
-        DEPLOY_DIR="${BUILD_DIR}/tmp/deploy/images/${{ matrix.machine }}"
-        
-        echo "Deploy directory: $DEPLOY_DIR"
-        
-        if [ -d "$DEPLOY_DIR" ]; then
-          # Create artifacts directory
-          mkdir -p artifacts
-          
-          # Copy image files
-          find "$DEPLOY_DIR" -name "*.wic.gz" -o -name "*.wic.bz2" -o -name "*.wic.xz" | \
-            xargs -I {} cp {} artifacts/ || true
-          
-          # Copy update bundles (RAUC bundles)
-          find "$DEPLOY_DIR" -name "*.raucb" | \
-            xargs -I {} cp {} artifacts/ || true
-          
-          # Copy u-boot files
-          cp "$DEPLOY_DIR/uboot-${{ matrix.machine }}-*.bin" artifacts/ || true
-          cp "$DEPLOY_DIR/u-boot-*initial-env-${{ matrix.machine }}-*" artifacts/ || true
-          
-          # Copy other important files
-          find "$DEPLOY_DIR" -name "*.manifest" -o -name "*.testdata.json" | \
-            xargs -I {} cp {} artifacts/ || true
-          
-          # List what we collected
-          echo "Collected artifacts:"
-          ls -la artifacts/
-        else
-          echo "Deploy directory not found: $DEPLOY_DIR"
-          echo "Available directories:"
-          find build -type d -name "deploy" || true
-        fi
-
-    - name: Generate artifact checksums
-      run: |
-        set -euo pipefail
-        if [ ! -d artifacts ]; then
-          echo "No artifacts directory present"
-          exit 0
-        fi
-
-        pushd artifacts >/dev/null
-        shopt -s nullglob
-
-        for bundle in *.raucb; do
-          sha256sum "$bundle" > "$bundle.sha256"
-        done
-
-        for image in *.wic.gz *.wic.bz2 *.wic.xz; do
-          [ -e "$image" ] || continue
-          sha256sum "$image" > "$image.sha256"
-        done
-
-        ls -la | grep sha256 || true
-        popd >/dev/null
+        bash .github/scripts/collect-images.sh "${{ matrix.machine }}" artifacts
 
     - name: Publish PR RAUC bundle
       if: github.event_name == 'pull_request'
-      env:
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-        MACHINE: ${{ matrix.machine }}
       run: |
         set -euo pipefail
-
-        SRC_BUNDLE=$(find artifacts -name "calculinux-bundle-${MACHINE}.raucb" | head -1 || true)
-        if [ -z "$SRC_BUNDLE" ]; then
-          echo "No RAUC bundle found to publish for PR"
-          exit 0
-        fi
-
-        PR_DIR="$OPKG_REPO_DIR/update/${MACHINE}/pr"
-        mkdir -p "$PR_DIR"
-
-        TARGET="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
-        cp "$SRC_BUNDLE" "$TARGET"
-        sha256sum "$TARGET" > "${TARGET}.sha256"
-
-        python3 .github/scripts/refresh_pr_channel_index.py \
-          --root "$PR_DIR" \
-          --base-url "$UPDATE_BASE_URL" \
-          --channel-path "/update/${MACHINE}/pr" \
-          --machine "$MACHINE" \
-          --feed "$MACHINE" \
-          --subfolder "pr"
+        bash .github/scripts/publish-pr-bundle.sh \
+          "${{ matrix.machine }}" \
+          "${{ github.event.pull_request.number }}" \
+          "artifacts" \
+          "${{ env.OPKG_REPO_DIR }}" \
+          "${{ env.UPDATE_BASE_URL }}"
 
     - name: Collect build artifacts (packages)
       run: |
-        echo "Collecting IPK packages..."
-        
-        # Find build directory
-        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
-        DEPLOY_IPK_DIR="${BUILD_DIR}/deploy/ipk"
-        
-        if [ -d "$DEPLOY_IPK_DIR" ]; then
-          PACKAGE_COUNT=$(find "$DEPLOY_IPK_DIR" -name "*.ipk" -type f | wc -l)
-          echo "Found $PACKAGE_COUNT IPK packages"
-          
-          # Create packages directory in artifacts
-          mkdir -p artifacts/packages
-          
-          # Copy all packages maintaining architecture structure
-          cp -r "$DEPLOY_IPK_DIR"/* artifacts/packages/
-          
-          echo "Collected packages:"
-          ls -la artifacts/packages/
-        else
-          echo "Warning: No IPK packages directory found"
-        fi
+        bash .github/scripts/collect-packages.sh artifacts
 
     - name: Collect build artifacts (SDK)
       run: |
-        echo "Collecting SDK artifacts..."
-        
-        # Find build directory
-        BUILD_DIR=$(find build -name "tmp" -type d | head -1)
-        DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
-        
-        # Always create SDK directory structure, even if empty
-        mkdir -p artifacts/sdk/x86_64 artifacts/sdk/aarch64
-        
-        if [ -d "$DEPLOY_SDK_DIR" ]; then
-          echo "Found SDK directory: $DEPLOY_SDK_DIR"
-          
-          # Process each SDK file to determine its architecture and organize accordingly
-          find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do
-            if [ -f "$sdk_file" ]; then
-              sdk_basename=$(basename "$sdk_file")
-              echo "Processing SDK installer: $sdk_basename"
-              
-              # Determine architecture from filename
-              # SDK filenames typically contain architecture info, e.g.:
-              # calculinux-distro-glibc-x86_64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
-              # calculinux-distro-glibc-aarch64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
-              if [[ "$sdk_basename" =~ -x86_64- ]]; then
-                echo "  -> x86_64 SDK: $sdk_basename"
-                cp "$sdk_file" artifacts/sdk/x86_64/
-                SDK_ARCH="x86_64"
-              elif [[ "$sdk_basename" =~ -aarch64- ]]; then
-                echo "  -> aarch64 SDK: $sdk_basename"
-                cp "$sdk_file" artifacts/sdk/aarch64/
-                SDK_ARCH="aarch64"
-              else
-                echo "  -> Unknown architecture, defaulting to x86_64: $sdk_basename"
-                cp "$sdk_file" artifacts/sdk/x86_64/
-                SDK_ARCH="x86_64"
-              fi
-              
-              # Look for corresponding manifest file
-              manifest_file="${sdk_file%.sh}.manifest"
-              if [ -f "$manifest_file" ]; then
-                manifest_basename=$(basename "$manifest_file")
-                echo "    Found manifest: $manifest_basename"
-                cp "$manifest_file" "artifacts/sdk/$SDK_ARCH/"
-              fi
-            fi
-          done
-          
-          # Also look for standalone manifest files
-          find "$DEPLOY_SDK_DIR" -name "*.manifest" -type f | while read manifest_file; do
-            if [ -f "$manifest_file" ]; then
-              manifest_basename=$(basename "$manifest_file")
-              # Skip if we already copied it above
-              if [ ! -f "artifacts/sdk/x86_64/$manifest_basename" ] && [ ! -f "artifacts/sdk/aarch64/$manifest_basename" ]; then
-                echo "Processing standalone manifest: $manifest_basename"
-                
-                # Determine architecture from manifest filename
-                if [[ "$manifest_basename" =~ -x86_64- ]]; then
-                  echo "  -> x86_64 manifest: $manifest_basename"
-                  cp "$manifest_file" artifacts/sdk/x86_64/
-                elif [[ "$manifest_basename" =~ -aarch64- ]]; then
-                  echo "  -> aarch64 manifest: $manifest_basename"
-                  cp "$manifest_file" artifacts/sdk/aarch64/
-                else
-                  echo "  -> Unknown architecture manifest, defaulting to x86_64: $manifest_basename"
-                  cp "$manifest_file" artifacts/sdk/x86_64/
-                fi
-              fi
-            fi
-          done
-          
-          # Show what we collected for each architecture
-          echo "Collected SDK artifacts:"
-          echo ""
-          echo "x86_64 SDKs:"
-          if [ "$(ls -A artifacts/sdk/x86_64 2>/dev/null)" ]; then
-            ls -la artifacts/sdk/x86_64/
-            echo "x86_64 SDK sizes:"
-            du -sh artifacts/sdk/x86_64/* 2>/dev/null || echo "No x86_64 SDK files"
-          else
-            echo "  No x86_64 SDK files found"
-          fi
-          
-          echo ""
-          echo "aarch64 SDKs:"
-          if [ "$(ls -A artifacts/sdk/aarch64 2>/dev/null)" ]; then
-            ls -la artifacts/sdk/aarch64/
-            echo "aarch64 SDK sizes:"
-            du -sh artifacts/sdk/aarch64/* 2>/dev/null || echo "No aarch64 SDK files"
-          else
-            echo "  No aarch64 SDK files found"
-          fi
-          
-          # Create summary for easy reference
-          echo ""
-          echo "SDK Summary:"
-          X86_COUNT=$(find artifacts/sdk/x86_64 -name "*.sh" -type f 2>/dev/null | wc -l)
-          AARCH64_COUNT=$(find artifacts/sdk/aarch64 -name "*.sh" -type f 2>/dev/null | wc -l)
-          echo "  x86_64 SDKs: $X86_COUNT"
-          echo "  aarch64 SDKs: $AARCH64_COUNT"
-          echo "  Total SDKs: $((X86_COUNT + AARCH64_COUNT))"
-        else
-          echo "No SDK directory found at $DEPLOY_SDK_DIR"
-          echo "This is expected when SDK build was skipped (not on develop branch or tagged release)"
-          echo "SDK artifacts directories created but remain empty"
-          
-          # Create summary for skipped SDK build
-          echo ""
-          echo "SDK Summary:"
-          echo "  x86_64 SDKs: 0 (SDK build skipped)"
-          echo "  aarch64 SDKs: 0 (SDK build skipped)"
-          echo "  Total SDKs: 0 (SDK build skipped)"
-        fi
-
-    - name: Sync packages to repository
-      if: steps.feed-config.outputs.is_published_branch == 'true'
-      run: |
-        echo "Syncing packages to repository..."
-        
-        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
-        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
-        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
-        
-        # Determine feed path based on branch/tag
-        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-          # Tagged releases go to ipk/{codename}/release/
-          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
-          echo "Publishing to release feed: $FEED_PATH"
-        elif [ "${{ github.ref_name }}" = "main" ]; then
-          # Main branch goes to ipk/{codename}/continuous/
-          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
-          echo "Publishing to stable feed: $FEED_PATH"
-        elif [ "${{ github.ref_name }}" = "develop" ]; then
-          # Develop goes to ipk/develop/continuous/
-          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
-          echo "Publishing to development feed: $FEED_PATH"
-        else
-          echo "ERROR: Unexpected branch/tag configuration"
-          exit 1
-        fi
-        
-        # Create target directory
-        FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
-        mkdir -p "$FEED_DIR"
-        
-        # Determine sync strategy based on workflow input
-        SYNC_ALL="${{ inputs.sync_all_packages }}"
-        if [ "$SYNC_ALL" = "true" ]; then
-          echo "Syncing ALL packages (manual full sync requested)"
-          BUILD_START_TIME=0
-        else
-          # Record the build start time (subtract 5 minutes for safety margin)
-          BUILD_START_TIME=$(date -d '5 minutes ago' +%s)
-          echo "Only syncing packages modified after: $(date -d @$BUILD_START_TIME)"
-        fi
-        
-        # Sync packages
-        SYNCED=0
-        SKIPPED=0
-        
-        if [ -d "artifacts/packages" ]; then
-          for arch_dir in artifacts/packages/*/; do
-            if [ -d "$arch_dir" ]; then
-              arch=$(basename "$arch_dir")
-              arch_dir_target="$FEED_DIR/$arch"
-              
-              mkdir -p "$arch_dir_target"
-              echo "Processing architecture: $arch"
-              
-              # Process all packages
-              while IFS= read -r -d '' ipk_file; do
-                package_name=$(basename "$ipk_file")
-                target_file="$arch_dir_target/$package_name"
-                file_mtime=$(stat -c %Y "$ipk_file")
-                
-                # Sync if package is newly built OR missing from target
-                if [ "$file_mtime" -ge "$BUILD_START_TIME" ] || [ ! -f "$target_file" ]; then
-                  if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
-                    echo "  Syncing newly built package: $package_name"
-                  else
-                    echo "  Syncing missing package: $package_name"
-                  fi
-                  cp "$ipk_file" "$arch_dir_target/"
-                  SYNCED=$((SYNCED + 1))
-                else
-                  SKIPPED=$((SKIPPED + 1))
-                fi
-              done < <(find "$arch_dir" -name "*.ipk" -type f -print0)
-              
-              # Copy package indexes if they exist
-              if [ -f "$arch_dir/Packages" ]; then
-                echo "  Copying package index for $arch"
-                cp "$arch_dir/Packages" "$arch_dir_target/"
-              fi
-              if [ -f "$arch_dir/Packages.gz" ]; then
-                cp "$arch_dir/Packages.gz" "$arch_dir_target/"
-              fi
-            fi
-          done
-          
-          echo "Packages synced: $SYNCED (newly built)"
-          echo "Packages skipped: $SKIPPED (from sstate-cache)"
-          echo "Total available: $((SYNCED + SKIPPED))"
-          
-          # Show package counts by architecture
-          for arch_dir in "$FEED_DIR"/*/; do
-            if [ -d "$arch_dir" ]; then
-              arch=$(basename "$arch_dir")
-              count=$(find "$arch_dir" -name "*.ipk" -type f | wc -l)
-              size=$(du -sh "$arch_dir" | cut -f1)
-              echo "  $arch: $count packages ($size)"
-            fi
-          done
-          
-          echo "Packages available at: https://opkg.calculinux.org/$FEED_PATH/"
-        else
-          echo "Warning: No packages found to sync"
-        fi
-
-    - name: Generate package indexes
-      if: steps.feed-config.outputs.is_published_branch == 'true'
-      run: |
-        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
-        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
-        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
-        
-        # Determine feed path (same logic as sync step)
-        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
-        elif [ "${{ github.ref_name }}" = "main" ]; then
-          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
-        elif [ "${{ github.ref_name }}" = "develop" ]; then
-          FEED_PATH="ipk/${FEED_NAME}/${SUBFOLDER}"
-        else
-          echo "ERROR: Unexpected branch/tag configuration"
-          exit 1
-        fi
-        
-        FEED_DIR="$OPKG_REPO_DIR/$FEED_PATH"
-        
-        echo "Generating Packages.gz files for feed: $FEED_PATH"
-        
-        for arch_dir in "$FEED_DIR"/*/; do
-          if [ -d "$arch_dir" ]; then
-            arch=$(basename "$arch_dir")
-            echo "Generating Packages.gz for architecture: $arch"
-            
-            cd "$arch_dir"
-            
-            # Generate Packages file
-            opkg-make-index -p Packages .
-            
-            # Compress to Packages.gz
-            gzip -f Packages
-            
-            # Verify the file was created
-            if [ -f "Packages.gz" ]; then
-              echo "  Successfully generated Packages.gz for $arch"
-            else
-              echo "  ERROR: Failed to generate Packages.gz for $arch"
-              exit 1
-            fi
-            
-            cd - > /dev/null
-          fi
-        done
-        
-        echo "Package index generation complete"
-
-    - name: Publish images to webserver
-      if: steps.feed-config.outputs.is_published_branch == 'true'
-      run: |
-        echo "Publishing images to webserver..."
-        
-        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
-        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
-        UPDATE_DIR="$OPKG_REPO_DIR/update/$FEED_NAME/$SUBFOLDER"
-        IMAGE_DIR="$OPKG_REPO_DIR/image/$FEED_NAME/$SUBFOLDER"
-        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
-        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
-        TAG_NAME="${{ github.ref_name }}"
-        
-        # Create target directories
-        mkdir -p "$UPDATE_DIR" "$IMAGE_DIR"
-        
-        if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-          echo "Publishing tagged release images..."
-          
-          # Find the specific RAUC bundle and WIC image files
-          RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
-          WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
-          
-          if [ -n "$RAUCB_FILE" ]; then
-            # Copy RAUC bundle with versioned name
-            VERSIONED_BUNDLE="$UPDATE_DIR/calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
-            cp "$RAUCB_FILE" "$VERSIONED_BUNDLE"
-            sha256sum "$VERSIONED_BUNDLE" > "${VERSIONED_BUNDLE}.sha256"
-            echo "Published RAUC bundle: calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
-            
-            # If not a prerelease, also copy with original name for latest release
-            if [ "$IS_PRERELEASE" = "false" ]; then
-              LATEST_BUNDLE="$UPDATE_DIR/calculinux-bundle-${{ matrix.machine }}.raucb"
-              cp "$RAUCB_FILE" "$LATEST_BUNDLE"
-              sha256sum "$LATEST_BUNDLE" > "${LATEST_BUNDLE}.sha256"
-              echo "Published RAUC bundle: calculinux-bundle-${{ matrix.machine }}.raucb (latest)"
-            fi
-          else
-            echo "Warning: calculinux-bundle-${{ matrix.machine }}.raucb not found"
-          fi
-          
-          if [ -n "$WIC_FILE" ]; then
-            # Copy WIC image with versioned name
-            VERSIONED_WIC="$IMAGE_DIR/calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
-            cp "$WIC_FILE" "$VERSIONED_WIC"
-            sha256sum "$VERSIONED_WIC" > "${VERSIONED_WIC}.sha256"
-            echo "Published WIC image: calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
-            
-            # If not a prerelease, also copy with original name for latest release
-            if [ "$IS_PRERELEASE" = "false" ]; then
-              LATEST_WIC="$IMAGE_DIR/calculinux-image-${{ matrix.machine }}.rootfs.wic.gz"
-              cp "$WIC_FILE" "$LATEST_WIC"
-              sha256sum "$LATEST_WIC" > "${LATEST_WIC}.sha256"
-              echo "Published WIC image: calculinux-image-${{ matrix.machine }}.rootfs.wic.gz (latest)"
-            fi
-          else
-            echo "Warning: calculinux-image-${{ matrix.machine }}.rootfs.wic.gz not found"
-          fi
-        else
-          echo "Publishing continuous development images..."
-          
-          # Copy RAUC bundles to update directory
-          if ls artifacts/*.raucb 1> /dev/null 2>&1; then
-            echo "Copying RAUC bundles to $UPDATE_DIR"
-            cp artifacts/*.raucb "$UPDATE_DIR/"
-            if ls artifacts/*.raucb.sha256 1> /dev/null 2>&1; then
-              cp artifacts/*.raucb.sha256 "$UPDATE_DIR/"
-            fi
-            echo "Published RAUC bundles:"
-            ls -la "$UPDATE_DIR"/*.raucb
-          else
-            echo "No RAUC bundles found to publish"
-          fi
-          
-          # Copy WIC images to image directory
-          if ls artifacts/*.wic.gz 1> /dev/null 2>&1; then
-            echo "Copying WIC images to $IMAGE_DIR"
-            cp artifacts/*.wic.gz "$IMAGE_DIR/"
-            if ls artifacts/*.wic.gz.sha256 1> /dev/null 2>&1; then
-              cp artifacts/*.wic.gz.sha256 "$IMAGE_DIR/"
-            fi
-            echo "Published WIC images:"
-            ls -la "$IMAGE_DIR"/*.wic.gz
-          else
-            echo "No WIC images found to publish"
-          fi
-        fi
-
-        echo "Images published successfully"
-
-    - name: Generate artifact index
-      if: steps.feed-config.outputs.is_published_branch == 'true'
-      env:
-        FEED_NAME: ${{ steps.feed-config.outputs.feed_name }}
-        SUBFOLDER: ${{ steps.feed-config.outputs.subfolder }}
-        MACHINE: ${{ matrix.machine }}
-        DISTRO_VERSION: ${{ env.DISTRO_VERSION }}
-        GIT_SHA: ${{ github.sha }}
-      run: |
-        set -euo pipefail
-        BASE_URL="https://opkg.calculinux.org"
-        UPDATE_DIR="$OPKG_REPO_DIR/update/$FEED_NAME/$SUBFOLDER"
-        IMAGE_DIR="$OPKG_REPO_DIR/image/$FEED_NAME/$SUBFOLDER"
-        export BASE_URL UPDATE_DIR IMAGE_DIR FEED_NAME SUBFOLDER MACHINE DISTRO_VERSION GIT_SHA
-        python3 <<'PY'
-        import hashlib
-        import json
-        import os
-        from datetime import datetime, timezone
-        from pathlib import Path
-
-        base_url = os.environ["BASE_URL"]
-        update_dir = Path(os.environ["UPDATE_DIR"])
-        image_dir = Path(os.environ["IMAGE_DIR"])
-
-        feed = os.environ.get("FEED_NAME", "")
-        subfolder = os.environ.get("SUBFOLDER", "")
-        machine = os.environ.get("MACHINE", "")
-        git_sha = os.environ.get("GIT_SHA", "")
-        distro_version = os.environ.get("DISTRO_VERSION", "")
-
-        def read_digest(path: Path) -> str:
-            sha_file = Path(f"{path}.sha256")
-            if sha_file.exists():
-                first_token = sha_file.read_text().strip().split()
-                if first_token:
-                    return first_token[0]
-            hasher = hashlib.sha256()
-            with path.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                    if not chunk:
-                        break
-                    hasher.update(chunk)
-            return hasher.hexdigest()
-
-        def collect_entries(root: Path, pattern: str, url_prefix: str):
-            entries = []
-            if not root.exists():
-                return entries
-            for artifact in sorted(root.glob(pattern)):
-                if artifact.name.endswith(".sha256") or artifact.name == "index.json":
-                    continue
-                if artifact.is_symlink():
-                    continue
-                stat = artifact.stat()
-                entries.append(
-                    {
-                        "name": artifact.name,
-                        "size": stat.st_size,
-                        "last_modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-                        "sha256": read_digest(artifact),
-                        "url": f"{base_url}{url_prefix}/{artifact.name}",
-                    }
-                )
-            return entries
-
-        index = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "machine": machine,
-            "feed": feed,
-            "subfolder": subfolder,
-            "distro_version": distro_version,
-            "git_sha": git_sha,
-            "artifacts": {
-                "rauc": collect_entries(update_dir, "*.raucb", f"/update/{feed}/{subfolder}"),
-                "images": collect_entries(image_dir, "*.wic*", f"/image/{feed}/{subfolder}"),
-            },
-        }
-
-        output_path = update_dir / "index.json"
-        output_path.write_text(json.dumps(index, indent=2))
-        print(f"Wrote index to {output_path}")
-        PY
-        if [ -f "$UPDATE_DIR/index.json" ]; then
-          mkdir -p artifacts
-          cp "$UPDATE_DIR/index.json" artifacts/index.json
-        fi
-
-    - name: Publish SDK to webserver
-      if: steps.feed-config.outputs.is_published_branch == 'true'
-      run: |
-        echo "Publishing SDK to webserver..."
-        
-        FEED_NAME="${{ steps.feed-config.outputs.feed_name }}"
-        SUBFOLDER="${{ steps.feed-config.outputs.subfolder }}"
-        SDK_DIR="$OPKG_REPO_DIR/sdk/$FEED_NAME/$SUBFOLDER"
-        IS_TAGGED_RELEASE="${{ steps.feed-config.outputs.is_tagged_release }}"
-        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
-        TAG_NAME="${{ github.ref_name }}"
-        
-        # Create target directory
-        mkdir -p "$SDK_DIR"
-        
-        # Check if we have SDK artifacts
-        if [ -d "artifacts/sdk" ] && [ "$(find artifacts/sdk -name "*.sh" -type f 2>/dev/null | wc -l)" -gt 0 ]; then
-          echo "Processing SDK artifacts for multiple architectures..."
-          
-          # Process each architecture
-          for arch in x86_64 aarch64; do
-            if [ -d "artifacts/sdk/$arch" ] && [ "$(ls -A artifacts/sdk/$arch 2>/dev/null)" ]; then
-              echo ""
-              echo "Publishing $arch SDK artifacts..."
-              
-              # Create architecture-specific directory
-              mkdir -p "$SDK_DIR/$arch"
-              
-              if [ "$IS_TAGGED_RELEASE" = "true" ]; then
-                echo "Publishing tagged release SDK for $arch..."
-                
-                # Find SDK installer file for this architecture
-                SDK_FILE=$(find "artifacts/sdk/$arch" -name "*.sh" -type f | head -1)
-                
-                if [ -n "$SDK_FILE" ]; then
-                  SDK_BASENAME=$(basename "$SDK_FILE")
-                  
-                  # Create a consistent SDK filename using Calculinux versioning
-                  # Original: calculinux-distro-glibc-x86_64-calculinux-image-armv7at2hf-neon-vfpv4-luckfox-lyra-toolchain-5.2.3.sh
-                  # Target:   calculinux-sdk-luckfox-lyra-x86_64-1.0.0-alpha4.sh
-                  CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$arch-$TAG_NAME.sh"
-                  CALCULINUX_SDK_LATEST="calculinux-sdk-${{ matrix.machine }}-$arch.sh"
-                  
-                  # Copy SDK with Calculinux versioned name
-                  cp "$SDK_FILE" "$SDK_DIR/$arch/$CALCULINUX_SDK_NAME"
-                  echo "  Published $arch SDK: $CALCULINUX_SDK_NAME"
-                  
-                  # If not a prerelease, also copy with latest name for easy discovery
-                  if [ "$IS_PRERELEASE" = "false" ]; then
-                    cp "$SDK_FILE" "$SDK_DIR/$arch/$CALCULINUX_SDK_LATEST"
-                    echo "  Published $arch SDK: $CALCULINUX_SDK_LATEST (latest)"
-                  fi
-                  
-                  # Also keep the original SDK filename for advanced users who need the detailed info
-                  cp "$SDK_FILE" "$SDK_DIR/$arch/$SDK_BASENAME"
-                  echo "  Published $arch SDK: $SDK_BASENAME (detailed)"
-                  
-                  # Copy SDK manifest if available
-                  SDK_MANIFEST=$(find "artifacts/sdk/$arch" -name "*.manifest" -type f | head -1)
-                  if [ -n "$SDK_MANIFEST" ]; then
-                    MANIFEST_BASENAME=$(basename "$SDK_MANIFEST")
-                    
-                    # Create consistent manifest names to match SDK names
-                    CALCULINUX_MANIFEST_NAME="calculinux-sdk-${{ matrix.machine }}-$arch-$TAG_NAME.manifest"
-                    CALCULINUX_MANIFEST_LATEST="calculinux-sdk-${{ matrix.machine }}-$arch.manifest"
-                    
-                    cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_NAME"
-                    echo "  Published $arch SDK manifest: $CALCULINUX_MANIFEST_NAME"
-                    
-                    if [ "$IS_PRERELEASE" = "false" ]; then
-                      cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_LATEST"
-                      echo "  Published $arch SDK manifest: $CALCULINUX_MANIFEST_LATEST (latest)"
-                    fi
-                    
-                    # Also keep the original manifest filename
-                    cp "$SDK_MANIFEST" "$SDK_DIR/$arch/$MANIFEST_BASENAME"
-                    echo "  Published $arch SDK manifest: $MANIFEST_BASENAME (detailed)"
-                  fi
-                else
-                  echo "  Warning: No $arch SDK installer (.sh) files found"
-                fi
-              else
-                echo "Publishing continuous development SDK for $arch..."
-                
-                # Copy all SDK files for this architecture to SDK directory
-                if ls "artifacts/sdk/$arch"/*.sh 1> /dev/null 2>&1; then
-                  echo "  Copying $arch SDK installers to $SDK_DIR/$arch"
-                  
-                  # For continuous builds, use consistent naming but without version tags
-                  for sdk_file in "artifacts/sdk/$arch"/*.sh; do
-                    if [ -f "$sdk_file" ]; then
-                      SDK_BASENAME=$(basename "$sdk_file")
-                      
-                      # Create consistent SDK filename for continuous builds
-                      CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$arch.sh"
-                      
-                      # Copy with both names
-                      cp "$sdk_file" "$SDK_DIR/$arch/$CALCULINUX_SDK_NAME"
-                      cp "$sdk_file" "$SDK_DIR/$arch/$SDK_BASENAME"
-                      
-                      echo "    Published: $CALCULINUX_SDK_NAME"
-                      echo "    Published: $SDK_BASENAME (detailed)"
-                    fi
-                  done
-                else
-                  echo "  No $arch SDK installer files found"
-                fi
-                
-                # Copy SDK manifests if available
-                if ls "artifacts/sdk/$arch"/*.manifest 1> /dev/null 2>&1; then
-                  echo "  Copying $arch SDK manifests to $SDK_DIR/$arch"
-                  
-                  for manifest_file in "artifacts/sdk/$arch"/*.manifest; do
-                    if [ -f "$manifest_file" ]; then
-                      MANIFEST_BASENAME=$(basename "$manifest_file")
-                      
-                      # Create consistent manifest filename for continuous builds
-                      CALCULINUX_MANIFEST_NAME="calculinux-sdk-${{ matrix.machine }}-$arch.manifest"
-                      
-                      # Copy with both names
-                      cp "$manifest_file" "$SDK_DIR/$arch/$CALCULINUX_MANIFEST_NAME"
-                      cp "$manifest_file" "$SDK_DIR/$arch/$MANIFEST_BASENAME"
-                      
-                      echo "    Published: $CALCULINUX_MANIFEST_NAME"
-                      echo "    Published: $MANIFEST_BASENAME (detailed)"
-                    fi
-                  done
-                fi
-              fi
-            else
-              echo "  No $arch SDK artifacts found"
-            fi
-          done
-          
-          echo ""
-          echo "SDK publishing summary:"
-          echo "SDK published to: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/"
-          
-          # Show final directory structure
-          for arch in x86_64 aarch64; do
-            if [ -d "$SDK_DIR/$arch" ] && [ "$(ls -A "$SDK_DIR/$arch" 2>/dev/null)" ]; then
-              SDK_COUNT=$(find "$SDK_DIR/$arch" -name "*.sh" -type f | wc -l)
-              MANIFEST_COUNT=$(find "$SDK_DIR/$arch" -name "*.manifest" -type f | wc -l)
-              echo "  $arch: $SDK_COUNT SDK installer(s), $MANIFEST_COUNT manifest(s)"
-              echo "    URL: https://opkg.calculinux.org/sdk/$FEED_NAME/$SUBFOLDER/$arch/"
-            else
-              echo "  $arch: No files published"
-            fi
-          done
-          
-          # Legacy compatibility: create symlinks for backward compatibility with simple names
-          if [ -d "$SDK_DIR/x86_64" ] && [ "$(ls -A "$SDK_DIR/x86_64" 2>/dev/null)" ]; then
-            echo ""
-            echo "Creating legacy compatibility links for x86_64 SDK..."
-            # Create symlinks in the root SDK directory pointing to the consistent Calculinux names
-            cd "$SDK_DIR"
-            if [ -f "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh" ]; then
-              ln -sf "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh" "calculinux-sdk-${{ matrix.machine }}.sh"
-              echo "  Created legacy link: calculinux-sdk-${{ matrix.machine }}.sh -> x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.sh"
-            fi
-            if [ -f "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest" ]; then
-              ln -sf "x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest" "calculinux-sdk-${{ matrix.machine }}.manifest"
-              echo "  Created legacy link: calculinux-sdk-${{ matrix.machine }}.manifest -> x86_64/calculinux-sdk-${{ matrix.machine }}-x86_64.manifest"
-            fi
-            cd - > /dev/null
-          fi
-          
-          echo "SDK published successfully"
-        else
-          echo "Warning: No SDK artifacts found to publish"
-          echo "Expected to find SDK installer files (.sh) in artifacts/sdk/{x86_64,aarch64}/"
-        fi
+        bash .github/scripts/collect-sdk.sh artifacts
 
     - name: Generate build information
       run: |
-        # Create build info file
-        cat > artifacts/build-info.txt << EOF
-        Build Information
-        =================
-        Repository: ${{ github.repository }}
-        Commit: ${{ github.sha }}
-        Branch/Tag: ${{ github.ref_name }}
-        Build Date: $(date -u)
-        Configuration: ${{ matrix.name }}
-        Machine: ${{ matrix.machine }}
-        Target: ${{ matrix.target }}
-        Kas File: ${{ matrix.kas_file }}
-        Dockerfile: ${{ matrix.dockerfile }}
-        Workflow: ${{ github.workflow }}
-        Run Number: ${{ github.run_number }}
+        set -euo pipefail
+        bash .github/scripts/generate-build-info.sh \
+          artifacts/build-info.txt \
+          "${{ matrix.name }}" \
+          "${{ matrix.machine }}" \
+          "${{ matrix.target }}" \
+          "${{ matrix.kas_file }}" \
+          "${{ matrix.dockerfile }}"
+
+    - name: Persist publish metadata
+      run: |
+        set -euo pipefail
+        mkdir -p artifacts
+        cat > artifacts/workflow-metadata.env << EOF
+        FEED_NAME=${{ steps.feed-config.outputs.feed_name }}
+        SUBFOLDER=${{ steps.feed-config.outputs.subfolder }}
+        FEED_SUBFOLDER=${{ steps.feed-config.outputs.feed_subfolder }}
+        DISTRO_CODENAME=${{ steps.feed-config.outputs.distro_codename }}
+        IS_PUBLISHED_BRANCH=${{ steps.feed-config.outputs.is_published_branch }}
+        IS_TAGGED_RELEASE=${{ steps.feed-config.outputs.is_tagged_release }}
+        IS_PRERELEASE=${{ steps.feed-config.outputs.is_prerelease }}
+        DISTRO_VERSION=${{ steps.prepare-config.outputs.distro_version }}
         EOF
-        
-        # Add git information if available
-        if git log -1 --format="%H %s" >> artifacts/build-info.txt 2>/dev/null; then
-          echo "Last Commit: $(git log -1 --format='%H %s')" >> artifacts/build-info.txt
-        fi
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -1021,254 +204,8 @@ jobs:
           artifacts/sdk/x86_64/*.manifest
           artifacts/sdk/aarch64/*.sh
           artifacts/sdk/aarch64/*.manifest
-          artifacts/index.json
+          artifacts/workflow-metadata.env
         retention-days: 30
-
-    - name: Comment artifact links on PR
-      if: ${{ github.event_name == 'pull_request' }}
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          try {
-            const runId = context.runId;
-            const { owner, repo } = context.repo;
-            const issueNumber = context.payload.pull_request.number;
-
-            core.info(`Attempting to comment on PR #${issueNumber} for run ${runId}`);
-
-            const artifactsResponse = await github.rest.actions.listWorkflowRunArtifacts({
-              owner,
-              repo,
-              run_id: runId,
-              per_page: 100,
-            });
-
-            const artifacts = artifactsResponse.data.artifacts ?? [];
-            core.info(`Found ${artifacts.length} artifacts`);
-
-            if (artifacts.length === 0) {
-              core.info('No artifacts found for this run; skipping PR comment.');
-              return;
-            }
-
-            const formatSize = (bytes) => {
-              if (!bytes || bytes <= 0) {
-                return 'size unknown';
-              }
-              const mb = bytes / (1024 * 1024);
-              return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
-            };
-
-            const artifactLines = artifacts
-              .map((artifact) => {
-                const artifactUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
-                return `- [${artifact.name}](${artifactUrl}) (${formatSize(artifact.size_in_bytes)})`;
-              })
-              .join('\n');
-
-            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
-            const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
-
-            // Check for existing comments
-            core.info('Checking for existing artifact comments...');
-            const existingComments = await github.paginate(
-              github.rest.issues.listComments,
-              {
-                owner,
-                repo,
-                issue_number: issueNumber,
-                per_page: 100,
-              },
-              (response) => response.data.filter((comment) => comment.body?.startsWith('<!-- calculinux-artifacts -->'))
-            );
-
-            if (existingComments.length > 0) {
-              const commentToUpdate = existingComments[0];
-              core.info(`Updating existing comment (ID: ${commentToUpdate.id})`);
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: commentToUpdate.id,
-                body,
-              });
-              core.info(`✅ Updated existing artifacts comment (ID: ${commentToUpdate.id}).`);
-            } else {
-              core.info('Creating new artifact comment...');
-              const newComment = await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                body,
-              });
-              core.info(`✅ Created new artifacts comment (ID: ${newComment.data.id}).`);
-            }
-          } catch (error) {
-            core.error(`❌ Failed to comment on PR: ${error.message}`);
-            core.error(`Error details: ${JSON.stringify(error, null, 2)}`);
-            
-            // Don't fail the entire workflow for comment failures
-            core.warning('PR comment failed, but continuing workflow execution');
-          }
-
-    - name: Create release
-      if: steps.feed-config.outputs.is_tagged_release == 'true'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: artifacts/*
-        generate_release_notes: true
-        draft: false
-        prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
-
-    - name: Send Discord notification
-      if: steps.feed-config.outputs.is_tagged_release == 'true' && success()
-      env:
-        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-      run: |
-        # Skip notification if Discord webhook is not configured
-        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
-          echo "Discord webhook not configured, skipping notification"
-          exit 0
-        fi
-        
-        # For tagged releases only
-        IS_PRERELEASE="${{ steps.feed-config.outputs.is_prerelease }}"
-        TAG_NAME="${{ github.ref_name }}"
-        COMMIT_SHA="${{ github.sha }}"
-        RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
-        
-        # Set notification color and build type based on tag
-        if [ "$IS_PRERELEASE" = "true" ]; then
-          # Determine prerelease type
-          if [[ "$TAG_NAME" =~ alpha ]]; then
-            BUILD_TYPE="Alpha Release"
-            COLOR="16776960"  # Yellow
-          elif [[ "$TAG_NAME" =~ beta ]]; then
-            BUILD_TYPE="Beta Release"
-            COLOR="16753920"  # Orange
-          elif [[ "$TAG_NAME" =~ rc ]]; then
-            BUILD_TYPE="Release Candidate"
-            COLOR="8421504"   # Gray
-          else
-            BUILD_TYPE="Pre-release"
-            COLOR="16776960"  # Yellow
-          fi
-        else
-          BUILD_TYPE="Stable Release"
-          COLOR="65280"     # Green
-        fi
-        
-        VERSION="$TAG_NAME"
-        DOWNLOAD_BASE="https://opkg.calculinux.org"
-        IMAGE_URL="$DOWNLOAD_BASE/image/${{ steps.feed-config.outputs.feed_name }}/release/"
-        UPDATE_URL="$DOWNLOAD_BASE/update/${{ steps.feed-config.outputs.feed_name }}/release/"
-        PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ steps.feed-config.outputs.feed_name }}/release/"
-        SDK_URL="$DOWNLOAD_BASE/sdk/${{ steps.feed-config.outputs.feed_name }}/release/"
-        
-        # Find actual build artifacts
-        WIC_FILE=$(find artifacts -name "calculinux-image-${{ matrix.machine }}.rootfs.wic.gz" | head -1)
-        RAUCB_FILE=$(find artifacts -name "calculinux-bundle-${{ matrix.machine }}.raucb" | head -1)
-        
-        # Find SDK files for both architectures
-        X86_64_SDK_FILE=$(find artifacts/sdk/x86_64 -name "*.sh" -type f | head -1)
-        AARCH64_SDK_FILE=$(find artifacts/sdk/aarch64 -name "*.sh" -type f | head -1)
-        
-        # Create download links section for tagged releases
-        DOWNLOAD_LINKS=""
-        if [ -n "$WIC_FILE" ]; then
-          WIC_FILENAME=$(basename "$WIC_FILE")
-          # Published filename: calculinux-image-{machine}.rootfs-{tag}.wic.gz
-          WIC_VERSIONED="calculinux-image-${{ matrix.machine }}.rootfs-$TAG_NAME.wic.gz"
-          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📱 **Full Image**: [$WIC_VERSIONED]($IMAGE_URL$WIC_VERSIONED)\n"
-        fi
-        if [ -n "$RAUCB_FILE" ]; then
-          RAUCB_FILENAME=$(basename "$RAUCB_FILE")
-          # Published filename: calculinux-bundle-{machine}-{tag}.raucb
-          RAUCB_VERSIONED="calculinux-bundle-${{ matrix.machine }}-$TAG_NAME.raucb"
-          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
-        fi
-        
-        # Add SDK links for each architecture
-        if [ -n "$X86_64_SDK_FILE" ]; then
-          # Use consistent Calculinux SDK naming instead of complex Yocto names
-          CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-x86_64-$TAG_NAME.sh"
-          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (x86_64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/x86_64/$CALCULINUX_SDK_NAME)\n"
-        fi
-        
-        if [ -n "$AARCH64_SDK_FILE" ]; then
-          # Use consistent Calculinux SDK naming instead of complex Yocto names
-          CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-aarch64-$TAG_NAME.sh"
-          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (aarch64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/aarch64/$CALCULINUX_SDK_NAME)\n"
-        fi
-        
-        # If we have SDKs but couldn't determine architecture, provide generic links
-        if [ -z "$X86_64_SDK_FILE" ] && [ -z "$AARCH64_SDK_FILE" ]; then
-          # Fallback: look for any SDK file and use consistent naming
-          ANY_SDK_FILE=$(find artifacts/sdk -name "*.sh" -type f | head -1)
-          if [ -n "$ANY_SDK_FILE" ]; then
-            CALCULINUX_SDK_NAME="calculinux-sdk-${{ matrix.machine }}-$TAG_NAME.sh"
-            DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain**: [$CALCULINUX_SDK_NAME]($SDK_URL$CALCULINUX_SDK_NAME)\n"
-          fi
-        fi
-        
-        # Add package feed link
-        DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📦 **Package Feed**: [Browse packages]($PACKAGES_URL)\n"
-        
-        # Create Discord embed payload
-        cat > discord_payload.json << EOF
-        {
-          "embeds": [
-            {
-              "title": "🚀 New Calculinux $BUILD_TYPE Available!",
-              "description": "A new Calculinux build has been published for **${{ matrix.machine }}**",
-              "color": $COLOR,
-              "fields": [
-                {
-                  "name": "📋 Version",
-                  "value": "$VERSION",
-                  "inline": true
-                },
-                {
-                  "name": "🏷️ Build Type",
-                  "value": "$BUILD_TYPE",
-                  "inline": true
-                },
-                {
-                  "name": "💻 Target Device",
-                  "value": "${{ matrix.machine }}",
-                  "inline": true
-                },
-                {
-                  "name": "📥 Downloads",
-                  "value": "$DOWNLOAD_LINKS",
-                  "inline": false
-                }
-              ],
-              "footer": {
-                "text": "Build #${{ github.run_number }} • Calculinux"
-              },
-              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
-              "url": "$RELEASE_URL"
-            }
-          ]
-        }
-        EOF
-        
-        # Send Discord notification
-        echo "Sending Discord notification for $BUILD_TYPE..."
-        HTTP_CODE=$(curl -s -o discord_response.json -w "%{http_code}" \
-          -H "Content-Type: application/json" \
-          -d @discord_payload.json \
-          "$DISCORD_WEBHOOK_URL")
-        
-        if [ "$HTTP_CODE" -eq 204 ]; then
-          echo "✅ Discord notification sent successfully"
-        else
-          echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
-          echo "Response:"
-          cat discord_response.json || echo "No response body"
-          exit 1
-        fi
 
     - name: Show disk space after build
       if: always()
@@ -1278,7 +215,7 @@ jobs:
         
         echo "Cache directory sizes:"
         du -sh $DL_DIR $SSTATE_DIR || true
-
+        
     - name: Cleanup
       if: always()
       run: |
@@ -1290,3 +227,149 @@ jobs:
         
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
+
+  publish:
+    name: Publish artifacts and notifications
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: [luckfox-lyra]
+        include:
+          - machine: luckfox-lyra
+            name: "Luckfox Lyra Bundle"
+            kas_file: "kas-luckfox-lyra-bundle.yaml"
+            target: "calculinux-bundle"
+            dockerfile: "Dockerfile.aarch64"
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
+        path: artifacts
+
+    - name: Load workflow metadata
+      id: publish-meta
+      run: |
+        set -euo pipefail
+        META_FILE="artifacts/workflow-metadata.env"
+        if [ ! -f "$META_FILE" ]; then
+          echo "Metadata file not found: $META_FILE" >&2
+          exit 1
+        fi
+        while IFS='=' read -r key value; do
+          [ -z "$key" ] && continue
+          echo "$key=$value" >> "$GITHUB_OUTPUT"
+          echo "$key=$value" >> "$GITHUB_ENV"
+        done < "$META_FILE"
+
+    - name: Publish PR RAUC bundle
+      if: github.event_name == 'pull_request'
+      run: |
+        set -euo pipefail
+        bash .github/scripts/publish-pr-bundle.sh \
+          "${{ matrix.machine }}" \
+          "${{ github.event.pull_request.number }}" \
+          "artifacts" \
+          "${{ env.OPKG_REPO_DIR }}" \
+          "${{ env.UPDATE_BASE_URL }}"
+
+    - name: Sync packages and generate indexes
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      uses: ./.github/actions/sync-packages
+      with:
+        opkg-repo-dir: ${{ env.OPKG_REPO_DIR }}
+        feed-name: ${{ env.FEED_NAME }}
+        subfolder: ${{ env.SUBFOLDER }}
+        artifacts-dir: artifacts
+        sync-all: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sync_all_packages == 'true' && 'true' || 'false' }}
+
+    - name: Publish images to webserver
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      run: |
+        bash .github/scripts/publish-images.sh \
+          "$OPKG_REPO_DIR" \
+          "${{ env.FEED_NAME }}" \
+          "${{ env.SUBFOLDER }}" \
+          "${{ matrix.machine }}" \
+          artifacts \
+          "${{ env.IS_TAGGED_RELEASE }}" \
+          "${{ env.IS_PRERELEASE }}" \
+          "${{ github.ref_name }}"
+
+    - name: Generate artifact index
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      run: |
+        set -euo pipefail
+        bash .github/scripts/run-generate-artifact-index.sh \
+          "${{ env.OPKG_REPO_DIR }}" \
+          "${{ env.FEED_NAME }}" \
+          "${{ env.SUBFOLDER }}" \
+          "${{ matrix.machine }}" \
+          "${{ env.DISTRO_VERSION }}" \
+          "${{ github.sha }}" \
+          "artifacts" \
+          "${{ env.UPDATE_BASE_URL }}"
+
+    - name: Publish SDK to webserver
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      run: |
+        bash .github/scripts/publish-sdk.sh \
+          "$OPKG_REPO_DIR" \
+          "${{ env.FEED_NAME }}" \
+          "${{ env.SUBFOLDER }}" \
+          "${{ matrix.machine }}" \
+          artifacts \
+          "${{ env.IS_TAGGED_RELEASE }}" \
+          "${{ env.IS_PRERELEASE }}" \
+          "${{ github.ref_name }}"
+
+    - name: Comment artifact links on PR
+      if: github.event_name == 'pull_request'
+      uses: ./.github/actions/comment-artifacts
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create release
+      if: env.IS_TAGGED_RELEASE == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/*
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ env.IS_PRERELEASE == 'true' }}
+
+    - name: Send Discord notification
+      if: env.IS_TAGGED_RELEASE == 'true' && success()
+      uses: ./.github/actions/discord-notify
+      with:
+        webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        machine: ${{ matrix.machine }}
+        feed-name: ${{ env.FEED_NAME }}
+        subfolder: ${{ env.SUBFOLDER }}
+        is-prerelease: ${{ env.IS_PRERELEASE }}
+        tag-name: ${{ github.ref_name }}
+        run-number: ${{ github.run_number }}
+        release-url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+        artifacts-dir: artifacts
+        opkg-repo-base: ${{ env.UPDATE_BASE_URL }}
+
+    - name: Show disk space after publish
+      if: always()
+      run: |
+        echo "Disk space after publish job:"
+        df -h
+
+    - name: Cleanup
+      if: always()
+      run: |
+        rm -rf artifacts || true
+        docker system prune -f || true
