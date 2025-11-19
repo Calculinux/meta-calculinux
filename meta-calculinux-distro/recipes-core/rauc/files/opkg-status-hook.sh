@@ -42,83 +42,67 @@ if [ ! -f "${WRITABLE_STATUS_FILE}" ]; then
     exit 0
 fi
 
-find_overlay_lower_dir() {
-    overlay="$1"
-    overlay_rel=${overlay#/}
-    if [ -z "${overlay_rel}" ]; then
+CURRENT_IMAGE_STATUS_COPY=""
+
+find_booted_slot_device() {
+    command -v rauc >/dev/null 2>&1 || return 1
+
+    if ! status_output=$(rauc status --output-format=shell 2>/dev/null); then
         return 1
     fi
 
-    pattern="/overlay/${overlay_rel}/lower"
-    legacy_pattern="/overlay//${overlay_rel}/lower"
+    eval "${status_output}"
 
-    while IFS=" " read -r _ target _ _ _ _; do
-        [ -z "${target}" ] && continue
-        mountpoint=$(printf '%b' "${target}")
-        case "${mountpoint}" in
-            *"${pattern}"|*"${legacy_pattern}")
-                if [ -d "${mountpoint}" ]; then
-                    printf '%s\n' "${mountpoint}"
-                    return 0
-                fi
-                ;;
-        esac
-    done < /proc/self/mounts
+    state1=${RAUC_SLOT_STATE_1:-}
+    state2=${RAUC_SLOT_STATE_2:-}
 
-    for base in /data /mnt/data /persist /mnt/persist; do
-        lower="${base}/overlay/${overlay_rel}/lower"
-        if [ -d "${lower}" ]; then
-            printf '%s\n' "${lower}"
-            return 0
-        fi
-
-        legacy="${base}/overlay//${overlay_rel}/lower"
-        if [ -d "${legacy}" ]; then
-            printf '%s\n' "${legacy}"
-            return 0
-        fi
-    done
-
-    return 1
-}
-
-restore_status_from_exposed_lower() {
-    lower_dir=$(find_overlay_lower_dir "/var" 2>/dev/null || true)
-    if [ -z "${lower_dir}" ]; then
+    device=""
+    if [ "${state1}" = "booted" ]; then
+        device=${RAUC_SLOT_DEVICE_1}
+    elif [ "${state2}" = "booted" ]; then
+        device=${RAUC_SLOT_DEVICE_2}
+    else
         return 1
     fi
 
-    lower_status="${lower_dir}/lib/opkg/status"
-    if [ ! -f "${lower_status}" ]; then
-        return 1
-    fi
-
-    CURRENT_IMAGE_STATUS="${lower_status}"
-    log "using base image status from exposed overlay ${CURRENT_IMAGE_STATUS}"
+    printf '%s\n' "${device}"
     return 0
 }
 
-# When upgrading from images that did not yet provide a split status file, we
-# have to reconstruct /var/lib/opkg/status.image from the lower (read-only)
-# rootfs so we can safely distinguish overlay packages.
-reconstruct_current_image_status() {
-    if restore_status_from_exposed_lower; then
-        return 0
-    fi
+snapshot_current_image_status() {
+    device=$(find_booted_slot_device || true)
 
-    lowerdir=$(awk '$2=="/" && $3=="overlay" { if (match($0, /lowerdir=([^ ,]+)/, m)) { print m[1]; exit } }' /proc/self/mounts || true)
-    lowerdir=${lowerdir%%:*}
-    if [ -z "${lowerdir}" ]; then
+    if [ -z "${device}" ]; then
         return 1
     fi
 
-    lower_status="${lowerdir}/var/lib/opkg/status"
+    mount_dir=$(mktemp -d /tmp/opkg-slot-mount.XXXXXX)
+    if ! mount -o ro "${device}" "${mount_dir}" 2>/dev/null; then
+        rmdir "${mount_dir}"
+        return 1
+    fi
+
+    lower_status="${mount_dir}/var/lib/opkg/status"
     if [ ! -f "${lower_status}" ]; then
+        umount "${mount_dir}" >/dev/null 2>&1 || true
+        rmdir "${mount_dir}"
         return 1
     fi
 
-    CURRENT_IMAGE_STATUS="${lower_status}"
-    log "using base image status from ${CURRENT_IMAGE_STATUS}"
+    tmp_copy=$(mktemp /tmp/opkg-status-current.XXXXXX)
+    if ! cp "${lower_status}" "${tmp_copy}"; then
+        rm -f "${tmp_copy}"
+        umount "${mount_dir}" >/dev/null 2>&1 || true
+        rmdir "${mount_dir}"
+        return 1
+    fi
+
+    umount "${mount_dir}" >/dev/null 2>&1 || true
+    rmdir "${mount_dir}"
+
+    CURRENT_IMAGE_STATUS="${tmp_copy}"
+    CURRENT_IMAGE_STATUS_COPY="${tmp_copy}"
+    log "copied base image status from ${device}"
     return 0
 }
 
@@ -166,10 +150,10 @@ BEGIN {
 
 status_normalized=0
 if [ ! -f "${CURRENT_IMAGE_STATUS}" ]; then
-    if reconstruct_current_image_status; then
+    if snapshot_current_image_status; then
         status_normalized=1
     else
-        log "could not reconstruct ${CURRENT_IMAGE_STATUS}; skipping duplicate removal"
+        log "could not snapshot current slot status; skipping duplicate removal"
     fi
 else
     status_normalized=1
@@ -189,6 +173,7 @@ cleanup() {
     rm -f "${dups_file}"
     [ -n "${tmp_missing}" ] && rm -f "${tmp_missing}"
     [ -n "${tmp_upgrade}" ] && rm -f "${tmp_upgrade}"
+    [ -n "${CURRENT_IMAGE_STATUS_COPY}" ] && rm -f "${CURRENT_IMAGE_STATUS_COPY}"
 }
 trap cleanup EXIT INT TERM
 
