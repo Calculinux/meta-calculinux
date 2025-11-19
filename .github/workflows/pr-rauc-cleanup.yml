@@ -1,0 +1,53 @@
+name: Cleanup PR RAUC Bundles
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [closed]
+
+env:
+  OPKG_REPO_DIR: /mnt/opkg-repo
+  UPDATE_BASE_URL: https://opkg.calculinux.org
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Remove PR RAUC artifacts
+    runs-on: [self-hosted, Linux, X64]
+    strategy:
+      matrix:
+        machine: [luckfox-lyra]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Remove PR bundle and refresh index
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        MACHINE: ${{ matrix.machine }}
+      run: |
+        set -euo pipefail
+        PR_DIR="$OPKG_REPO_DIR/update/${MACHINE}/pr"
+        TARGET="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
+        if [ -f "$TARGET" ]; then
+          echo "Removing $TARGET"
+          rm -f "$TARGET"
+        else
+          echo "No RAUC bundle found for PR ${PR_NUMBER}"
+        fi
+        if [ -f "${TARGET}.sha256" ]; then
+          rm -f "${TARGET}.sha256"
+        fi
+
+        python3 .github/scripts/refresh_pr_channel_index.py \
+          --root "$PR_DIR" \
+          --base-url "$UPDATE_BASE_URL" \
+          --channel-path "/update/${MACHINE}/pr" \
+          --machine "$MACHINE" \
+          --feed "$MACHINE" \
+          --subfolder "pr"

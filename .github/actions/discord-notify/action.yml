@@ -1,0 +1,171 @@
+name: 'Discord Release Notification'
+description: 'Send a Discord notification for Calculinux releases'
+
+inputs:
+  webhook-url:
+    description: 'Discord webhook URL'
+    required: true
+  machine:
+    description: 'Target machine name'
+    required: true
+  feed-name:
+    description: 'Feed name'
+    required: true
+  subfolder:
+    description: 'Feed subfolder (continuous/release)'
+    required: true
+  is-prerelease:
+    description: 'Whether this is a prerelease'
+    required: true
+  tag-name:
+    description: 'Git tag name'
+    required: true
+  run-number:
+    description: 'GitHub workflow run number'
+    required: true
+  release-url:
+    description: 'URL to the GitHub release'
+    required: true
+  artifacts-dir:
+    description: 'Directory containing build artifacts'
+    required: true
+  opkg-repo-base:
+    description: 'Base URL for opkg repository'
+    required: false
+    default: 'https://opkg.calculinux.org'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Send Discord notification
+      shell: bash
+      env:
+        DISCORD_WEBHOOK_URL: ${{ inputs.webhook-url }}
+      run: |
+        # Skip notification if Discord webhook is not configured
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "Discord webhook not configured, skipping notification"
+          exit 0
+        fi
+        
+        IS_PRERELEASE="${{ inputs.is-prerelease }}"
+        TAG_NAME="${{ inputs.tag-name }}"
+        
+        # Set notification color and build type based on tag
+        if [ "$IS_PRERELEASE" = "true" ]; then
+          # Determine prerelease type
+          if [[ "$TAG_NAME" =~ alpha ]]; then
+            BUILD_TYPE="Alpha Release"
+            COLOR="16776960"  # Yellow
+          elif [[ "$TAG_NAME" =~ beta ]]; then
+            BUILD_TYPE="Beta Release"
+            COLOR="16753920"  # Orange
+          elif [[ "$TAG_NAME" =~ rc ]]; then
+            BUILD_TYPE="Release Candidate"
+            COLOR="8421504"   # Gray
+          else
+            BUILD_TYPE="Pre-release"
+            COLOR="16776960"  # Yellow
+          fi
+        else
+          BUILD_TYPE="Stable Release"
+          COLOR="65280"     # Green
+        fi
+        
+        VERSION="$TAG_NAME"
+        DOWNLOAD_BASE="${{ inputs.opkg-repo-base }}"
+        IMAGE_URL="$DOWNLOAD_BASE/image/${{ inputs.feed-name }}/${{ inputs.subfolder }}/"
+        UPDATE_URL="$DOWNLOAD_BASE/update/${{ inputs.feed-name }}/${{ inputs.subfolder }}/"
+        PACKAGES_URL="$DOWNLOAD_BASE/ipk/${{ inputs.feed-name }}/${{ inputs.subfolder }}/"
+        SDK_URL="$DOWNLOAD_BASE/sdk/${{ inputs.feed-name }}/${{ inputs.subfolder }}/"
+        
+        # Find actual build artifacts
+        WIC_FILE=$(find "${{ inputs.artifacts-dir }}" -name "calculinux-image-${{ inputs.machine }}.rootfs.wic.gz" | head -1)
+        RAUCB_FILE=$(find "${{ inputs.artifacts-dir }}" -name "calculinux-bundle-${{ inputs.machine }}.raucb" | head -1)
+        
+        # Find SDK files for both architectures
+        X86_64_SDK_FILE=$(find "${{ inputs.artifacts-dir }}/sdk/x86_64" -name "*.sh" -type f 2>/dev/null | head -1)
+        AARCH64_SDK_FILE=$(find "${{ inputs.artifacts-dir }}/sdk/aarch64" -name "*.sh" -type f 2>/dev/null | head -1)
+        
+        # Create download links section for tagged releases
+        DOWNLOAD_LINKS=""
+        if [ -n "$WIC_FILE" ]; then
+          # Published filename: calculinux-image-{machine}.rootfs-{tag}.wic.gz
+          WIC_VERSIONED="calculinux-image-${{ inputs.machine }}.rootfs-$TAG_NAME.wic.gz"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📱 **Full Image**: [$WIC_VERSIONED]($IMAGE_URL$WIC_VERSIONED)\n"
+        fi
+        if [ -n "$RAUCB_FILE" ]; then
+          # Published filename: calculinux-bundle-{machine}-{tag}.raucb
+          RAUCB_VERSIONED="calculinux-bundle-${{ inputs.machine }}-$TAG_NAME.raucb"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🔄 **Update Bundle**: [$RAUCB_VERSIONED]($UPDATE_URL$RAUCB_VERSIONED)\n"
+        fi
+        
+        # Add SDK links for each architecture
+        if [ -n "$X86_64_SDK_FILE" ]; then
+          CALCULINUX_SDK_NAME="calculinux-sdk-${{ inputs.machine }}-x86_64-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (x86_64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/x86_64/$CALCULINUX_SDK_NAME)\n"
+        fi
+        
+        if [ -n "$AARCH64_SDK_FILE" ]; then
+          CALCULINUX_SDK_NAME="calculinux-sdk-${{ inputs.machine }}-aarch64-$TAG_NAME.sh"
+          DOWNLOAD_LINKS="${DOWNLOAD_LINKS}🛠️ **SDK Toolchain (aarch64)**: [$CALCULINUX_SDK_NAME]($SDK_URL/aarch64/$CALCULINUX_SDK_NAME)\n"
+        fi
+        
+        # Add package feed link
+        DOWNLOAD_LINKS="${DOWNLOAD_LINKS}📦 **Package Feed**: [Browse packages]($PACKAGES_URL)\n"
+        
+        # Create Discord embed payload
+        cat > discord_payload.json << EOF
+        {
+          "embeds": [
+            {
+              "title": "🚀 New Calculinux $BUILD_TYPE Available!",
+              "description": "A new Calculinux build has been published for **${{ inputs.machine }}**",
+              "color": $COLOR,
+              "fields": [
+                {
+                  "name": "📋 Version",
+                  "value": "$VERSION",
+                  "inline": true
+                },
+                {
+                  "name": "🏷️ Build Type",
+                  "value": "$BUILD_TYPE",
+                  "inline": true
+                },
+                {
+                  "name": "💻 Target Device",
+                  "value": "${{ inputs.machine }}",
+                  "inline": true
+                },
+                {
+                  "name": "📥 Downloads",
+                  "value": "$DOWNLOAD_LINKS",
+                  "inline": false
+                }
+              ],
+              "footer": {
+                "text": "Build #${{ inputs.run-number }} • Calculinux"
+              },
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
+              "url": "${{ inputs.release-url }}"
+            }
+          ]
+        }
+        EOF
+        
+        # Send Discord notification
+        echo "Sending Discord notification for $BUILD_TYPE..."
+        HTTP_CODE=$(curl -s -o discord_response.json -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d @discord_payload.json \
+          "$DISCORD_WEBHOOK_URL")
+        
+        if [ "$HTTP_CODE" -eq 204 ]; then
+          echo "✅ Discord notification sent successfully"
+        else
+          echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
+          echo "Response:"
+          cat discord_response.json || echo "No response body"
+          exit 1
+        fi
