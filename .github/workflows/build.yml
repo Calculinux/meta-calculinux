@@ -20,6 +20,7 @@ env:
   SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
   # Package repository storage
   OPKG_REPO_DIR: /mnt/opkg-repo
+  UPDATE_BASE_URL: https://opkg.calculinux.org
 
 permissions:
   contents: write      # Needed for creating releases
@@ -306,6 +307,35 @@ jobs:
 
         ls -la | grep sha256 || true
         popd >/dev/null
+
+    - name: Publish PR RAUC bundle
+      if: github.event_name == 'pull_request'
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        MACHINE: ${{ matrix.machine }}
+      run: |
+        set -euo pipefail
+
+        SRC_BUNDLE=$(find artifacts -name "calculinux-bundle-${MACHINE}.raucb" | head -1 || true)
+        if [ -z "$SRC_BUNDLE" ]; then
+          echo "No RAUC bundle found to publish for PR"
+          exit 0
+        fi
+
+        PR_DIR="$OPKG_REPO_DIR/update/${MACHINE}/pr"
+        mkdir -p "$PR_DIR"
+
+        TARGET="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
+        cp "$SRC_BUNDLE" "$TARGET"
+        sha256sum "$TARGET" > "${TARGET}.sha256"
+
+        python3 .github/scripts/refresh_pr_channel_index.py \
+          --root "$PR_DIR" \
+          --base-url "$UPDATE_BASE_URL" \
+          --channel-path "/update/${MACHINE}/pr" \
+          --machine "$MACHINE" \
+          --feed "$MACHINE" \
+          --subfolder "pr"
 
     - name: Collect build artifacts (packages)
       run: |
