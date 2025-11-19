@@ -143,17 +143,6 @@ jobs:
       run: |
         bash .github/scripts/collect-images.sh "${{ matrix.machine }}" artifacts
 
-    - name: Publish PR RAUC bundle
-      if: github.event_name == 'pull_request'
-      run: |
-        set -euo pipefail
-        bash .github/scripts/publish-pr-bundle.sh \
-          "${{ matrix.machine }}" \
-          "${{ github.event.pull_request.number }}" \
-          "artifacts" \
-          "${{ env.OPKG_REPO_DIR }}" \
-          "${{ env.UPDATE_BASE_URL }}"
-
     - name: Collect build artifacts (packages)
       run: |
         bash .github/scripts/collect-packages.sh artifacts
