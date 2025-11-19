@@ -25,9 +25,12 @@ IMAGE_INSTALL += " \
     android-tools \
     autoconf \
     bash \
+    btrfs-tools \
     busybox \
     cloud-utils-growpart \
     curl \
+    dosfstools \
+    e2fsprogs \
     e2fsprogs-resize2fs \
     file \
     gdb \
