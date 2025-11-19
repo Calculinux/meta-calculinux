@@ -45,7 +45,6 @@ permissions:
 jobs:
   build:
     name: Build Yocto Images and Packages
-    if: ${{ !(github.event_name == 'pull_request' && github.event.action == 'closed') }}
     runs-on: [self-hosted, Linux, X64]
     
     strategy:
@@ -143,35 +142,6 @@ jobs:
     - name: Collect build artifacts (images)
       run: |
         bash .github/scripts/collect-images.sh "${{ matrix.machine }}" artifacts
-
-    - name: Publish PR RAUC bundle
-      if: github.event_name == 'pull_request'
-      env:
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-        MACHINE: ${{ matrix.machine }}
-      run: |
-        set -euo pipefail
-
-        SRC_BUNDLE=$(find artifacts -name "calculinux-bundle-${MACHINE}.raucb" | head -1 || true)
-        if [ -z "$SRC_BUNDLE" ]; then
-          echo "No RAUC bundle found to publish for PR"
-          exit 0
-        fi
-
-        PR_DIR="$OPKG_REPO_DIR/update/${MACHINE}/pr"
-        mkdir -p "$PR_DIR"
-
-        TARGET="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
-        cp "$SRC_BUNDLE" "$TARGET"
-        sha256sum "$TARGET" > "${TARGET}.sha256"
-
-        python3 .github/scripts/refresh_pr_channel_index.py \
-          --root "$PR_DIR" \
-          --base-url "$UPDATE_BASE_URL" \
-          --channel-path "/update/${MACHINE}/pr" \
-          --machine "$MACHINE" \
-          --feed "$MACHINE" \
-          --subfolder "pr"
 
     - name: Collect build artifacts (packages)
       run: |
