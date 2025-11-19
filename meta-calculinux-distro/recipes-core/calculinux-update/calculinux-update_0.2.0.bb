@@ -7,7 +7,7 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
-SRCREV = "609fb655da2f322344efe327aac7589ed9d1ea88"
+SRCREV = "af8884c082593c04fea25a8b3f998dedd91cb4d1"
 
 S = "${WORKDIR}/git"
 
