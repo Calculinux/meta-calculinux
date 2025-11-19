@@ -123,10 +123,10 @@ jobs:
         echo ""
         echo "All packages install to /usr (standard paths)"
         echo "Runtime: /usr is overlayfs - base in lower layer, user packages in upper layer"
-        
+
         # Run the build with kas-container using CI override file
         # This file includes the base kas configuration and adds CI-specific overrides
-  ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
+        ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
 
     - name: Build SDKs
       if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
