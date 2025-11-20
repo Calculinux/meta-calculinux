@@ -18,4 +18,4 @@ bootname=B
 
 [hooks]
 hooks=slot-post-install
-filename=/etc/rauc/hooks.d/opkg-status-hook.sh
+filename=/usr/bin/cup-hook

@@ -25,6 +25,7 @@ IMAGE_INSTALL += " \
     android-tools \
     autoconf \
     bash \
+    bash-completion \
     btrfs-tools \
     busybox \
     calculinux-update \
@@ -66,7 +67,7 @@ IMAGE_INSTALL += " \
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
 
-ROOTFS_POSTPROCESS_COMMAND += " calculinux_install_opkg_image_status;"
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_install_opkg_image_status; calculinux_export_bundle_extras;"
 
 calculinux_install_opkg_image_status() {
     status_dir="${IMAGE_ROOTFS}/var/lib/opkg"
@@ -84,4 +85,19 @@ calculinux_install_opkg_image_status() {
     fi
 
     : > "${status_file}"
+}
+
+calculinux_export_bundle_extras() {
+    extras_dir="${DEPLOY_DIR_IMAGE}/bundle-extras/extras/opkg"
+    rm -rf "${extras_dir}"
+    install -d "${extras_dir}"
+
+    if [ -d "${IMAGE_ROOTFS}/etc/opkg" ]; then
+        install -d "${extras_dir}/etc"
+        cp -r "${IMAGE_ROOTFS}/etc/opkg" "${extras_dir}/etc/"
+    fi
+
+    if [ -f "${IMAGE_ROOTFS}/var/lib/opkg/status.image" ]; then
+        install -m 0644 "${IMAGE_ROOTFS}/var/lib/opkg/status.image" "${extras_dir}/status.image"
+    fi
 }

@@ -1,0 +1,11 @@
+[Unit]
+Description=Calculinux post-reboot package reconciliation
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cup-postreboot
+
+[Install]
+WantedBy=multi-user.target

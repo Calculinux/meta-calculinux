@@ -6,12 +6,13 @@ validates checksums, and launches installs via rauc."
 LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
-SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
-SRCREV = "6432684ec80c06d93c9dba58902c4feef889bbda"
+SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https \
+           file://cup-postreboot.service"
+SRCREV = "f2434fd47caec6537254f22f25cf7af5235c5881"
 
 S = "${WORKDIR}/git"
 
-inherit python3-dir python3native
+inherit python3-dir python3native systemd
 
 RDEPENDS:${PN} += " \
     python3-core \
@@ -22,9 +23,13 @@ RDEPENDS:${PN} += " \
     python3-typer \
     python3-typing-extensions \
     rauc \
+    squashfs-tools \
 "
 
-FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${sysconfdir}/calculinux-update"
+FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${sysconfdir}/calculinux-update ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update"
+
+SYSTEMD_SERVICE:${PN} = "cup-postreboot.service"
+SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
 install_python_package() {
     install -d ${D}${PYTHON_SITEPACKAGES_DIR}
@@ -34,6 +39,8 @@ install_python_package() {
 install_entrypoint() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/scripts/cup ${D}${bindir}/cup
+    install -m 0755 ${S}/scripts/cup-hook ${D}${bindir}/cup-hook
+    install -m 0755 ${S}/scripts/cup-postreboot ${D}${bindir}/cup-postreboot
 }
 
 install_default_config() {
@@ -41,8 +48,20 @@ install_default_config() {
     install -m 0644 ${S}/config/calculinux-update.toml ${D}${sysconfdir}/calculinux-update/calculinux-update.toml
 }
 
+install_state_dirs() {
+    install -d ${D}${localstatedir}/cache/calculinux-update/prefetch
+    install -d ${D}${localstatedir}/lib/calculinux-update
+}
+
+install_service() {
+    install -d ${D}${systemd_system_unitdir}
+    install -m 0644 ${WORKDIR}/cup-postreboot.service ${D}${systemd_system_unitdir}/cup-postreboot.service
+}
+
 do_install() {
     install_python_package
     install_entrypoint
     install_default_config
+    install_state_dirs
+    install_service
 }
