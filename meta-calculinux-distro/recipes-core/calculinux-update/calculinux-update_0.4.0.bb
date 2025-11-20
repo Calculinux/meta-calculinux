@@ -10,7 +10,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https \
            file://cup-postreboot.service;subdir=."
-SRCREV = "f2434fd47caec6537254f22f25cf7af5235c5881"
+SRCREV = "1d61d708b9e544a542a871af4724db4ab75d058a"
 
 S = "${WORKDIR}/git"
 
@@ -28,7 +28,7 @@ RDEPENDS:${PN} += " \
     squashfs-tools \
 "
 
-FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${sysconfdir}/calculinux-update ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update"
+FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${sysconfdir}/calculinux-update ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update ${mandir}/man1"
 
 SYSTEMD_SERVICE:${PN} = "cup-postreboot.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
@@ -55,6 +55,11 @@ install_state_dirs() {
     install -d ${D}${localstatedir}/lib/calculinux-update
 }
 
+install_man_page() {
+    install -d ${D}${mandir}/man1
+    install -m 0644 ${S}/man/cup.1 ${D}${mandir}/man1/cup.1
+}
+
 install_service() {
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/sources-unpack/cup-postreboot.service ${D}${systemd_system_unitdir}/cup-postreboot.service
@@ -65,5 +70,6 @@ do_install() {
     install_entrypoint
     install_default_config
     install_state_dirs
+    install_man_page
     install_service
 }
