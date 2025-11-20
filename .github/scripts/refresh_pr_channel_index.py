@@ -14,7 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True, help="Filesystem path for the PR channel")
     parser.add_argument("--base-url", required=True, help="Public base URL (e.g. https://opkg.calculinux.org)")
-    parser.add_argument("--channel-path", required=True, help="Mirror path (e.g. /update/luckfox-lyra/pr)")
+    parser.add_argument("--channel-path", required=True, help="Mirror path (e.g. /update/walnascar/pr)")
     parser.add_argument("--machine", required=True, help="Machine name for metadata")
     parser.add_argument("--feed", help="Feed/codename identifier")
     parser.add_argument("--subfolder", help="Subfolder identifier")
@@ -50,6 +50,7 @@ def build_index(args: argparse.Namespace) -> dict:
             entries.append(
                 {
                     "name": bundle.name,
+                    "machine": args.machine,
                     "size": stat.st_size,
                     "last_modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
                     "sha256": compute_sha256(bundle),
