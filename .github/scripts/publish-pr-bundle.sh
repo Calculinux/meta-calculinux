@@ -17,13 +17,19 @@ if [ -z "$MACHINE" ] || [ -z "$PR_NUMBER" ] || [ -z "$ARTIFACTS_DIR" ] || [ -z "
   exit 1
 fi
 
-BUNDLE_PATH=$(find "$ARTIFACTS_DIR" -name "calculinux-bundle-${MACHINE}.raucb" | head -1 || true)
+BUNDLE_PATH=$(find "$ARTIFACTS_DIR" -name "calculinux-bundle-${MACHINE}-*.raucb" | head -1 || true)
 if [ -z "$BUNDLE_PATH" ]; then
   echo "No RAUC bundle found for machine ${MACHINE}; skipping PR publish"
   exit 0
 fi
 
-PR_DIR="$OPKG_REPO_DIR/update/${MACHINE}/pr"
+PR_FEED="${PR_CHANNEL_FEED:-${FEED_NAME:-${DISTRO_CODENAME:-}}}"
+if [ -z "$PR_FEED" ]; then
+  echo "PR_FEED could not be determined (set PR_CHANNEL_FEED, FEED_NAME, or DISTRO_CODENAME)." >&2
+  exit 1
+fi
+
+PR_DIR="$OPKG_REPO_DIR/update/${PR_FEED}/pr"
 mkdir -p "$PR_DIR"
 
 TARGET_BUNDLE="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
@@ -32,10 +38,12 @@ sha256sum "$TARGET_BUNDLE" > "${TARGET_BUNDLE}.sha256"
 
 echo "Published PR bundle to ${TARGET_BUNDLE}"
 
+CHANNEL_PATH="/update/${PR_FEED}/pr"
+
 python3 .github/scripts/refresh_pr_channel_index.py \
   --root "$PR_DIR" \
   --base-url "$UPDATE_BASE_URL" \
-  --channel-path "/update/${MACHINE}/pr" \
+  --channel-path "$CHANNEL_PATH" \
   --machine "$MACHINE" \
-  --feed "$MACHINE" \
+  --feed "$PR_FEED" \
   --subfolder "pr"

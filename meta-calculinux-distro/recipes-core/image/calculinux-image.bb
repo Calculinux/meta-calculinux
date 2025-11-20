@@ -27,6 +27,7 @@ IMAGE_INSTALL += " \
     bash \
     btrfs-tools \
     busybox \
+    calculinux-update \
     cloud-utils-growpart \
     curl \
     dosfstools \

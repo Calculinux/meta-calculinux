@@ -30,7 +30,7 @@ def read_digest(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def collect_entries(root: Path, pattern: str, url_prefix: str):
+def collect_entries(root: Path, pattern: str, url_prefix: str, machine: str):
     """Collect artifact entries from a directory."""
     entries = []
     if not root.exists():
@@ -46,6 +46,7 @@ def collect_entries(root: Path, pattern: str, url_prefix: str):
         stat = artifact.stat()
         entries.append({
             "name": artifact.name,
+            "machine": machine,
             "size": stat.st_size,
             "last_modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
             "sha256": read_digest(artifact),
@@ -73,13 +74,15 @@ def main():
     rauc_bundles = collect_entries(
         args.update_dir,
         "*.raucb",
-        f"/update/{args.feed_name}/{args.subfolder}"
+        f"/update/{args.feed_name}/{args.subfolder}",
+        args.machine,
     )
     
     wic_images = collect_entries(
         args.image_dir,
         "*.wic*",
-        f"/image/{args.feed_name}/{args.subfolder}"
+        f"/image/{args.feed_name}/{args.subfolder}",
+        args.machine,
     )
     
     # Build index structure
