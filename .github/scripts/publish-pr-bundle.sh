@@ -17,7 +17,7 @@ if [ -z "$MACHINE" ] || [ -z "$PR_NUMBER" ] || [ -z "$ARTIFACTS_DIR" ] || [ -z "
   exit 1
 fi
 
-BUNDLE_PATH=$(find "$ARTIFACTS_DIR" -name "calculinux-bundle-${MACHINE}.raucb" | head -1 || true)
+BUNDLE_PATH=$(find "$ARTIFACTS_DIR" -name "calculinux-bundle-${MACHINE}-*.raucb" | head -1 || true)
 if [ -z "$BUNDLE_PATH" ]; then
   echo "No RAUC bundle found for machine ${MACHINE}; skipping PR publish"
   exit 0
