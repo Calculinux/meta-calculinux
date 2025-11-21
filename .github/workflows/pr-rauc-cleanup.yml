@@ -56,7 +56,7 @@ jobs:
       run: |
         set -euo pipefail
         PR_DIR="$OPKG_REPO_DIR/update/${FEED_NAME}/pr"
-        TARGET="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
+        TARGET="$PR_DIR/${MACHINE}-pr${PR_NUMBER}.raucb"
         if [ -f "$TARGET" ]; then
           echo "Removing $TARGET"
           rm -f "$TARGET"
