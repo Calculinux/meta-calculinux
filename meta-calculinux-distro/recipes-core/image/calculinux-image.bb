@@ -39,10 +39,12 @@ IMAGE_INSTALL += " \
     gdb \
     git \
     grep \
+    groff \
     htop \
     i2c-tools \
     iw \
     iwd \
+    kbd-consolefonts \
     kbd-keymaps \
     kernel-modules \
     links \
