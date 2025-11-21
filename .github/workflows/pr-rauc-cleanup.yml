@@ -19,6 +19,9 @@ jobs:
     strategy:
       matrix:
         machine: [luckfox-lyra]
+        include:
+          - machine: luckfox-lyra
+            kas_file: "kas-luckfox-lyra-bundle.yaml"
 
     steps:
     - name: Checkout repository
@@ -26,13 +29,33 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Determine feed configuration
+      id: feed-config
+      run: |
+        set -euo pipefail
+        # For PR cleanup, we need to determine the feed name from the base branch
+        # PRs target main, so we check what feed main would use
+        TMP_FILE=$(mktemp)
+        bash .github/scripts/determine-feed-config.sh \
+          "${{ matrix.kas_file }}" \
+          "main" \
+          "branch" \
+          > "$TMP_FILE"
+        cat "$TMP_FILE"
+        while IFS='=' read -r key value; do
+          [ -z "$key" ] && continue
+          echo "$key=$value" >> "$GITHUB_OUTPUT"
+        done < "$TMP_FILE"
+        rm -f "$TMP_FILE"
+
     - name: Remove PR bundle and refresh index
       env:
         PR_NUMBER: ${{ github.event.pull_request.number }}
         MACHINE: ${{ matrix.machine }}
+        FEED_NAME: ${{ steps.feed-config.outputs.feed_name }}
       run: |
         set -euo pipefail
-        PR_DIR="$OPKG_REPO_DIR/update/${MACHINE}/pr"
+        PR_DIR="$OPKG_REPO_DIR/update/${FEED_NAME}/pr"
         TARGET="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
         if [ -f "$TARGET" ]; then
           echo "Removing $TARGET"
@@ -47,7 +70,7 @@ jobs:
         python3 .github/scripts/refresh_pr_channel_index.py \
           --root "$PR_DIR" \
           --base-url "$UPDATE_BASE_URL" \
-          --channel-path "/update/${MACHINE}/pr" \
+          --channel-path "/update/${FEED_NAME}/pr" \
           --machine "$MACHINE" \
-          --feed "$MACHINE" \
+          --feed "$FEED_NAME" \
           --subfolder "pr"
