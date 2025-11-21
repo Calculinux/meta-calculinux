@@ -10,7 +10,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https \
            file://cup-postreboot.service;subdir=."
-SRCREV = "1d61d708b9e544a542a871af4724db4ab75d058a"
+SRCREV = "222c08ead0744ba558b973bf8277f2fd1d2b732d"
 
 S = "${WORKDIR}/git"
 

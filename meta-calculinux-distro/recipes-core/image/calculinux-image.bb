@@ -89,15 +89,25 @@ calculinux_install_opkg_image_status() {
 
 calculinux_export_bundle_extras() {
     extras_dir="${DEPLOY_DIR_IMAGE}/bundle-extras/extras/opkg"
-    rm -rf "${extras_dir}"
-    install -d "${extras_dir}"
-
+    rm -rf "${DEPLOY_DIR_IMAGE}/bundle-extras"
+    
+    # Only create extras if we have data to export
+    has_data=0
+    
     if [ -d "${IMAGE_ROOTFS}/etc/opkg" ]; then
         install -d "${extras_dir}/etc"
         cp -r "${IMAGE_ROOTFS}/etc/opkg" "${extras_dir}/etc/"
+        has_data=1
     fi
 
     if [ -f "${IMAGE_ROOTFS}/var/lib/opkg/status.image" ]; then
+        install -d "${extras_dir}"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/opkg/status.image" "${extras_dir}/status.image"
+        has_data=1
+    fi
+
+    # Create a tarball only if we have data to include in the bundle
+    if [ "$has_data" = "1" ] && [ -d "${DEPLOY_DIR_IMAGE}/bundle-extras/extras" ]; then
+        tar -czf "${DEPLOY_DIR_IMAGE}/bundle-extras.tar.gz" -C "${DEPLOY_DIR_IMAGE}/bundle-extras" extras
     fi
 }
