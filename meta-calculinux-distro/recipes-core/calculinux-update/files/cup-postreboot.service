@@ -2,6 +2,11 @@
 Description=Calculinux post-reboot package reconciliation
 Wants=network-online.target
 After=network-online.target
+# Run if there are pending operations from a RAUC update OR status needs pruning
+# Note: Multiple ConditionPathExists use OR logic (run if any condition is true)
+ConditionPathExists=|/var/lib/calculinux-update/update-state.pending-reinstalls
+ConditionPathExists=|/var/lib/calculinux-update/update-state.pending-upgrades
+ConditionPathExists=|!/var/lib/calculinux-update/status-pruned
 
 [Service]
 Type=oneshot
