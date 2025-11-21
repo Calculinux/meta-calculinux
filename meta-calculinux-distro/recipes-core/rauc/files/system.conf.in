@@ -16,6 +16,5 @@ device={RAUC_SLOT_B_DEVICE}
 type=ext4
 bootname=B
 
-[hooks]
-hooks=slot-post-install
-filename=/usr/bin/cup-hook
+[handlers]
+post-install=/usr/lib/rauc/post-install-handler.sh
