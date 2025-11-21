@@ -18,6 +18,7 @@ EXTRA_USERS_PARAMS = "\
 IMAGE_FEATURES += "\
     overlayfs-etc \
     package-management \
+    doc-pkgs \
 "
 
 IMAGE_INSTALL += " \
