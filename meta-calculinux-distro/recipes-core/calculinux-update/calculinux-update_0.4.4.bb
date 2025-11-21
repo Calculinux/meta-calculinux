@@ -6,11 +6,8 @@ validates checksums, and launches installs via rauc."
 LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-
-SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https \
-           file://cup-postreboot.service;subdir=."
-SRCREV = "e0d3df057d8d93bde0eb5d5308acc72bafd61db8"
+SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
+SRCREV = "08bd5c0fa38053afbbf401a733085176024b1082"
 
 S = "${WORKDIR}/git"
 
@@ -62,7 +59,7 @@ install_man_page() {
 
 install_service() {
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/sources-unpack/cup-postreboot.service ${D}${systemd_system_unitdir}/cup-postreboot.service
+    install -m 0644 ${S}/systemd/cup-postreboot.service ${D}${systemd_system_unitdir}/cup-postreboot.service
 }
 
 do_install() {
