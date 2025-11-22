@@ -7,12 +7,12 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
-SRCREV = "495fe94bfa9a6a1e2bf462cd024721f9fd04ec01"
+SRCREV = "91465f46b0a7fa12075e41d971ed0ed2a3b441fa"
 
 S = "${WORKDIR}/git"
 
 # Use SRCPV for automatic git-based versioning (format: <base>+git<revision>)
-PV = "0.4.4+git${SRCPV}"
+PV = "0.5.0+git${SRCPV}"
 
 inherit python3-dir python3native systemd
 
@@ -29,7 +29,7 @@ RDEPENDS:${PN} += " \
     squashfs-tools \
 "
 
-FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${sysconfdir}/calculinux-update ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update ${mandir}/man1"
+FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${libdir}/calculinux-update ${sysconfdir}/calculinux-update ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update ${mandir}/man1"
 
 SYSTEMD_SERVICE:${PN} = "cup-postreboot.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
@@ -41,9 +41,10 @@ install_python_package() {
 
 install_entrypoint() {
     install -d ${D}${bindir}
+    install -d ${D}${libdir}/calculinux-update
     install -m 0755 ${S}/scripts/cup ${D}${bindir}/cup
-    install -m 0755 ${S}/scripts/cup-hook ${D}${bindir}/cup-hook
-    install -m 0755 ${S}/scripts/cup-postreboot ${D}${bindir}/cup-postreboot
+    install -m 0755 ${S}/scripts/cup-hook ${D}${libdir}/calculinux-update/cup-hook
+    install -m 0755 ${S}/scripts/cup-postreboot ${D}${libdir}/calculinux-update/cup-postreboot
 }
 
 install_default_config() {
