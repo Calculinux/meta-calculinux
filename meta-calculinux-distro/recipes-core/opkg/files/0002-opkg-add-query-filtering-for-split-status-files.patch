@@ -1,0 +1,338 @@
+From: Calculinux Project
+Subject: [PATCH] opkg: Add query filtering for split status files
+
+Add support for filtering opkg queries by package source (writable vs image status).
+This enhancement allows tools like calculinux-update to determine whether a package
+is installed in the writable layer or the base image layer.
+
+Features added:
+- Track package source (PKG_SOURCE_WRITABLE, PKG_SOURCE_IMAGE, PKG_SOURCE_BOTH)
+- Add --writable-only flag to filter queries to writable status only
+- Add --image-only flag to filter queries to image status only  
+- Add --show-source flag to display package source in output
+- Apply filtering to status, list-installed, and files commands
+
+This provides a proper API for querying package installation location without
+requiring manual parsing of status files.
+
+Upstream-Status: Pending
+
+---
+diff --git a/libopkg/opkg_cmd.c b/libopkg/opkg_cmd.c
+index 5d23b62..a08466d 100644
+--- a/libopkg/opkg_cmd.c
++++ b/libopkg/opkg_cmd.c
+@@ -638,6 +638,19 @@ static int opkg_list_installed_cmd(int argc, char **argv)
+         /* if we have package name or pattern and pkg does not match, then skip it */
+         if (pkg_name && fnmatch(pkg_name, pkg->name, 0))
+             continue;
++        
++        /* Apply source filtering */
++        if (opkg_config->query_writable_only && 
++            pkg->source != PKG_SOURCE_WRITABLE && 
++            pkg->source != PKG_SOURCE_BOTH) {
++            continue;
++        }
++        if (opkg_config->query_image_only && 
++            pkg->source != PKG_SOURCE_IMAGE && 
++            pkg->source != PKG_SOURCE_BOTH) {
++            continue;
++        }
++        
+         print_pkg(pkg);
+     }
+ 
+@@ -710,6 +723,18 @@ static int opkg_info_status_cmd(int argc, char **argv, int installed_only)
+             continue;
+         }
+ 
++        /* Apply source filtering */
++        if (opkg_config->query_writable_only && 
++            pkg->source != PKG_SOURCE_WRITABLE && 
++            pkg->source != PKG_SOURCE_BOTH) {
++            continue;
++        }
++        if (opkg_config->query_image_only && 
++            pkg->source != PKG_SOURCE_IMAGE && 
++            pkg->source != PKG_SOURCE_BOTH) {
++            continue;
++        }
++
+         pkg_formatted_info(stdout, pkg, opkg_config->fields_filter);
+ 
+         if (opkg_config->verbosity >= INFO) {
+@@ -880,6 +905,20 @@ static int opkg_files_cmd(int argc, char **argv)
+         return 0;
+     }
+ 
++    /* Apply source filtering */
++    if (opkg_config->query_writable_only && 
++        pkg->source != PKG_SOURCE_WRITABLE && 
++        pkg->source != PKG_SOURCE_BOTH) {
++        opkg_msg(ERROR, "Package %s not in writable status.\n", argv[0]);
++        return 0;
++    }
++    if (opkg_config->query_image_only && 
++        pkg->source != PKG_SOURCE_IMAGE && 
++        pkg->source != PKG_SOURCE_BOTH) {
++        opkg_msg(ERROR, "Package %s not in image status.\n", argv[0]);
++        return 0;
++    }
++
+     files = pkg_get_installed_files(pkg);
+     pkg_version = pkg_version_str_alloc(pkg);
+ 
+diff --git a/libopkg/opkg_conf.c b/libopkg/opkg_conf.c
+index 4dc777b..af790f7 100644
+--- a/libopkg/opkg_conf.c
++++ b/libopkg/opkg_conf.c
+@@ -53,6 +53,7 @@ static opkg_option_t options[] = {
+     {"lock_file", OPKG_OPT_TYPE_STRING, &_conf.lock_file},
+     {"info_dir", OPKG_OPT_TYPE_STRING, &_conf.info_dir},
+     {"status_file", OPKG_OPT_TYPE_STRING, &_conf.status_file},
++    {"image_status_file", OPKG_OPT_TYPE_STRING, &_conf.image_status_file},
+     {"force_maintainer", OPKG_OPT_TYPE_BOOL, &_conf.force_maintainer},
+     {"ignore_maintainer", OPKG_OPT_TYPE_BOOL, &_conf.ignore_maintainer},
+     {"ignore_uid", OPKG_OPT_TYPE_BOOL, &_conf.ignore_uid},
+diff --git a/libopkg/opkg_conf.h b/libopkg/opkg_conf.h
+index 3fa6ca9..34cd275 100644
+--- a/libopkg/opkg_conf.h
++++ b/libopkg/opkg_conf.h
+@@ -78,6 +78,10 @@ typedef struct opkg_conf {
+     char *lock_file;
+     char *info_dir;
+     char *status_file;
++    char *image_status_file;
++    int query_writable_only;
++    int query_image_only;
++    int show_source;
+     char *fields_filter; /* specific fields the user requests */
+ 
+     unsigned int pfm;       /* package field mask */
+diff --git a/libopkg/pkg.c b/libopkg/pkg.c
+index 6b1bd8f..b801d4c 100644
+--- a/libopkg/pkg.c
++++ b/libopkg/pkg.c
+@@ -323,6 +323,15 @@ int pkg_merge(pkg_t * oldpkg, pkg_t * newpkg)
+         return 0;
+     }
+ 
++    /* Merge source tracking: if both have different sources, mark as BOTH */
++    if (oldpkg->source != newpkg->source && 
++        oldpkg->source != PKG_SOURCE_UNKNOWN && 
++        newpkg->source != PKG_SOURCE_UNKNOWN) {
++        oldpkg->source = PKG_SOURCE_BOTH;
++    } else if (oldpkg->source == PKG_SOURCE_UNKNOWN) {
++        oldpkg->source = newpkg->source;
++    }
++
+     if (!oldpkg->auto_installed)
+         oldpkg->auto_installed = newpkg->auto_installed;
+ 
+@@ -880,6 +889,27 @@ void pkg_formatted_info(FILE * fp, pkg_t * pkg, const char *fields_filter)
+     pkg_formatted_field(fp, pkg, "Replaces", fields_filter);
+     pkg_formatted_field(fp, pkg, "Conflicts", fields_filter);
+     pkg_formatted_field(fp, pkg, "Status", fields_filter);
++    
++    /* Show package source if requested */
++    if (opkg_config->show_source) {
++        const char *source_str;
++        switch (pkg->source) {
++            case PKG_SOURCE_WRITABLE:
++                source_str = "writable";
++                break;
++            case PKG_SOURCE_IMAGE:
++                source_str = "image";
++                break;
++            case PKG_SOURCE_BOTH:
++                source_str = "both";
++                break;
++            default:
++                source_str = "unknown";
++                break;
++        }
++        fprintf(fp, "Package-Source: %s\n", source_str);
++    }
++    
+     pkg_formatted_field(fp, pkg, "Section", fields_filter);
+     pkg_formatted_field(fp, pkg, "Essential", fields_filter);
+     pkg_formatted_field(fp, pkg, "Architecture", fields_filter);
+diff --git a/libopkg/pkg.h b/libopkg/pkg.h
+index a62c065..e9424dc 100644
+--- a/libopkg/pkg.h
++++ b/libopkg/pkg.h
+@@ -66,6 +66,14 @@ enum pkg_state_flag {
+ };
+ typedef enum pkg_state_flag pkg_state_flag_t;
+ 
++enum pkg_source {
++    PKG_SOURCE_UNKNOWN = 0,
++    PKG_SOURCE_WRITABLE = 1,
++    PKG_SOURCE_IMAGE = 2,
++    PKG_SOURCE_BOTH = 3,
++};
++typedef enum pkg_source pkg_source_t;
++
+ #define SF_NONVOLATILE_FLAGS (SF_HOLD|SF_NOPRUNE|SF_PREFER|SF_OBSOLETE|SF_USER)
+ 
+ enum pkg_state_status {
+@@ -129,6 +137,7 @@ struct pkg {
+     pkg_state_want_t state_want;
+     pkg_vec_t *wanted_by;
+     pkg_state_flag_t state_flag;
++    pkg_source_t source;
+     pkg_state_status_t state_status;
+     char **depends_str;
+     unsigned int depends_count;
+diff --git a/libopkg/pkg_dest.c b/libopkg/pkg_dest.c
+index a9536d3..7bb0022 100644
+--- a/libopkg/pkg_dest.c
++++ b/libopkg/pkg_dest.c
+@@ -58,6 +58,13 @@ int pkg_dest_init(pkg_dest_t * dest, const char *name, const char *root_dir)
+     file_mkdir_hier(status_file_dir, 0755);
+     free(status_file_dir);
+ 
++    if (opkg_config->image_status_file) {
++        sprintf_alloc(&dest->image_status_file_name, "%s%s", dest->root_dir,
++                      opkg_config->image_status_file);
++    } else {
++        dest->image_status_file_name = NULL;
++    }
++
+     return 0;
+ }
+ 
+@@ -74,4 +81,7 @@ void pkg_dest_deinit(pkg_dest_t * dest)
+ 
+     free(dest->status_file_name);
+     dest->status_file_name = NULL;
++
++    free(dest->image_status_file_name);
++    dest->image_status_file_name = NULL;
+ }
+diff --git a/libopkg/pkg_dest.h b/libopkg/pkg_dest.h
+index f797f91..ff93782 100644
+--- a/libopkg/pkg_dest.h
++++ b/libopkg/pkg_dest.h
+@@ -33,6 +33,7 @@ struct pkg_dest {
+     char *root_dir;
+     char *info_dir;
+     char *status_file_name;
++    char *image_status_file_name;
+     FILE *status_fp;
+ };
+ 
+diff --git a/libopkg/pkg_hash.c b/libopkg/pkg_hash.c
+index 3ca1804..b33d9e5 100644
+--- a/libopkg/pkg_hash.c
++++ b/libopkg/pkg_hash.c
+@@ -65,7 +65,7 @@ static void free_pkgs(const char *key, void *entry, void *data)
+ }
+ 
+ static int pkg_hash_add_from_file(const char *file_name, pkg_src_t * src,
+-                           pkg_dest_t * dest, int is_status_file)
++                           pkg_dest_t * dest, int is_status_file, pkg_source_t source)
+ {
+     pkg_t *pkg;
+     FILE *fp = NULL;
+@@ -115,6 +115,7 @@ static int pkg_hash_add_from_file(const char *file_name, pkg_src_t * src,
+         pkg = pkg_new();
+         pkg->src = src;
+         pkg->dest = dest;
++        pkg->source = source;
+ 
+         ret = parse_from_stream_nomalloc(pkg_parse_line, pkg, fp, 0, &buf, len);
+         if (pkg->name == NULL) {
+@@ -179,7 +180,7 @@ static int dist_hash_add_from_file(pkg_src_t * dist)
+         sprintf_alloc(&list_file, "%s/%s", opkg_config->lists_dir, subname);
+ 
+         if (file_exists(list_file)) {
+-            r = pkg_hash_add_from_file(list_file, dist, NULL, 0);
++            r = pkg_hash_add_from_file(list_file, dist, NULL, 0, PKG_SOURCE_UNKNOWN);
+             if (r != 0) {
+                 free(list_file);
+                 return -1;
+@@ -269,7 +270,7 @@ int pkg_hash_load_feeds(void)
+                       opkg_config->compress_list_files ? ".gz" : "" );
+ 
+         if (file_exists(list_file)) {
+-            r = pkg_hash_add_from_file(list_file, src, NULL, 0);
++            r = pkg_hash_add_from_file(list_file, src, NULL, 0, PKG_SOURCE_UNKNOWN);
+             if (r != 0) {
+                 free(list_file);
+                 return -1;
+@@ -296,9 +297,17 @@ int pkg_hash_load_status_files(void)
+ 
+         dest = (pkg_dest_t *) iter->data;
+ 
++        if (dest->image_status_file_name &&
++                file_exists(dest->image_status_file_name)) {
++            int r = pkg_hash_add_from_file(dest->image_status_file_name, NULL,
++                                           dest, 1, PKG_SOURCE_IMAGE);
++            if (r != 0)
++                return -1;
++        }
++
+         if (file_exists(dest->status_file_name)) {
+             int r = pkg_hash_add_from_file(dest->status_file_name, NULL, dest,
+-                                           1);
++                                           1, PKG_SOURCE_WRITABLE);
+             if (r != 0)
+                 return -1;
+         }
+diff --git a/man/opkg.conf.5.in b/man/opkg.conf.5.in
+index 94296e7..f6e06a0 100644
+--- a/man/opkg.conf.5.in
++++ b/man/opkg.conf.5.in
+@@ -249,6 +249,11 @@ CURL's SSL Key Type.
+ Location of the status file.
+ This file contains all the status of all current/previously installed packages.
+ .TP
++\fBimage_status_file\fP
++Optional read-only status file that represents package metadata built into the
++base image. When set, opkg loads this file first and then merges the writable
++\fBstatus_file\fP on top. The file is never modified by opkg.
++.TP
+ \fBtmp_dir\fP
+ Temp directory for unpacking a package before loading into the filesystem.
+ .TP
+diff --git a/src/opkg.c b/src/opkg.c
+index 6249fd9..b8e071e 100644
+--- a/src/opkg.c
++++ b/src/opkg.c
+@@ -67,6 +67,9 @@ enum {
+     ARGS_OPT_HOST_CACHE_DIR,
+     ARGS_OPT_SHORT_DESCRIPTION,
+     ARGS_OPT_FIELDS_FILTER,
++    ARGS_OPT_WRITABLE_ONLY,
++    ARGS_OPT_IMAGE_ONLY,
++    ARGS_OPT_SHOW_SOURCE,
+ };
+ 
+ static struct option long_options[] = {
+@@ -126,6 +129,9 @@ static struct option long_options[] = {
+     {"volatile-cache", 0, 0, ARGS_OPT_VOLATILE_CACHE},
+     {"short-description", 0, 0, ARGS_OPT_SHORT_DESCRIPTION},
+     {"fields", 1, 0, ARGS_OPT_FIELDS_FILTER},
++    {"writable-only", 0, 0, ARGS_OPT_WRITABLE_ONLY},
++    {"image-only", 0, 0, ARGS_OPT_IMAGE_ONLY},
++    {"show-source", 0, 0, ARGS_OPT_SHOW_SOURCE},
+     {"verbosity", 2, 0, 'V'},
+     {"version", 0, 0, 'v'},
+     {0, 0, 0, 0}
+@@ -333,6 +339,15 @@ static int args_parse_stage2(int argc, char *argv[])
+         case ARGS_OPT_COMBINE:
+             opkg_config->combine = 1;
+             break;
++        case ARGS_OPT_WRITABLE_ONLY:
++            opkg_config->query_writable_only = 1;
++            break;
++        case ARGS_OPT_IMAGE_ONLY:
++            opkg_config->query_image_only = 1;
++            break;
++        case ARGS_OPT_SHOW_SOURCE:
++            opkg_config->show_source = 1;
++            break;
+         default:
+             fprintf(stderr, "Encountered unhandled option %d during command line parsing\n", c);
+         }
