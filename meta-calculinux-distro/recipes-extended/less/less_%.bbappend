@@ -8,7 +8,7 @@ SRC_URI += "file://less.sh"
 do_install:append() {
     # Install environment configuration for less
     install -d ${D}${sysconfdir}/profile.d
-    install -m 0644 ${WORKDIR}/less.sh ${D}${sysconfdir}/profile.d/less.sh
+    install -m 0755 ${UNPACKDIR}/less.sh ${D}${sysconfdir}/profile.d/less.sh
 }
 
 FILES:${PN} += "${sysconfdir}/profile.d/less.sh"
