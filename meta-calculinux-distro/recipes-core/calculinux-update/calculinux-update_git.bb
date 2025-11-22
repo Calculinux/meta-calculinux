@@ -18,13 +18,13 @@ inherit python3-dir python3native systemd
 
 RDEPENDS:${PN} += " \
     python3-core \
+    python3-difflib \
     python3-httpx \
     python3-mmap \
     python3-rich \
     python3-tomllib \
     python3-typer \
     python3-typing-extensions \
-    python3-urllib \
     rauc \
     squashfs-tools \
 "
