@@ -10,7 +10,7 @@ PICO_PASSWORD = "\$6\$G4enDnQY4liXfauo\$UUz007.Y/oxzq6A5.LaTizALFZVjlEA3iDbMqHhq
 
 
 EXTRA_USERS_PARAMS = "\
-    useradd -G wheel -s /bin/bash pico; \
+    useradd -G wheel,video,render -s /bin/bash pico; \
     usermod -p '${PASSWD}' root; \
     usermod -p '${PICO_PASSWORD}' pico; \
 "
@@ -43,16 +43,21 @@ IMAGE_INSTALL += " \
     iwd \
     kbd-keymaps \
     kernel-modules \
+    libdrm-tests \
+    libsdl2 \
     links \
     man-db \
     mtd-utils \
     musl-locales \
+    notcurses \
+    notcurses-tools \
     ntp \
     openssh \
     opkg \
     overlayfs-tools \
     packagegroup-core-buildessential \
     rauc \
+    sdl2-test \
     shadow \
     sudo \
     systemd-analyze \
