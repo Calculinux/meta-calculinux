@@ -24,6 +24,7 @@ RDEPENDS:${PN} += " \
     python3-tomllib \
     python3-typer \
     python3-typing-extensions \
+    python3-urllib \
     rauc \
     squashfs-tools \
 "
