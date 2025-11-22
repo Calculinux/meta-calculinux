@@ -28,7 +28,7 @@ do_install:append() {
         fi
         
         # Enhance the font
-        python3 ${WORKDIR}/enhance-psf-unicode.py "$input_font" "${input_font}.enhanced" || continue
+        python3 ${UNPACKDIR}/enhance-psf-unicode.py "$input_font" "${input_font}.enhanced" || continue
         
         # Replace original with enhanced version
         if [ "$needs_compress" = "1" ]; then
