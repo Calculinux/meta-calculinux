@@ -28,10 +28,6 @@ do_install() {
 
 FILES:${PN} = "${bindir}/ovl-restore"
 
-# Runtime dependency on overlay kernel module
-# Note: This is a runtime-only dependency, not a build dependency
-RDEPENDS:${PN} = "kernel-module-overlay"
-RRECOMMENDS:${PN} = ""
-
-# Allow runtime dependency without build dependency
-INSANE_SKIP:${PN} += "build-deps"
+# Note: Requires CONFIG_OVERLAY_FS to be enabled in the kernel
+# Since overlayfs is built into the kernel (not a module), there's no
+# runtime package dependency needed
