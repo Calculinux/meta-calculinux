@@ -34,9 +34,18 @@ FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${libdir}/calculinux-update ${sysconf
 SYSTEMD_SERVICE:${PN} = "cup-postreboot.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
+# Compile Python modules to bytecode for faster startup
+PACKAGE_PREPROCESS_FUNCS += "compile_python_modules"
+
 install_python_package() {
     install -d ${D}${PYTHON_SITEPACKAGES_DIR}
     cp -r ${S}/src/calculinux_update ${D}${PYTHON_SITEPACKAGES_DIR}/
+}
+
+compile_python_modules() {
+    # Compile Python modules to optimized bytecode (.pyc) for faster startup
+    # Using optimization level 2 (-OO) removes docstrings and assertions
+    ${STAGING_BINDIR_NATIVE}/python3-native/python3 -OO -m compileall -f -q ${D}${PYTHON_SITEPACKAGES_DIR}/calculinux_update
 }
 
 install_entrypoint() {

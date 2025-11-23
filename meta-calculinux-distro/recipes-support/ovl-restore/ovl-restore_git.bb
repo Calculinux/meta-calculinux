@@ -17,7 +17,7 @@ PV = "1.0.0+git${SRCPV}"
 do_compile() {
     # Set cross-compilation variables
     oe_runmake CC="${CC}" \
-               CFLAGS="${CFLAGS} -I${WORKDIR}/git/include/uapi" \
+               CFLAGS="${CFLAGS}" \
                LDFLAGS="${LDFLAGS}"
 }
 
@@ -28,4 +28,10 @@ do_install() {
 
 FILES:${PN} = "${bindir}/ovl-restore"
 
+# Runtime dependency on overlay kernel module
+# Note: This is a runtime-only dependency, not a build dependency
 RDEPENDS:${PN} = "kernel-module-overlay"
+RRECOMMENDS:${PN} = ""
+
+# Allow runtime dependency without build dependency
+INSANE_SKIP:${PN} += "build-deps"
