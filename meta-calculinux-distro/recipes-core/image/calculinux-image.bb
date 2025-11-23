@@ -59,6 +59,7 @@ IMAGE_INSTALL += " \
     openssh \
     opkg \
     overlayfs-tools \
+    ovl-restore \
     packagegroup-core-buildessential \
     rauc \
     sdl2-test \

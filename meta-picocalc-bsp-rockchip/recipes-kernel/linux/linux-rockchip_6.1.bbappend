@@ -21,6 +21,7 @@ SRC_URI = " \
     file://filesystems.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
+    file://overlayfs-restore-lower.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \
