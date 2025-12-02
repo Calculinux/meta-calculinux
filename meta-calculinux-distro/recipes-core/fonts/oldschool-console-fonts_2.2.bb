@@ -7,7 +7,7 @@ LIC_FILES_CHKSUM = "file://LICENSE.TXT;md5=e277f2eefa979e093628e4fb368f5044"
 # Use shared scripts from kbd files directory
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-SRC_URI = "https://int10h.org/oldschool_pc_font_pack_${PV}_linux.zip \
+SRC_URI = "https://int10h.org/oldschool-pc-fonts/download/oldschool_pc_font_pack_v${PV}_linux.zip \
            file://simple.equivalents \
            file://unicode-all.set \
            file://enhance-psf-unicode.py \
