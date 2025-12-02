@@ -25,7 +25,7 @@ new file mode 100644
 index 000000000..c0b063910
 --- /dev/null
 +++ b/Documentation/filesystems/overlayfs-ioctl.md
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,133 @@
 +# OverlayFS Lower Layer Restoration ioctl
 +
 +## Overview
@@ -78,7 +78,7 @@ index 000000000..c0b063910
 +- Verifies upper dentry exists and is actually a whiteout
 +- Uses proper credentials (`ovl_override_creds()`)
 +- Locks parent directory during removal
-+- Invalidates dentry cache with `d_drop()` - no remount needed!
++- Invalidates dentry cache with `d_drop()` - no remount needed
 +
 +### 3. Userspace Tool (`tools/ovl-restore/`)
 +
@@ -92,14 +92,6 @@ index 000000000..c0b063910
 +
 +- Added `.unlocked_ioctl = ovl_ioctl` to `ovl_file_operations`
 +- Updated Makefile to compile `ioctl.o`
-+
-+## Benefits
-+
-+**Surgical precision** - Restore specific lower layer files without affecting others  
-+**No remount required** - Dentry invalidation happens automatically  
-+**Better performance** - Faster than full filesystem remount  
-+**Safer operation** - Kernel validates all operations atomically  
-+**User-friendly semantics** - Explicit "restore lower layer file" operation
 +
 +## Usage Example
 +
@@ -125,7 +117,7 @@ index 000000000..c0b063910
 +# Restore a single file
 +ovl-restore / /usr/bin/foo
 +
-+# Restore multiple files  
++# Restore multiple files
 +ovl-restore / /usr/bin/foo /usr/lib/libbar.so
 +
 +# Can also be used in scripts
@@ -170,22 +162,13 @@ index 000000000..c0b063910
 +cat /tmp/merged/test.txt  # Should print "lower"
 +```
 +
-+## Files Modified
-+
-+- `include/uapi/linux/overlayfs.h` - New file, UAPI header
-+- `fs/overlayfs/ioctl.c` - New file, ioctl implementation  
-+- `fs/overlayfs/overlayfs.h` - Added function declaration
-+- `fs/overlayfs/file.c` - Added .unlocked_ioctl handler
-+- `fs/overlayfs/Makefile` - Added ioctl.o to build
-+- `tools/ovl-restore/` - New directory with userspace tool
-+
 diff --git a/fs/overlayfs/Makefile b/fs/overlayfs/Makefile
 index 9164c585e..69957a9d2 100644
 --- a/fs/overlayfs/Makefile
 +++ b/fs/overlayfs/Makefile
 @@ -6,4 +6,4 @@
  obj-$(CONFIG_OVERLAY_FS) += overlay.o
- 
+
  overlay-objs := super.o namei.o util.o inode.o file.o dir.o readdir.o \
 -		copy_up.o export.o
 +		copy_up.o export.o ioctl.o
@@ -198,7 +181,7 @@ index cc0c07716..7540e87fc 100644
  	.splice_read    = generic_file_splice_read,
  	.splice_write   = ovl_splice_write,
 +	.unlocked_ioctl	= ovl_ioctl,
- 
+
  	.copy_file_range	= ovl_copy_file_range,
  	.remap_file_range	= ovl_remap_file_range,
 diff --git a/fs/overlayfs/ioctl.c b/fs/overlayfs/ioctl.c
@@ -363,7 +346,7 @@ index a3c59ac01..7659d4eed 100644
 @@ -683,6 +683,9 @@ int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa);
  int ovl_fileattr_set(struct user_namespace *mnt_userns,
  		     struct dentry *dentry, struct fileattr *fa);
- 
+
 +/* ioctl.c */
 +long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 +
@@ -559,7 +542,7 @@ index 000000000..48ded7f93
 +	printf("\nAll files restored successfully\n");
 +	return 0;
 +}
--- 
+--
 2.51.0
 
 
@@ -584,11 +567,11 @@ index 375b2d2cf..b7a37a9c9 100644
 +#include <linux/xattr.h>
  #include <uapi/linux/overlayfs.h>
  #include "overlayfs.h"
- 
+
 @@ -73,11 +74,21 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
  	/* Lock the parent directory */
  	inode_lock(upper_dir);
- 
+
 +	/* Check if user has permission to delete from parent directory
 +	 * We check this BEFORE elevating credentials to prevent privilege escalation
 +	 */
@@ -601,22 +584,22 @@ index 375b2d2cf..b7a37a9c9 100644
  	old_cred = ovl_override_creds(dentry->d_sb);
  	err = vfs_unlink(ovl_upper_mnt_userns(ofs), upper_dir, upper_dentry, NULL);
  	revert_creds(old_cred);
- 
+
 +out_unlock:
 +
  	inode_unlock(upper_dir);
  	dput(upper_parent);
- 
+
 @@ -130,7 +141,7 @@ long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  		if (!pathname)
  			return -ENOMEM;
- 
+
 -		if (copy_from_user(pathname, (char __user *)args.path_ptr,
 +		if (copy_from_user(pathname, (char __user *)(uintptr_t)args.path_ptr,
  				   args.path_len)) {
  			kfree(pathname);
  			return -EFAULT;
--- 
+--
 2.51.0
 
 
@@ -643,7 +626,7 @@ index b7a37a9c9..49f86c65d 100644
 +++ b/fs/overlayfs/ioctl.c
 @@ -15,25 +15,24 @@
  #include "overlayfs.h"
- 
+
  /**
 - * ovl_restore_lower_by_path - Restore visibility of a lower layer file
 + * ovl_check_restorable - Check if a path has a restorable whiteout
@@ -675,12 +658,12 @@ index b7a37a9c9..49f86c65d 100644
  	struct path path;
 -	const struct cred *old_cred;
  	int err;
- 
+
  	/* Must have a writable upper layer */
 @@ -67,6 +66,50 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
  		goto out_path_put;
  	}
- 
+
 +	/* Success - file is restorable */
 +	if (upper_dentry_out)
 +		*upper_dentry_out = dget(upper_dentry);
@@ -729,11 +712,11 @@ index b7a37a9c9..49f86c65d 100644
  	upper_parent = dget_parent(upper_dentry);
  	upper_dir = d_inode(upper_parent);
 @@ -91,6 +134,7 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
- 
+
  	inode_unlock(upper_dir);
  	dput(upper_parent);
 +	dput(upper_dentry);
- 
+
  	if (err)
  		goto out_path_put;
 @@ -113,40 +157,42 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
@@ -751,30 +734,30 @@ index b7a37a9c9..49f86c65d 100644
 +	struct ovl_is_restorable_args restorable_args;
  	char *pathname;
  	long err;
- 
+
  	switch (cmd) {
  	case OVL_IOC_RESTORE_LOWER:
  		/* Copy arguments from userspace */
 -		if (copy_from_user(&args, argp, sizeof(args)))
 +		if (copy_from_user(&restore_args, argp, sizeof(restore_args)))
  			return -EFAULT;
- 
+
  		/* Validate flags (must be 0 for now) */
 -		if (args.flags != 0)
 +		if (restore_args.flags != 0)
  			return -EINVAL;
- 
+
  		/* Validate path length */
 -		if (args.path_len == 0 || args.path_len > PATH_MAX)
 +		if (restore_args.path_len == 0 || restore_args.path_len > PATH_MAX)
  			return -EINVAL;
- 
+
  		/* Allocate and copy path string */
 -		pathname = kmalloc(args.path_len + 1, GFP_KERNEL);
 +		pathname = kmalloc(restore_args.path_len + 1, GFP_KERNEL);
  		if (!pathname)
  			return -ENOMEM;
- 
+
 -		if (copy_from_user(pathname, (char __user *)(uintptr_t)args.path_ptr,
 -				   args.path_len)) {
 +		if (copy_from_user(pathname, (char __user *)(uintptr_t)restore_args.path_ptr,
@@ -784,13 +767,13 @@ index b7a37a9c9..49f86c65d 100644
  		}
 -		pathname[args.path_len] = '\0';
 +		pathname[restore_args.path_len] = '\0';
- 
+
  		/* Perform the operation */
  		err = ovl_restore_lower_by_path(dentry, pathname);
 @@ -154,6 +200,37 @@ long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  		kfree(pathname);
  		return err;
- 
+
 +	case OVL_IOC_IS_RESTORABLE:
 +		/* Copy arguments from userspace */
 +		if (copy_from_user(&restorable_args, argp, sizeof(restorable_args)))
@@ -832,7 +815,7 @@ index 7c09107cb..36139d593 100644
 @@ -32,6 +32,28 @@ struct ovl_restore_lower_args {
  	__u32 flags;			/* Reserved for future use, must be 0 */
  };
- 
+
 +/*
 + * OVL_IOC_IS_RESTORABLE - Check if a file can be restored
 + *
@@ -856,14 +839,14 @@ index 7c09107cb..36139d593 100644
 +
  #define OVL_IOC_RESTORE_LOWER _IOW('O', 1, struct ovl_restore_lower_args)
 +#define OVL_IOC_IS_RESTORABLE _IOR('O', 2, struct ovl_is_restorable_args)
- 
+
  #endif /* _UAPI_LINUX_OVERLAYFS_H */
 diff --git a/tools/ovl-restore/ovl-restore.c b/tools/ovl-restore/ovl-restore.c
 index 48ded7f93..bb9b9bf61 100644
 --- a/tools/ovl-restore/ovl-restore.c
 +++ b/tools/ovl-restore/ovl-restore.c
 @@ -31,16 +31,20 @@
- 
+
  static void usage(const char *progname)
  {
 -	fprintf(stderr, "Usage: %s <overlay-mount-point> <path>...\n", progname);
@@ -883,11 +866,11 @@ index 48ded7f93..bb9b9bf61 100644
 +	fprintf(stderr, "  %s --test / /usr/bin/foo\n", progname);
  	exit(1);
  }
- 
+
 @@ -62,17 +66,43 @@ static int restore_lower(int fd, const char *path)
  	return 0;
  }
- 
+
 +static int is_restorable(int fd, const char *path)
 +{
 +	struct ovl_is_restorable_args args;
@@ -913,7 +896,7 @@ index 48ded7f93..bb9b9bf61 100644
 +	int fd, i, start_index;
  	int errors = 0;
 +	int test_mode = 0;
- 
+
 -	if (argc < 3) {
 +	/* Parse options */
 +	start_index = 1;
@@ -925,20 +908,20 @@ index 48ded7f93..bb9b9bf61 100644
 +	if (argc < start_index + 2) {
  		usage(argv[0]);
  	}
- 
+
 -	mount_point = argv[1];
 +	mount_point = argv[start_index];
- 
+
  	/* Open the overlay mount point */
  	fd = open(mount_point, O_RDONLY | O_DIRECTORY);
 @@ -83,17 +113,28 @@ int main(int argc, char **argv)
  	}
- 
+
  	/* Process each path */
 -	for (i = 2; i < argc; i++) {
 +	for (i = start_index + 1; i < argc; i++) {
  		const char *path = argv[i];
- 
+
 -		printf("Restoring: %s\n", path);
 -
 -		if (restore_lower(fd, path) < 0) {
@@ -967,11 +950,11 @@ index 48ded7f93..bb9b9bf61 100644
 +			}
  		}
  	}
- 
+
 @@ -104,6 +145,10 @@ int main(int argc, char **argv)
  		return 1;
  	}
- 
+
 -	printf("\nAll files restored successfully\n");
 +	if (test_mode) {
 +		printf("\nAll files are restorable\n");
@@ -980,6 +963,5 @@ index 48ded7f93..bb9b9bf61 100644
 +	}
  	return 0;
  }
--- 
+--
 2.51.0
-
