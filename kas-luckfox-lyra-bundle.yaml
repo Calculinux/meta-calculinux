@@ -76,7 +76,7 @@ local_conf_header:
     "
 
     PICOCALC_DRIVERS = "\
-      picocalc-drivers-lcd \
+      picocalc-drivers-lcd-drm \
       picocalc-drivers-snd-pwm \
       picocalc-drivers-snd-softpwm \
       picocalc-drivers-mfd \
