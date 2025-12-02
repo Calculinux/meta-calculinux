@@ -31,7 +31,10 @@ do_install() {
     # Install support files (encodings, equivalents, sets)
     install -d ${D}${datadir}/bdf2psf
     cp -r ${S}/Fonts/fontsets ${D}${datadir}/bdf2psf/
-    cp -r ${S}/Fonts/charmaps ${D}${datadir}/bdf2psf/
+    
+    # Install equivalents and set files directly
+    install -m 0644 ${S}/Fonts/*.equivalents ${D}${datadir}/bdf2psf/ || true
+    install -m 0644 ${S}/Fonts/*.set ${D}${datadir}/bdf2psf/ || true
     
     # Install man page
     install -d ${D}${mandir}/man1
