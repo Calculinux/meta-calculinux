@@ -3,7 +3,6 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append := " \
                     file://fstab \
                     file://locale.sh \
-                    file://vconsole.conf \
                   "
                   
 do_install:append() {
@@ -11,9 +10,6 @@ do_install:append() {
     install -m 0644 ${WORKDIR}/sources/locale.sh ${D}${sysconfdir}/profile.d/locale.sh
 
     install -d ${D}${sysconfdir}
-    
-    # Install vconsole.conf for default console font
-    install -m 0644 ${WORKDIR}/sources/vconsole.conf ${D}${sysconfdir}/vconsole.conf
 
     codename="${DISTRO_CODENAME}"
     [ -n "${codename}" ] || codename="unknown"
