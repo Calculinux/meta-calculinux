@@ -6,7 +6,7 @@ to PSF for Linux console use."
 HOMEPAGE = "https://github.com/robhagemans/hoard-of-bitfonts"
 SECTION = "fonts"
 LICENSE = "MIT & OFL-1.1 & PD"
-LIC_FILES_CHKSUM = "file://LICENSE.md;md5=bb4f3c7e024810b7ec7c501b1a0db5fc"
+LIC_FILES_CHKSUM = "file://LICENSE.md;md5=924fe9b10d28aff609225302c6a0b892"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
@@ -17,26 +17,18 @@ SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "python3-native"
+DEPENDS = "python3-monobit-native python3-native"
 
 inherit python3native
 
-# Install monobit converter at build time
-do_configure:prepend() {
-    # Install monobit Python package
-    ${PYTHON} -m pip install --target=${WORKDIR}/monobit-install monobit
-}
-
 do_compile() {
-    export PYTHONPATH="${WORKDIR}/monobit-install:${PYTHONPATH}"
-    
     # Create output directory
     mkdir -p ${B}/psf-fonts
     
     # Convert fonts from the specified collection
     # FONT_COLLECTION should be set by the specific recipe
     if [ -n "${FONT_COLLECTION}" ]; then
-        for font in ${S}/${FONT_COLLECTION}/*.yaff; do
+        for font in "${S}/${FONT_COLLECTION}"/*.yaff; do
             [ -f "$font" ] || continue
             base=$(basename "$font" .yaff)
             
