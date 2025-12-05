@@ -55,5 +55,5 @@ do_install() {
     cp -r --no-preserve=ownership ${AIC8800_GITDIR}/src/USB/driver_fw/fw/. ${D}${nonarch_base_libdir}/firmware/aic8800/USB/
 
     install -d ${D}${sysconfdir}/udev/rules.d
-    install -m 0644 ${WORKDIR}/99-aic8800-usb.rules ${D}${sysconfdir}/udev/rules.d/
+    install -m 0644 ${WORKDIR}/sources-unpack/99-aic8800-usb.rules ${D}${sysconfdir}/udev/rules.d/
 }
