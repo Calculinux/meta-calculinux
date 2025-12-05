@@ -7,7 +7,7 @@ index 0270623..d557a1d 100644
  #define FW_PATH_MAX 200
  #if defined(CONFIG_PLATFORM_UBUNTU)
 -static const char* aic_default_fw_path = "/lib/firmware";
-+static const char* aic_default_fw_path = "/lib/firmware/aic8800_fw/USB";
++static const char* aic_default_fw_path = "/lib/firmware/aic8800/USB";
  #else
  static const char* aic_default_fw_path = "/vendor/etc/firmware";
  #endif
@@ -20,7 +20,7 @@ index 1fad30f..3ea564e 100644
  char aic_fw_path[FW_PATH_MAX];
  #if (CONFIG_BLUEDROID == 0)
 -static const char* aic_default_fw_path = "/lib/firmware/aic8800DC";
-+static const char* aic_default_fw_path = "/lib/firmware/aic8800_fw/USB/aic8800DC";
++static const char* aic_default_fw_path = "/lib/firmware/aic8800/USB/aic8800DC";
  #else
  static const char* aic_default_fw_path = "/vendor/etc/firmware";
  #endif
