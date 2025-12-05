@@ -4,11 +4,13 @@ SRC_URI:append := " \
                     file://fstab \
                     file://locale.sh \
                     file://vconsole.conf \
+                    file://bash_completion.sh \
                   "
                   
 do_install:append() {
     install -d ${D}${sysconfdir}/profile.d
     install -m 0644 ${WORKDIR}/sources/locale.sh ${D}${sysconfdir}/profile.d/locale.sh
+    install -m 0644 ${WORKDIR}/sources/bash_completion.sh ${D}${sysconfdir}/profile.d/bash_completion.sh
 
     install -d ${D}${sysconfdir}
     
