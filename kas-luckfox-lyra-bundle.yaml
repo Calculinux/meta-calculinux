@@ -55,7 +55,6 @@ local_conf_header:
       linux-firmware-rtl8761 \
       linux-firmware-rtl8168 \
       linux-firmware-rtl8822 \
-      linux-firmware-rtl8192 \
       linux-firmware-rtl8710 \
       linux-firmware-rtl8812 \
       linux-firmware-rtl8851 \
