@@ -55,13 +55,6 @@ local_conf_header:
       linux-firmware-rtl8761 \
       linux-firmware-rtl8168 \
       linux-firmware-rtl8822 \
-      linux-firmware-rtl8710 \
-      linux-firmware-rtl8812 \
-      linux-firmware-rtl8851 \
-      linux-firmware-rtl8852 \
-      linux-firmware-rtl8922 \
-      linux-firmware-rtl8703 \
-      linux-firmware-rtl8814 \
     "
     
     EXTRA_WIFI_DRIVERS = "\
