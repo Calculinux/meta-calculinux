@@ -45,6 +45,18 @@ local_conf_header:
   image: |
     INHERIT:append = " rockchip-image"
     
+    WIFI_FIRMWARE = "\
+      linux-firmware-rtl8188 \
+      linux-firmware-rtl8192cu \
+      linux-firmware-rtl8192ce \
+      linux-firmware-rtl8192su \
+      linux-firmware-rtl8723 \
+      linux-firmware-rtl8821 \
+      linux-firmware-rtl8761 \
+      linux-firmware-rtl8168 \
+      linux-firmware-rtl8822 \
+    "
+    
     EXTRA_WIFI_DRIVERS = "\
       aic8800 \
       rtl8188fu \
@@ -62,4 +74,4 @@ local_conf_header:
       picocalc-drivers-mfd \
     "
 
-    CORE_IMAGE_EXTRA_INSTALL += " ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
+    CORE_IMAGE_EXTRA_INSTALL += " ${WIFI_FIRMWARE} ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
