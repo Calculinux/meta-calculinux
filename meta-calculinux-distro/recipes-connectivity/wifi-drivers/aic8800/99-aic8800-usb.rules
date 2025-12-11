@@ -1,0 +1,9 @@
+# AIC8800 USB WiFi/Bluetooth adapter udev rules
+# The AIC8800 initially presents itself as a USB mass storage device
+# which needs to be ejected to switch to WiFi/Bluetooth mode
+
+# AIC8800 USB WiFi/Bluetooth adapter (vendor:a69c, product:5721)
+KERNEL=="sd*", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="5721", SYMLINK+="aicudisk", RUN+="/usr/bin/eject /dev/%k"
+
+# Tenda USB WiFi adapter using AIC8800 chipset (vendor:a69c, product:5723)
+KERNEL=="sd*", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="5723", SYMLINK+="tendaudisk", RUN+="/usr/bin/eject /dev/%k"
