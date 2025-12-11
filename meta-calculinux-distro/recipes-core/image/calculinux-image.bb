@@ -18,6 +18,7 @@ EXTRA_USERS_PARAMS = "\
 IMAGE_FEATURES += "\
     overlayfs-etc \
     package-management \
+    doc-pkgs \
 "
 
 IMAGE_INSTALL += " \
@@ -25,6 +26,7 @@ IMAGE_INSTALL += " \
     android-tools \
     autoconf \
     bash \
+    bash-completion \
     btrfs-tools \
     busybox \
     calculinux-update \
@@ -37,10 +39,13 @@ IMAGE_INSTALL += " \
     gdb \
     git \
     grep \
+    groff \
+    hoard-of-bitfonts-commodore \
     htop \
     i2c-tools \
     iw \
     iwd \
+    kbd-consolefonts \
     kbd-keymaps \
     kernel-modules \
     libdrm-tests \
@@ -52,6 +57,7 @@ IMAGE_INSTALL += " \
     notcurses \
     notcurses-tools \
     ntp \
+    oldschool-console-fonts \
     openssh \
     opkg \
     overlayfs-tools \
