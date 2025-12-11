@@ -20,6 +20,47 @@ RDEPENDS:${PN} = " \
     emacs-full \
     glkcli \
     glkterm \
+    hoard-of-bitfonts-acorn \
+    hoard-of-bitfonts-amiga \
+    hoard-of-bitfonts-amstrad \
+    hoard-of-bitfonts-apple \
+    hoard-of-bitfonts-atari \
+    hoard-of-bitfonts-banner \
+    hoard-of-bitfonts-commodore \
+    hoard-of-bitfonts-crt8002 \
+    hoard-of-bitfonts-custom \
+    hoard-of-bitfonts-datapoint \
+    hoard-of-bitfonts-dec \
+    hoard-of-bitfonts-elan-enterprise \
+    hoard-of-bitfonts-elektronika \
+    hoard-of-bitfonts-epson \
+    hoard-of-bitfonts-fujitsu \
+    hoard-of-bitfonts-gem \
+    hoard-of-bitfonts-geos \
+    hoard-of-bitfonts-hellschreiber \
+    hoard-of-bitfonts-hp \
+    hoard-of-bitfonts-jupiter-cantab \
+    hoard-of-bitfonts-kyotronic \
+    hoard-of-bitfonts-msx \
+    hoard-of-bitfonts-ncr7250 \
+    hoard-of-bitfonts-nec-pc \
+    hoard-of-bitfonts-next \
+    hoard-of-bitfonts-oric \
+    hoard-of-bitfonts-os2 \
+    hoard-of-bitfonts-palm \
+    hoard-of-bitfonts-pc \
+    hoard-of-bitfonts-pc-geos \
+    hoard-of-bitfonts-rk86 \
+    hoard-of-bitfonts-robotron \
+    hoard-of-bitfonts-sharp \
+    hoard-of-bitfonts-sinclair \
+    hoard-of-bitfonts-teletext \
+    hoard-of-bitfonts-texas-instruments \
+    hoard-of-bitfonts-trs80 \
+    hoard-of-bitfonts-various \
+    hoard-of-bitfonts-videoton-tvc \
+    hoard-of-bitfonts-windows \
+    hoard-of-bitfonts-xerox \
     iotop \
     jq \
     kiwix-tools \
@@ -27,6 +68,8 @@ RDEPENDS:${PN} = " \
     mc \
     meshtasticd \
     nano \
+    oldschool-console-fonts \
+    terminus-font \
     nmap \
     nodejs \
     nodejs-npm \
