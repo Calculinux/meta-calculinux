@@ -32,9 +32,6 @@ DEPENDS = " \
     pkgconfig-native \
 "
 
-# Only compatible with Picocalc target
-COMPATIBLE_MACHINE = "luckfox-lyra"
-
 # Upsilon's build system requires these
 # For TOOLCHAIN=host-gcc with TARGET=picocalc, Upsilon builds a simulator binary
 # Use bare compiler names to avoid Yocto's incompatible flags
