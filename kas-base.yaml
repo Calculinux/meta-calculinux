@@ -25,6 +25,15 @@ repos:
       meta-networking:
       meta-filesystems:
       meta-multimedia:
+  meta-retro:
+    url: https://github.com/dev-0x7C6/meta-retro.git
+    commit: 4d8736a2037fcc901d1a79a45c0e61538554245e
+    layers:
+      .:
+    patches:
+      0001-meta-retro-walnascar-compat.patch:
+        repo: meta-calculinux
+        path: patches/meta-retro-walnascar-compat.patch
   meta-calculinux:
     layers:
       meta-calculinux-distro:
@@ -37,6 +46,10 @@ local_conf_header:
     RM_OLD_IMAGE = "1"
     INHERIT += "rm_work"
     KERNEL_CLASSES += "kernel-fitimage"
+  meta-retro-fixes: |
+    # Skip problematic recipes from meta-retro that use AUTOREV or have missing dependencies
+    BBMASK += "meta-retro/recipes-extended/slipr"
+    BBMASK += "meta-retro/recipes-graphics/mesa"
   diskmon: |
     BB_DISKMON_DIRS ??= "\
         STOPTASKS,${TMPDIR},1G,100K \

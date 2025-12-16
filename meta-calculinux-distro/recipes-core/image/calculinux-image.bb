@@ -23,6 +23,10 @@ IMAGE_FEATURES += "\
 
 IMAGE_INSTALL += " \
     acpid \
+    alsa-lib \
+    alsa-plugins \
+    alsa-tools \
+    alsa-utils \
     android-tools \
     autoconf \
     bash \
@@ -49,7 +53,9 @@ IMAGE_INSTALL += " \
     kbd-keymaps \
     kernel-modules \
     libdrm-tests \
+    libsdl \
     libsdl2 \
+    freetype \
     links \
     man-db \
     mtd-utils \
