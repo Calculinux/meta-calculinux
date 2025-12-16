@@ -14,6 +14,10 @@ export SDL_VIDEODRIVER=kmsdrm
 # Use software rendering backend by default
 export SDL_RENDER_DRIVER=software
 
+# Configure evdev input devices
+# Format: SDL_EVDEV_DEVICES=numdevs,/path/to/dev1,/path/to/dev2,...
+export SDL_EVDEV_DEVICES=2,/dev/input/event0
+
 # Disable mouse cursor (useful for touch-only devices)
 # Uncomment if needed:
 # export SDL_VIDEO_KMSDRM_SHOW_CURSOR=0
