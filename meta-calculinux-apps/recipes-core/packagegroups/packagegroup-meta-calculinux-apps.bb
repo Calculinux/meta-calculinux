@@ -15,9 +15,14 @@ PACKAGES = "${PN}"
 RDEPENDS:${PN} = " \
     android-adbd \
     basilisk-ii \
+    beetle-pce-fast-libretro \
     cargo \
     circumflex \
+    dosbox-pure-libretro \
     emacs-full \
+    fceumm-libretro \
+    frodo-libretro \
+    gambatte-libretro \
     glkcli \
     glkterm \
     hoard-of-bitfonts-acorn \
@@ -65,27 +70,34 @@ RDEPENDS:${PN} = " \
     jq \
     kiwix-tools \
     lsof \
+    mame2003-plus-libretro \
     mc \
     meshtasticd \
     nano \
-    oldschool-console-fonts \
-    terminus-font \
     nmap \
     nodejs \
     nodejs-npm \
     notcurses \
     notcurses-demos \
+    oldschool-console-fonts \
+    pcsx-rearmed-libretro \
+    picoarch \
+    picodrive-libretro \
     python3 \
     python3-pip \
     reddit-tui \
+    retro8-libretro \
     rsync \
     rust \
     screen \
     sdl2-test \
+    snes9x-libretro \
     sysstat \
     tcpdump \
+    terminus-font \
     tmux \
     tree \
+    vice-libretro \
     vim \
     x48ng \
     zerotier-one \
