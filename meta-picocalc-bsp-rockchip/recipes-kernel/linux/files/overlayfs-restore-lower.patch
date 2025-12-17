@@ -1,0 +1,967 @@
+From c9d05e18e90da4ebb0ad17cf21ccdcbb95eddcf7 Mon Sep 17 00:00:00 2001
+From: Ben <benklop@gmail.com>
+Date: Sat, 22 Nov 2025 20:08:51 -0500
+Subject: [PATCH 1/3] Add ioctl for restoring lower layer files in OverlayFS
+
+This commit introduces the OVL_IOC_RESTORE_LOWER ioctl to the OverlayFS filesystem, allowing users to restore visibility of lower layer files by removing whiteouts from the upper layer. It includes kernel implementation, user-space tooling, and comprehensive documentation for usage and integration.
+---
+ Documentation/filesystems/overlayfs-ioctl.md | 217 ++++++++++++++++
+ fs/overlayfs/Makefile                        |   2 +-
+ fs/overlayfs/file.c                          |   1 +
+ fs/overlayfs/ioctl.c                         | 149 +++++++++++
+ fs/overlayfs/overlayfs.h                     |   3 +
+ include/uapi/linux/overlayfs.h               |  37 +++
+ tools/ovl-restore/Makefile                   |  25 ++
+ tools/ovl-restore/ovl-restore.c              | 109 ++++++++
+ 9 files changed, 798 insertions(+), 1 deletion(-)
+ create mode 100644 Documentation/filesystems/overlayfs-ioctl.md
+ create mode 100644 fs/overlayfs/ioctl.c
+ create mode 100644 include/uapi/linux/overlayfs.h
+ create mode 100644 tools/ovl-restore/Makefile
+ create mode 100644 tools/ovl-restore/ovl-restore.c
+
+diff --git a/Documentation/filesystems/overlayfs-ioctl.md b/Documentation/filesystems/overlayfs-ioctl.md
+new file mode 100644
+index 000000000..c0b063910
+--- /dev/null
++++ b/Documentation/filesystems/overlayfs-ioctl.md
+@@ -0,0 +1,133 @@
++# OverlayFS Lower Layer Restoration ioctl
++
++## Overview
++
++This patch adds a new ioctl `OVL_IOC_RESTORE_LOWER` to the overlayfs filesystem that allows userspace to restore visibility of lower layer files by removing whiteouts from the upper layer.
++
++## Motivation
++
++In dual-layer package management systems (like Calculinux), a common scenario arises:
++
++1. User installs a package into the overlay layer (e.g., SDL library)
++2. A system update includes a newer version of that package in the base image
++3. During reconciliation, the old overlay package is removed with `opkg remove`
++4. OverlayFS creates whiteout files (char device 0:0) for each removed file
++5. These whiteouts persist, blocking access to the newer base image version
++
++Previously, the only solution was to:
++- Manually delete whiteout files from the upper layer
++- Remount the entire filesystem to refresh the dentry cache
++
++This patch provides a cleaner, more surgical approach.
++
++## Implementation
++
++The patch consists of four main components:
++
++### 1. UAPI Header (`include/uapi/linux/overlayfs.h`)
++
++Defines the ioctl interface:
++
++```c
++struct ovl_restore_lower_args {
++    __aligned_u64 path_ptr;  /* Pointer to path string */
++    __u32 path_len;          /* Length of path string */
++    __u32 flags;             /* Reserved for future use */
++};
++
++#define OVL_IOC_RESTORE_LOWER _IOW('O', 1, struct ovl_restore_lower_args)
++```
++
++### 2. Kernel Implementation (`fs/overlayfs/ioctl.c`)
++
++Two main functions:
++
++- `ovl_restore_lower_by_path()` - Core logic to remove whiteout and invalidate dentry
++- `ovl_ioctl()` - ioctl handler that validates arguments and calls restoration function
++
++Key features:
++- Validates path is within the overlay
++- Verifies upper dentry exists and is actually a whiteout
++- Uses proper credentials (`ovl_override_creds()`)
++- Locks parent directory during removal
++- Invalidates dentry cache with `d_drop()` - no remount needed
++
++### 3. Userspace Tool (`tools/ovl-restore/`)
++
++Simple command-line tool to use the ioctl:
++
++```bash
++ovl-restore / /usr/bin/foo /usr/lib/libbar.so
++```
++
++### 4. Integration (`fs/overlayfs/file.c` and `Makefile`)
++
++- Added `.unlocked_ioctl = ovl_ioctl` to `ovl_file_operations`
++- Updated Makefile to compile `ioctl.o`
++
++## Usage Example
++
++### From C code:
++
++```c
++#include <linux/overlayfs.h>
++
++int fd = open("/", O_RDONLY | O_DIRECTORY);
++struct ovl_restore_lower_args args = {
++    .path_ptr = (uint64_t)"/usr/bin/foo",
++    .path_len = strlen("/usr/bin/foo"),
++    .flags = 0
++};
++
++if (ioctl(fd, OVL_IOC_RESTORE_LOWER, &args) < 0)
++    perror("Failed to restore lower layer file");
++```
++
++### From shell (using ovl-restore tool):
++
++```bash
++# Restore a single file
++ovl-restore / /usr/bin/foo
++
++# Restore multiple files
++ovl-restore / /usr/bin/foo /usr/lib/libbar.so
++
++# Can also be used in scripts
++for file in $(cat whiteout-list.txt); do
++    ovl-restore / "$file"
++done
++```
++
++## Error Codes
++
++- `0` - Success
++- `-ENOENT` - No whiteout exists at the specified path
++- `-EINVAL` - Path is invalid or doesn't point to a whiteout
++- `-EPERM` - Caller lacks permissions
++- `-EROFS` - Overlay is read-only (no upper layer)
++- `-EFAULT` - Bad address in arguments
++- `-ENOMEM` - Out of memory
++- `-ENOTTY` - Invalid ioctl command
++
++## Testing
++
++The implementation can be tested with:
++
++```bash
++# Mount an overlayfs
++mkdir -p /tmp/lower /tmp/upper /tmp/work /tmp/merged
++mount -t overlay overlay -o lowerdir=/tmp/lower,upperdir=/tmp/upper,workdir=/tmp/work /tmp/merged
++
++# Create a file in lower
++echo "lower" > /tmp/lower/test.txt
++
++# Create a whiteout in upper (simulate package removal)
++rm /tmp/merged/test.txt
++
++# Verify whiteout exists
++ls -la /tmp/upper/  # Should show c--------- 1 root root 0, 0 test.txt
++
++# Restore the file
++./ovl-restore /tmp/merged /tmp/merged/test.txt
++
++# Verify file is visible again
++cat /tmp/merged/test.txt  # Should print "lower"
++```
++
+diff --git a/fs/overlayfs/Makefile b/fs/overlayfs/Makefile
+index 9164c585e..69957a9d2 100644
+--- a/fs/overlayfs/Makefile
++++ b/fs/overlayfs/Makefile
+@@ -6,4 +6,4 @@
+ obj-$(CONFIG_OVERLAY_FS) += overlay.o
+
+ overlay-objs := super.o namei.o util.o inode.o file.o dir.o readdir.o \
+-		copy_up.o export.o
++		copy_up.o export.o ioctl.o
+diff --git a/fs/overlayfs/file.c b/fs/overlayfs/file.c
+index cc0c07716..7540e87fc 100644
+--- a/fs/overlayfs/file.c
++++ b/fs/overlayfs/file.c
+@@ -694,6 +694,7 @@ const struct file_operations ovl_file_operations = {
+ 	.flush		= ovl_flush,
+ 	.splice_read    = generic_file_splice_read,
+ 	.splice_write   = ovl_splice_write,
++	.unlocked_ioctl	= ovl_ioctl,
+
+ 	.copy_file_range	= ovl_copy_file_range,
+ 	.remap_file_range	= ovl_remap_file_range,
+diff --git a/fs/overlayfs/ioctl.c b/fs/overlayfs/ioctl.c
+new file mode 100644
+index 000000000..375b2d2cf
+--- /dev/null
++++ b/fs/overlayfs/ioctl.c
+@@ -0,0 +1,149 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Copyright (C) 2025 Calculinux Project
++ * Author: Ben Klop
++ *
++ * Overlayfs ioctl operations
++ */
++
++#include <linux/fs.h>
++#include <linux/mount.h>
++#include <linux/namei.h>
++#include <linux/uaccess.h>
++#include <uapi/linux/overlayfs.h>
++#include "overlayfs.h"
++
++/**
++ * ovl_restore_lower_by_path - Restore visibility of a lower layer file
++ * @dentry: overlay dentry
++ * @pathname: path relative to overlay mount point
++ *
++ * This function removes a whiteout character device from the upper layer,
++ * making the corresponding lower layer file visible again. It also
++ * invalidates the dentry cache entry to ensure the change is immediately
++ * visible.
++ *
++ * Returns 0 on success, negative error code on failure.
++ */
++static int ovl_restore_lower_by_path(struct dentry *dentry,
++					const char *pathname)
++{
++	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
++	struct dentry *overlay_dentry, *upper_dentry, *upper_parent;
++	struct inode *upper_dir;
++	struct path path;
++	const struct cred *old_cred;
++	int err;
++
++	/* Must have a writable upper layer */
++	if (!ovl_upper_mnt(ofs))
++		return -EROFS;
++
++	/* Lookup the overlay path */
++	err = kern_path(pathname, 0, &path);
++	if (err)
++		return err;
++
++	overlay_dentry = path.dentry;
++
++	/* Verify it's in our overlay */
++	if (overlay_dentry->d_sb != dentry->d_sb) {
++		err = -EINVAL;
++		goto out_path_put;
++	}
++
++	/* Get the upper dentry */
++	upper_dentry = ovl_dentry_upper(overlay_dentry);
++	if (!upper_dentry) {
++		/* No upper dentry means no whiteout to remove */
++		err = -ENOENT;
++		goto out_path_put;
++	}
++
++	/* Verify it's actually a whiteout */
++	if (!ovl_is_whiteout(upper_dentry)) {
++		err = -EINVAL;
++		goto out_path_put;
++	}
++
++	/* Get the parent directory */
++	upper_parent = dget_parent(upper_dentry);
++	upper_dir = d_inode(upper_parent);
++
++	/* Lock the parent directory */
++	inode_lock(upper_dir);
++
++	/* Remove the whiteout with proper credentials */
++	old_cred = ovl_override_creds(dentry->d_sb);
++	err = vfs_unlink(ovl_upper_mnt_userns(ofs), upper_dir, upper_dentry, NULL);
++	revert_creds(old_cred);
++
++	inode_unlock(upper_dir);
++	dput(upper_parent);
++
++	if (err)
++		goto out_path_put;
++
++	/* Invalidate the dentry to force a fresh lookup */
++	d_drop(overlay_dentry);
++
++	pr_debug("restored lower layer file for %s\n", pathname);
++
++out_path_put:
++	path_put(&path);
++	return err;
++}
++
++/**
++ * ovl_ioctl - Handle overlay filesystem ioctl commands
++ * @file: file pointer
++ * @cmd: ioctl command
++ * @arg: ioctl argument
++ *
++ * Currently supports:
++ *   OVL_IOC_RESTORE_LOWER - Restore lower layer file visibility
++ */
++long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
++{
++	struct dentry *dentry = file->f_path.dentry;
++	void __user *argp = (void __user *)arg;
++	struct ovl_restore_lower_args args;
++	char *pathname;
++	long err;
++
++	switch (cmd) {
++	case OVL_IOC_RESTORE_LOWER:
++		/* Copy arguments from userspace */
++		if (copy_from_user(&args, argp, sizeof(args)))
++			return -EFAULT;
++
++		/* Validate flags (must be 0 for now) */
++		if (args.flags != 0)
++			return -EINVAL;
++
++		/* Validate path length */
++		if (args.path_len == 0 || args.path_len > PATH_MAX)
++			return -EINVAL;
++
++		/* Allocate and copy path string */
++		pathname = kmalloc(args.path_len + 1, GFP_KERNEL);
++		if (!pathname)
++			return -ENOMEM;
++
++		if (copy_from_user(pathname, (char __user *)args.path_ptr,
++				   args.path_len)) {
++			kfree(pathname);
++			return -EFAULT;
++		}
++		pathname[args.path_len] = '\0';
++
++		/* Perform the operation */
++		err = ovl_restore_lower_by_path(dentry, pathname);
++
++		kfree(pathname);
++		return err;
++
++	default:
++		return -ENOTTY;
++	}
++}
+diff --git a/fs/overlayfs/overlayfs.h b/fs/overlayfs/overlayfs.h
+index a3c59ac01..7659d4eed 100644
+--- a/fs/overlayfs/overlayfs.h
++++ b/fs/overlayfs/overlayfs.h
+@@ -683,6 +683,9 @@ int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+ int ovl_fileattr_set(struct user_namespace *mnt_userns,
+ 		     struct dentry *dentry, struct fileattr *fa);
+
++/* ioctl.c */
++long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
++
+ /* copy_up.c */
+ int ovl_copy_up(struct dentry *dentry);
+ int ovl_copy_up_with_data(struct dentry *dentry);
+diff --git a/include/uapi/linux/overlayfs.h b/include/uapi/linux/overlayfs.h
+new file mode 100644
+index 000000000..7c09107cb
+--- /dev/null
++++ b/include/uapi/linux/overlayfs.h
+@@ -0,0 +1,37 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++/*
++ * Overlayfs filesystem user API
++ */
++
++#ifndef _UAPI_LINUX_OVERLAYFS_H
++#define _UAPI_LINUX_OVERLAYFS_H
++
++#include <linux/types.h>
++#include <linux/ioctl.h>
++
++/*
++ * OVL_IOC_RESTORE_LOWER - Restore visibility of a lower layer file
++ *
++ * This ioctl removes a whiteout file from the upper layer, making the
++ * corresponding file in the lower layer visible again. This is useful
++ * when a lower-layer file has been unintentionally hidden by whiteout
++ * creation (e.g., after removing a duplicate package in a layered system).
++ *
++ * The path should be relative to the overlay mount point.
++ *
++ * Returns:
++ *   0 on success
++ *   -ENOENT if no whiteout exists at the specified path
++ *   -EINVAL if path is invalid or doesn't point to a whiteout
++ *   -EPERM if caller lacks permissions
++ *   -EROFS if overlay is read-only
++ */
++struct ovl_restore_lower_args {
++	__aligned_u64 path_ptr;		/* Pointer to path string */
++	__u32 path_len;			/* Length of path string */
++	__u32 flags;			/* Reserved for future use, must be 0 */
++};
++
++#define OVL_IOC_RESTORE_LOWER _IOW('O', 1, struct ovl_restore_lower_args)
++
++#endif /* _UAPI_LINUX_OVERLAYFS_H */
+diff --git a/tools/ovl-restore/Makefile b/tools/ovl-restore/Makefile
+new file mode 100644
+index 000000000..73546a04a
+--- /dev/null
++++ b/tools/ovl-restore/Makefile
+@@ -0,0 +1,25 @@
++# SPDX-License-Identifier: GPL-2.0
++# Makefile for ovl-restore tool
++
++CC = $(CROSS_COMPILE)gcc
++CFLAGS = -Wall -Wextra -O2 -I../../include/uapi
++LDFLAGS =
++
++PROG = ovl-restore
++OBJS = ovl-restore.o
++
++all: $(PROG)
++
++$(PROG): $(OBJS)
++	$(CC) $(LDFLAGS) -o $@ $^
++
++%.o: %.c
++	$(CC) $(CFLAGS) -c -o $@ $<
++
++clean:
++	rm -f $(PROG) $(OBJS)
++
++install: $(PROG)
++	install -D -m 0755 $(PROG) $(DESTDIR)/usr/bin/$(PROG)
++
++.PHONY: all clean install
+diff --git a/tools/ovl-restore/ovl-restore.c b/tools/ovl-restore/ovl-restore.c
+new file mode 100644
+index 000000000..48ded7f93
+--- /dev/null
++++ b/tools/ovl-restore/ovl-restore.c
+@@ -0,0 +1,109 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * ovl-restore - Restore visibility of overlayfs lower layer files
++ *
++ * Copyright (C) 2025 Calculinux Project
++ * Author: Ben Klop
++ *
++ * This tool uses the OVL_IOC_RESTORE_LOWER ioctl to remove whiteout
++ * files from an overlayfs upper layer, making the corresponding files
++ * in the lower layer visible again.
++ *
++ * Usage:
++ *   ovl-restore <overlay-mount-point> <path>...
++ *
++ * Example:
++ *   # Restore a single file
++ *   ovl-restore / /usr/bin/foo
++ *
++ *   # Restore multiple files
++ *   ovl-restore / /usr/bin/foo /usr/lib/libbar.so
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <sys/ioctl.h>
++#include <linux/overlayfs.h>
++
++static void usage(const char *progname)
++{
++	fprintf(stderr, "Usage: %s <overlay-mount-point> <path>...\n", progname);
++	fprintf(stderr, "\n");
++	fprintf(stderr, "Restore visibility of overlayfs lower layer files.\n");
++	fprintf(stderr, "\n");
++	fprintf(stderr, "Arguments:\n");
++	fprintf(stderr, "  overlay-mount-point  Path to the overlay filesystem mount\n");
++	fprintf(stderr, "  path                 One or more paths to restore (absolute paths)\n");
++	fprintf(stderr, "\n");
++	fprintf(stderr, "Example:\n");
++	fprintf(stderr, "  %s / /usr/bin/foo /usr/lib/libbar.so\n", progname);
++	exit(1);
++}
++
++static int restore_lower(int fd, const char *path)
++{
++	struct ovl_restore_lower_args args;
++	int ret;
++
++	args.path_ptr = (__u64)(unsigned long)path;
++	args.path_len = strlen(path);
++	args.flags = 0;
++
++	ret = ioctl(fd, OVL_IOC_RESTORE_LOWER, &args);
++	if (ret < 0) {
++		perror("OVL_IOC_RESTORE_LOWER");
++		return -1;
++	}
++
++	return 0;
++}
++
++int main(int argc, char **argv)
++{
++	const char *mount_point;
++	int fd, i;
++	int errors = 0;
++
++	if (argc < 3) {
++		usage(argv[0]);
++	}
++
++	mount_point = argv[1];
++
++	/* Open the overlay mount point */
++	fd = open(mount_point, O_RDONLY | O_DIRECTORY);
++	if (fd < 0) {
++		fprintf(stderr, "Error: Cannot open mount point '%s': %s\n",
++			mount_point, strerror(errno));
++		return 1;
++	}
++
++	/* Process each path */
++	for (i = 2; i < argc; i++) {
++		const char *path = argv[i];
++
++		printf("Restoring: %s\n", path);
++
++		if (restore_lower(fd, path) < 0) {
++			fprintf(stderr, "Error: Failed to restore '%s': %s\n",
++				path, strerror(errno));
++			errors++;
++		} else {
++			printf("Successfully restored: %s\n", path);
++		}
++	}
++
++	close(fd);
++
++	if (errors > 0) {
++		fprintf(stderr, "\nCompleted with %d error(s)\n", errors);
++		return 1;
++	}
++
++	printf("\nAll files restored successfully\n");
++	return 0;
++}
+--
+2.51.0
+
+
+From c63f6e3c316406f03a7312d1cd7ae60703265594 Mon Sep 17 00:00:00 2001
+From: Ben <benklop@gmail.com>
+Date: Sat, 22 Nov 2025 21:07:49 -0500
+Subject: [PATCH 2/3] Enhance ovl_restore_lower_by_path to check user
+ permissions before credential elevation and fix pointer casting in ovl_ioctl
+
+---
+ fs/overlayfs/ioctl.c | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/fs/overlayfs/ioctl.c b/fs/overlayfs/ioctl.c
+index 375b2d2cf..b7a37a9c9 100644
+--- a/fs/overlayfs/ioctl.c
++++ b/fs/overlayfs/ioctl.c
+@@ -10,6 +10,7 @@
+ #include <linux/mount.h>
+ #include <linux/namei.h>
+ #include <linux/uaccess.h>
++#include <linux/xattr.h>
+ #include <uapi/linux/overlayfs.h>
+ #include "overlayfs.h"
+
+@@ -73,11 +74,21 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
+ 	/* Lock the parent directory */
+ 	inode_lock(upper_dir);
+
++	/* Check if user has permission to delete from parent directory
++	 * We check this BEFORE elevating credentials to prevent privilege escalation
++	 */
++	err = inode_permission(ovl_upper_mnt_userns(ofs), upper_dir,
++			       MAY_WRITE | MAY_EXEC);
++	if (err)
++		goto out_unlock;
++
+ 	/* Remove the whiteout with proper credentials */
+ 	old_cred = ovl_override_creds(dentry->d_sb);
+ 	err = vfs_unlink(ovl_upper_mnt_userns(ofs), upper_dir, upper_dentry, NULL);
+ 	revert_creds(old_cred);
+
++out_unlock:
++
+ 	inode_unlock(upper_dir);
+ 	dput(upper_parent);
+
+@@ -130,7 +141,7 @@ long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 		if (!pathname)
+ 			return -ENOMEM;
+
+-		if (copy_from_user(pathname, (char __user *)args.path_ptr,
++		if (copy_from_user(pathname, (char __user *)(uintptr_t)args.path_ptr,
+ 				   args.path_len)) {
+ 			kfree(pathname);
+ 			return -EFAULT;
+--
+2.51.0
+
+
+From 17a93b249b6c7b68986a3f26aa16da4864d5118b Mon Sep 17 00:00:00 2001
+From: Ben <benklop@gmail.com>
+Date: Sat, 22 Nov 2025 21:43:59 -0500
+Subject: [PATCH 3/3] Add OVL_IOC_IS_RESTORABLE ioctl and ovl-restore --test
+ flag
+
+- Add new IS_RESTORABLE ioctl to check if a file can be restored without
+  actually performing the restoration
+- Refactor ovl_restore_lower_by_path to use new ovl_check_restorable helper
+- Add --test/-t flag to ovl-restore tool for testing file restorability
+- Both ioctls now share common path validation logic
+---
+ fs/overlayfs/ioctl.c            | 115 ++++++++++++++++++++++++++------
+ include/uapi/linux/overlayfs.h  |  22 ++++++
+ tools/ovl-restore/ovl-restore.c |  71 ++++++++++++++++----
+ 3 files changed, 176 insertions(+), 32 deletions(-)
+
+diff --git a/fs/overlayfs/ioctl.c b/fs/overlayfs/ioctl.c
+index b7a37a9c9..49f86c65d 100644
+--- a/fs/overlayfs/ioctl.c
++++ b/fs/overlayfs/ioctl.c
+@@ -15,25 +15,24 @@
+ #include "overlayfs.h"
+
+ /**
+- * ovl_restore_lower_by_path - Restore visibility of a lower layer file
++ * ovl_check_restorable - Check if a path has a restorable whiteout
+  * @dentry: overlay dentry
+  * @pathname: path relative to overlay mount point
++ * @upper_dentry_out: optional pointer to store upper dentry (caller must dput)
++ * @path_out: optional pointer to store path (caller must path_put)
+  *
+- * This function removes a whiteout character device from the upper layer,
+- * making the corresponding lower layer file visible again. It also
+- * invalidates the dentry cache entry to ensure the change is immediately
+- * visible.
++ * Checks if the given path has a whiteout in the upper layer that can be
++ * removed to restore the lower layer file.
+  *
+- * Returns 0 on success, negative error code on failure.
++ * Returns 0 if restorable, negative error code otherwise.
+  */
+-static int ovl_restore_lower_by_path(struct dentry *dentry,
+-					const char *pathname)
++static int ovl_check_restorable(struct dentry *dentry, const char *pathname,
++				struct dentry **upper_dentry_out,
++				struct path *path_out)
+ {
+ 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
+-	struct dentry *overlay_dentry, *upper_dentry, *upper_parent;
+-	struct inode *upper_dir;
++	struct dentry *overlay_dentry, *upper_dentry;
+ 	struct path path;
+-	const struct cred *old_cred;
+ 	int err;
+
+ 	/* Must have a writable upper layer */
+@@ -67,6 +66,50 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
+ 		goto out_path_put;
+ 	}
+
++	/* Success - file is restorable */
++	if (upper_dentry_out)
++		*upper_dentry_out = dget(upper_dentry);
++	if (path_out)
++		*path_out = path;
++	else
++		path_put(&path);
++
++	return 0;
++
++out_path_put:
++	path_put(&path);
++	return err;
++}
++
++/**
++ * ovl_restore_lower_by_path - Restore visibility of a lower layer file
++ * @dentry: overlay dentry
++ * @pathname: path relative to overlay mount point
++ *
++ * This function removes a whiteout character device from the upper layer,
++ * making the corresponding lower layer file visible again. It also
++ * invalidates the dentry cache entry to ensure the change is immediately
++ * visible.
++ *
++ * Returns 0 on success, negative error code on failure.
++ */
++static int ovl_restore_lower_by_path(struct dentry *dentry,
++					const char *pathname)
++{
++	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
++	struct dentry *overlay_dentry, *upper_dentry, *upper_parent;
++	struct inode *upper_dir;
++	struct path path;
++	const struct cred *old_cred;
++	int err;
++
++	/* Check if file is restorable and get the path/upper_dentry */
++	err = ovl_check_restorable(dentry, pathname, &upper_dentry, &path);
++	if (err)
++		return err;
++
++	overlay_dentry = path.dentry;
++
+ 	/* Get the parent directory */
+ 	upper_parent = dget_parent(upper_dentry);
+ 	upper_dir = d_inode(upper_parent);
+@@ -91,6 +134,7 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
+
+ 	inode_unlock(upper_dir);
+ 	dput(upper_parent);
++	dput(upper_dentry);
+
+ 	if (err)
+ 		goto out_path_put;
+@@ -113,40 +157,42 @@ static int ovl_restore_lower_by_path(struct dentry *dentry,
+  *
+  * Currently supports:
+  *   OVL_IOC_RESTORE_LOWER - Restore lower layer file visibility
++ *   OVL_IOC_IS_RESTORABLE - Check if file can be restored
+  */
+ long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
+ 	struct dentry *dentry = file->f_path.dentry;
+ 	void __user *argp = (void __user *)arg;
+-	struct ovl_restore_lower_args args;
++	struct ovl_restore_lower_args restore_args;
++	struct ovl_is_restorable_args restorable_args;
+ 	char *pathname;
+ 	long err;
+
+ 	switch (cmd) {
+ 	case OVL_IOC_RESTORE_LOWER:
+ 		/* Copy arguments from userspace */
+-		if (copy_from_user(&args, argp, sizeof(args)))
++		if (copy_from_user(&restore_args, argp, sizeof(restore_args)))
+ 			return -EFAULT;
+
+ 		/* Validate flags (must be 0 for now) */
+-		if (args.flags != 0)
++		if (restore_args.flags != 0)
+ 			return -EINVAL;
+
+ 		/* Validate path length */
+-		if (args.path_len == 0 || args.path_len > PATH_MAX)
++		if (restore_args.path_len == 0 || restore_args.path_len > PATH_MAX)
+ 			return -EINVAL;
+
+ 		/* Allocate and copy path string */
+-		pathname = kmalloc(args.path_len + 1, GFP_KERNEL);
++		pathname = kmalloc(restore_args.path_len + 1, GFP_KERNEL);
+ 		if (!pathname)
+ 			return -ENOMEM;
+
+-		if (copy_from_user(pathname, (char __user *)(uintptr_t)args.path_ptr,
+-				   args.path_len)) {
++		if (copy_from_user(pathname, (char __user *)(uintptr_t)restore_args.path_ptr,
++				   restore_args.path_len)) {
+ 			kfree(pathname);
+ 			return -EFAULT;
+ 		}
+-		pathname[args.path_len] = '\0';
++		pathname[restore_args.path_len] = '\0';
+
+ 		/* Perform the operation */
+ 		err = ovl_restore_lower_by_path(dentry, pathname);
+@@ -154,6 +200,37 @@ long ovl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 		kfree(pathname);
+ 		return err;
+
++	case OVL_IOC_IS_RESTORABLE:
++		/* Copy arguments from userspace */
++		if (copy_from_user(&restorable_args, argp, sizeof(restorable_args)))
++			return -EFAULT;
++
++		/* Validate flags (must be 0 for now) */
++		if (restorable_args.flags != 0)
++			return -EINVAL;
++
++		/* Validate path length */
++		if (restorable_args.path_len == 0 || restorable_args.path_len > PATH_MAX)
++			return -EINVAL;
++
++		/* Allocate and copy path string */
++		pathname = kmalloc(restorable_args.path_len + 1, GFP_KERNEL);
++		if (!pathname)
++			return -ENOMEM;
++
++		if (copy_from_user(pathname, (char __user *)(uintptr_t)restorable_args.path_ptr,
++				   restorable_args.path_len)) {
++			kfree(pathname);
++			return -EFAULT;
++		}
++		pathname[restorable_args.path_len] = '\0';
++
++		/* Check if file is restorable */
++		err = ovl_check_restorable(dentry, pathname, NULL, NULL);
++
++		kfree(pathname);
++		return err;
++
+ 	default:
+ 		return -ENOTTY;
+ 	}
+diff --git a/include/uapi/linux/overlayfs.h b/include/uapi/linux/overlayfs.h
+index 7c09107cb..36139d593 100644
+--- a/include/uapi/linux/overlayfs.h
++++ b/include/uapi/linux/overlayfs.h
+@@ -32,6 +32,28 @@ struct ovl_restore_lower_args {
+ 	__u32 flags;			/* Reserved for future use, must be 0 */
+ };
+
++/*
++ * OVL_IOC_IS_RESTORABLE - Check if a file can be restored
++ *
++ * This ioctl checks whether a given path has a whiteout in the upper layer
++ * that can be removed to restore the lower layer file. This allows userspace
++ * to query restorability without actually performing the restoration.
++ *
++ * Uses the same argument structure as OVL_IOC_RESTORE_LOWER.
++ *
++ * Returns:
++ *   0 if the file is restorable (has a whiteout)
++ *   -ENOENT if no whiteout exists at the specified path
++ *   -EINVAL if path is invalid
++ *   -EROFS if overlay is read-only (no upper layer)
++ */
++struct ovl_is_restorable_args {
++	__aligned_u64 path_ptr;		/* Pointer to path string */
++	__u32 path_len;			/* Length of path string */
++	__u32 flags;			/* Reserved for future use, must be 0 */
++};
++
+ #define OVL_IOC_RESTORE_LOWER _IOW('O', 1, struct ovl_restore_lower_args)
++#define OVL_IOC_IS_RESTORABLE _IOR('O', 2, struct ovl_is_restorable_args)
+
+ #endif /* _UAPI_LINUX_OVERLAYFS_H */
+diff --git a/tools/ovl-restore/ovl-restore.c b/tools/ovl-restore/ovl-restore.c
+index 48ded7f93..bb9b9bf61 100644
+--- a/tools/ovl-restore/ovl-restore.c
++++ b/tools/ovl-restore/ovl-restore.c
+@@ -31,16 +31,20 @@
+
+ static void usage(const char *progname)
+ {
+-	fprintf(stderr, "Usage: %s <overlay-mount-point> <path>...\n", progname);
++	fprintf(stderr, "Usage: %s [OPTIONS] <overlay-mount-point> <path>...\n", progname);
+ 	fprintf(stderr, "\n");
+ 	fprintf(stderr, "Restore visibility of overlayfs lower layer files.\n");
+ 	fprintf(stderr, "\n");
++	fprintf(stderr, "Options:\n");
++	fprintf(stderr, "  --test, -t       Test if files are restorable without restoring them\n");
++	fprintf(stderr, "\n");
+ 	fprintf(stderr, "Arguments:\n");
+ 	fprintf(stderr, "  overlay-mount-point  Path to the overlay filesystem mount\n");
+ 	fprintf(stderr, "  path                 One or more paths to restore (absolute paths)\n");
+ 	fprintf(stderr, "\n");
+ 	fprintf(stderr, "Example:\n");
+ 	fprintf(stderr, "  %s / /usr/bin/foo /usr/lib/libbar.so\n", progname);
++	fprintf(stderr, "  %s --test / /usr/bin/foo\n", progname);
+ 	exit(1);
+ }
+
+@@ -62,17 +66,43 @@ static int restore_lower(int fd, const char *path)
+ 	return 0;
+ }
+
++static int is_restorable(int fd, const char *path)
++{
++	struct ovl_is_restorable_args args;
++	int ret;
++
++	args.path_ptr = (__u64)(unsigned long)path;
++	args.path_len = strlen(path);
++	args.flags = 0;
++
++	ret = ioctl(fd, OVL_IOC_IS_RESTORABLE, &args);
++	if (ret < 0) {
++		/* Don't print error - caller will handle it */
++		return -1;
++	}
++
++	return 0;
++}
++
+ int main(int argc, char **argv)
+ {
+ 	const char *mount_point;
+-	int fd, i;
++	int fd, i, start_index;
+ 	int errors = 0;
++	int test_mode = 0;
+
+-	if (argc < 3) {
++	/* Parse options */
++	start_index = 1;
++	if (argc > 1 && (strcmp(argv[1], "--test") == 0 || strcmp(argv[1], "-t") == 0)) {
++		test_mode = 1;
++		start_index = 2;
++	}
++
++	if (argc < start_index + 2) {
+ 		usage(argv[0]);
+ 	}
+
+-	mount_point = argv[1];
++	mount_point = argv[start_index];
+
+ 	/* Open the overlay mount point */
+ 	fd = open(mount_point, O_RDONLY | O_DIRECTORY);
+@@ -83,17 +113,28 @@ int main(int argc, char **argv)
+ 	}
+
+ 	/* Process each path */
+-	for (i = 2; i < argc; i++) {
++	for (i = start_index + 1; i < argc; i++) {
+ 		const char *path = argv[i];
+
+-		printf("Restoring: %s\n", path);
+-
+-		if (restore_lower(fd, path) < 0) {
+-			fprintf(stderr, "Error: Failed to restore '%s': %s\n",
+-				path, strerror(errno));
+-			errors++;
++		if (test_mode) {
++			/* Test mode - check if restorable */
++			if (is_restorable(fd, path) == 0) {
++				printf("Restorable: %s\n", path);
++			} else {
++				printf("Not restorable: %s (%s)\n", path, strerror(errno));
++				errors++;
++			}
+ 		} else {
+-			printf("Successfully restored: %s\n", path);
++			/* Normal mode - restore the file */
++			printf("Restoring: %s\n", path);
++
++			if (restore_lower(fd, path) < 0) {
++				fprintf(stderr, "Error: Failed to restore '%s': %s\n",
++					path, strerror(errno));
++				errors++;
++			} else {
++				printf("Successfully restored: %s\n", path);
++			}
+ 		}
+ 	}
+
+@@ -104,6 +145,10 @@ int main(int argc, char **argv)
+ 		return 1;
+ 	}
+
+-	printf("\nAll files restored successfully\n");
++	if (test_mode) {
++		printf("\nAll files are restorable\n");
++	} else {
++		printf("\nAll files restored successfully\n");
++	}
+ 	return 0;
+ }
+--
+2.51.0
