@@ -32,7 +32,7 @@ fi
 PR_DIR="$OPKG_REPO_DIR/update/${PR_FEED}/pr"
 mkdir -p "$PR_DIR"
 
-TARGET_BUNDLE="$PR_DIR/calculinux-pr${PR_NUMBER}.raucb"
+TARGET_BUNDLE="$PR_DIR/${MACHINE}-pr${PR_NUMBER}.raucb"
 cp "$BUNDLE_PATH" "$TARGET_BUNDLE"
 sha256sum "$TARGET_BUNDLE" > "${TARGET_BUNDLE}.sha256"
 
