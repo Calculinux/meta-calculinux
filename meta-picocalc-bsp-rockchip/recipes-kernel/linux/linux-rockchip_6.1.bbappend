@@ -5,7 +5,7 @@ LICENSE = "GPL-2.0-only"
 SRCREV = "7e3209499d520d8960fd0a37e0dc34bf88252b04"
 
 SRC_URI = " \
-    git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;branch=ovl-restore \
+    git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1 \
     file://rk3506-luckfox-lyra.dtsi;subdir=git/arch/${ARCH}/boot/dts/ \
     file://rk3506g-luckfox-lyra.dts;subdir=git/arch/${ARCH}/boot/dts/ \
     file://base-configs.cfg \
