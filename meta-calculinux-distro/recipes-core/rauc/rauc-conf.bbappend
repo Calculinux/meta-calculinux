@@ -1,9 +1,9 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI:append := "\
-                                        file://system.conf.in \
-                                        file://post-install-handler.sh \
-                                    "
+    file://system.conf.in \
+    file://post-install-handler.sh \
+"
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
 
