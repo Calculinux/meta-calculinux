@@ -2,10 +2,10 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 LICENSE = "GPL-2.0-only"
 
-SRCREV = "e0846929f1a797988a6965268f391fdb779becfc"
+SRCREV = "7e3209499d520d8960fd0a37e0dc34bf88252b04"
 
 SRC_URI = " \
-    git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1 \
+    git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;branch=ovl-restore \
     file://rk3506-luckfox-lyra.dtsi;subdir=git/arch/${ARCH}/boot/dts/ \
     file://rk3506g-luckfox-lyra.dts;subdir=git/arch/${ARCH}/boot/dts/ \
     file://base-configs.cfg \
@@ -21,7 +21,6 @@ SRC_URI = " \
     file://filesystems.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
-    file://overlayfs-restore-lower.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \
