@@ -1,0 +1,19 @@
+From: Calculinux <calculinux@example.com>
+Subject: [PATCH] Add walnascar compatibility to meta-retro
+
+Add walnascar (Yocto Project version after scarthgap) to the layer
+series compatibility list.
+
+diff --git a/conf/layer.conf b/conf/layer.conf
+index 1234567..abcdefg 100644
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -10,7 +10,7 @@ BBFILE_COLLECTIONS += "meta-libretro"
+ BBFILE_PATTERN_meta-libretro := "^${LAYERDIR}/"
+ BBFILE_PRIORITY_meta-libretro = "100"
+ 
+-LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap"
++LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap walnascar"
+ 
+ # Additional license directories.
+ RETRO_LICENSE_DIR = "${LAYERDIR}/files/custom-licenses"
