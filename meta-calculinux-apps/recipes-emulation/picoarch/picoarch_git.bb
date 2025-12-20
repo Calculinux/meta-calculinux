@@ -7,7 +7,7 @@ LICENSE = "BSD-3-Clause & GPL-2.0-or-later & LGPL-2.1-or-later"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=cf9f0edc6d0921306fabede20ebb4306"
 
 SRC_URI = "gitsm://github.com/gurubook/picoarch.git;protocol=https;branch=feature/calculinux"
-SRCREV = "8cea7b4e965300c33dde29197180f65c47b2b0b4"
+SRCREV = "c62605eb0621f35bb54a394cebcd0f65a13253c6"
 
 S = "${WORKDIR}/git"
 
@@ -16,6 +16,7 @@ DEPENDS = " \
     libpng \
     libsdl \
     zlib \
+    bash \
 "
 
 inherit pkgconfig
@@ -51,8 +52,9 @@ do_compile() {
 
 do_install() {
     install -d ${D}${bindir}
-    install -m 0755 ${S}/picoarch ${D}${bindir}/picoarch
-    
+    install -m 0755 ${S}/picoarch ${D}${bindir}/picoarch.bin
+    install -m 0755 ${S}/run_picoarch.sh ${D}${bindir}/picoarch
+
     # Create directories for config and save data
     install -d ${D}${datadir}/picoarch/system
 }
@@ -62,6 +64,7 @@ RDEPENDS:${PN} = " \
     libsdl \
     libpng \
     zlib \
+    bash \
 "
 
 FILES:${PN} += "${datadir}/picoarch"
