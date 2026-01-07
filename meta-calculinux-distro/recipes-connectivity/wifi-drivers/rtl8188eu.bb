@@ -5,9 +5,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=3224303dd2d22c5ba741033e02e71cc6"
 
 PV = "1.0-git"
 SRCREV = "96ecc776167a15cc7df4efc4f721ba5784c55c85"
-SRC_URI = " \
-    git://github.com/Benetti-Engineering/rtl8188eu.git;protocol=https;branch=master \
-    "
+SRC_URI = "git://github.com/Benetti-Engineering/rtl8188eu.git;protocol=https;branch=master"
 S = "${UNPACKDIR}/git"
 
 DEPENDS += "virtual/kernel"
