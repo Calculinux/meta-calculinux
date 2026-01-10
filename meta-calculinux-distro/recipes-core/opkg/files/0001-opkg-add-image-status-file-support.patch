@@ -1,0 +1,91 @@
+diff -urN a/libopkg/opkg_conf.c b/libopkg/opkg_conf.c
+--- a/libopkg/opkg_conf.c	2024-06-26 15:39:07.000000000 -0400
++++ b/libopkg/opkg_conf.c	2025-11-17 19:16:59.072478360 -0500
+@@ -53,6 +53,7 @@
+     {"lock_file", OPKG_OPT_TYPE_STRING, &_conf.lock_file},
+     {"info_dir", OPKG_OPT_TYPE_STRING, &_conf.info_dir},
+     {"status_file", OPKG_OPT_TYPE_STRING, &_conf.status_file},
++    {"image_status_file", OPKG_OPT_TYPE_STRING, &_conf.image_status_file},
+     {"force_maintainer", OPKG_OPT_TYPE_BOOL, &_conf.force_maintainer},
+     {"ignore_maintainer", OPKG_OPT_TYPE_BOOL, &_conf.ignore_maintainer},
+     {"ignore_uid", OPKG_OPT_TYPE_BOOL, &_conf.ignore_uid},
+diff -urN a/libopkg/opkg_conf.h b/libopkg/opkg_conf.h
+--- a/libopkg/opkg_conf.h	2024-06-26 15:39:07.000000000 -0400
++++ b/libopkg/opkg_conf.h	2025-11-17 19:16:49.482541738 -0500
+@@ -78,6 +78,7 @@
+     char *lock_file;
+     char *info_dir;
+     char *status_file;
++    char *image_status_file;
+     char *fields_filter; /* specific fields the user requests */
+ 
+     unsigned int pfm;       /* package field mask */
+diff -urN a/libopkg/pkg_dest.c b/libopkg/pkg_dest.c
+--- a/libopkg/pkg_dest.c	2024-06-26 15:39:07.000000000 -0400
++++ b/libopkg/pkg_dest.c	2025-11-17 19:17:22.075726725 -0500
+@@ -58,6 +58,13 @@
+     file_mkdir_hier(status_file_dir, 0755);
+     free(status_file_dir);
+ 
++    if (opkg_config->image_status_file) {
++        sprintf_alloc(&dest->image_status_file_name, "%s%s", dest->root_dir,
++                      opkg_config->image_status_file);
++    } else {
++        dest->image_status_file_name = NULL;
++    }
++
+     return 0;
+ }
+ 
+@@ -74,4 +81,7 @@
+ 
+     free(dest->status_file_name);
+     dest->status_file_name = NULL;
++
++    free(dest->image_status_file_name);
++    dest->image_status_file_name = NULL;
+ }
+diff -urN a/libopkg/pkg_dest.h b/libopkg/pkg_dest.h
+--- a/libopkg/pkg_dest.h	2024-06-26 15:39:07.000000000 -0400
++++ b/libopkg/pkg_dest.h	2025-11-17 19:17:06.797902966 -0500
+@@ -33,6 +33,7 @@
+     char *root_dir;
+     char *info_dir;
+     char *status_file_name;
++    char *image_status_file_name;
+     FILE *status_fp;
+ };
+ 
+diff -urN a/libopkg/pkg_hash.c b/libopkg/pkg_hash.c
+--- a/libopkg/pkg_hash.c	2024-06-26 15:39:07.000000000 -0400
++++ b/libopkg/pkg_hash.c	2025-11-17 19:17:32.040264000 -0500
+@@ -296,6 +296,14 @@
+ 
+         dest = (pkg_dest_t *) iter->data;
+ 
++        if (dest->image_status_file_name &&
++                file_exists(dest->image_status_file_name)) {
++            int r = pkg_hash_add_from_file(dest->image_status_file_name, NULL,
++                                           dest, 1);
++            if (r != 0)
++                return -1;
++        }
++
+         if (file_exists(dest->status_file_name)) {
+             int r = pkg_hash_add_from_file(dest->status_file_name, NULL, dest,
+                                            1);
+diff -urN a/man/opkg.conf.5.in b/man/opkg.conf.5.in
+--- a/man/opkg.conf.5.in	2024-06-26 15:39:07.000000000 -0400
++++ b/man/opkg.conf.5.in	2025-11-17 19:17:53.201404980 -0500
+@@ -249,6 +249,11 @@
+ Location of the status file.
+ This file contains all the status of all current/previously installed packages.
+ .TP
++\fBimage_status_file\fP
++Optional read-only status file that represents package metadata built into the
++base image. When set, opkg loads this file first and then merges the writable
++\fBstatus_file\fP on top. The file is never modified by opkg.
++.TP
+ \fBtmp_dir\fP
+ Temp directory for unpacking a package before loading into the filesystem.
+ .TP
