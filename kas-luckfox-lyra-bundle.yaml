@@ -46,7 +46,6 @@ local_conf_header:
     INHERIT:append = " rockchip-image"
     
     WIFI_FIRMWARE = "\
-      linux-firmware-rtl8188 \
       linux-firmware-rtl8192cu \
       linux-firmware-rtl8192ce \
       linux-firmware-rtl8192su \
@@ -59,6 +58,7 @@ local_conf_header:
     
     EXTRA_WIFI_DRIVERS = "\
       aic8800 \
+      rtl8188fu \
       rtl8723du \
       rtl8812au \
       rtl8814au \

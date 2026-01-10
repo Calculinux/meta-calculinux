@@ -10,10 +10,9 @@ SECTION = "utils"
 LICENSE = "GPL-2.0-or-later & MIT"
 LIC_FILES_CHKSUM = "file://debian/copyright;md5=6fdba635ca4be614fab872320fcb2220"
 
-SRC_URI = "${DEBIAN_MIRROR}/main/c/console-setup/console-setup_${PV}.tar.xz"
-SRC_URI[sha256sum] = "d935d6b51b882332276db290b3ef7d1ffa43f7901d5c7998707b3357c8717e20"
+SRC_URI = "git://salsa.debian.org/installer-team/console-setup;protocol=https;branch=master;tag=${PV}"
 
-S = "${WORKDIR}/work"
+S = "${WORKDIR}/git"
 
 inherit allarch
 

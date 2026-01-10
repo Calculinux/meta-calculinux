@@ -47,6 +47,44 @@ Make sure you have the following installed on your build host:
 
 ## Build Instructions
 
+### Quick Start with Makefile
+
+The easiest way to build Calculinux is using the provided Makefile:
+
+1. **Clone this repository**:
+   ```bash
+   mkdir calculinux-build && cd calculinux-build
+   git clone <repository-url> meta-calculinux
+   cd meta-calculinux
+   ```
+
+2. **Build the system image**:
+   ```bash
+   make image
+   ```
+
+3. **View all available targets**:
+   ```bash
+   make help
+   ```
+
+Common Makefile targets:
+- `make image` - Build the complete Calculinux system image
+- `make bundle` - Build a RAUC update bundle
+- `make shell` - Open an interactive bitbake shell
+- `make recipe RECIPE=<name>` - Build a specific recipe
+- `make clean-recipe RECIPE=<name>` - Clean a specific recipe
+- `make status` - Show build status and artifacts
+
+**Custom build directories**: By default, builds run in the parent directory. To use a different location:
+```bash
+make BUILD_ROOT=/path/to/build/dir image
+```
+
+### Manual Build with KAS
+
+If you prefer to use KAS directly without the Makefile:
+
 1. **Clone this repository**:
    ```bash
    mkdir calculinux-build && cd calculinux-build
@@ -63,26 +101,41 @@ Make sure you have the following installed on your build host:
    - Apply the configurations for Calculinux on the Picocalc with Luckfox Lyra
    - Build the complete Calculinux distribution image
 
-3. **Find the Calculinux image**
-   After the build completes, the Calculinux distribution image (calculinux-image-luckfox-lyra.rootfs.wic) will be located in:
-   ```
-   build/tmp/deploy/images/luckfox-lyra/
-   ```
+### Finding Build Artifacts
 
-4. **Install Calculinux**
-   Install the Calculinux image with dd on a Micro-SD card:
-   ```
-   dd if=build/tmp/deploy/images/luckfox-lyra/calculinux-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M
-   ```
+After the build completes, the Calculinux distribution image will be located in:
+```
+build/tmp/deploy/images/luckfox-lyra/calculinux-image-luckfox-lyra.rootfs.wic
+```
 
-   On first boot, the user partition will be configured to fill the rest of the SD card.
+RAUC update bundles are in the same directory:
+```
+build/tmp/deploy/images/luckfox-lyra/calculinux-bundle-luckfox-lyra.raucb
+```
+
+### Installing Calculinux
+
+Install the Calculinux image with dd on a Micro-SD card:
+```bash
+dd if=build/tmp/deploy/images/luckfox-lyra/calculinux-image-luckfox-lyra.rootfs.wic of=/dev/mmcblk0 bs=4M status=progress
+```
+
+On first boot, the user partition will be configured to fill the rest of the SD card.
 
 ---
 
-## Getting a Shell Environment
+## Development Workflow
 
-To drop into the Yocto build shell environment (for custom builds, debugging, or running `bitbake` commands manually):
+### Interactive Shell Environment
 
+To drop into the Yocto build shell environment for custom builds, debugging, or running `bitbake` commands manually:
+
+**Using Makefile**:
+```bash
+make shell
+```
+
+**Using KAS directly**:
 ```bash
 ./meta-calculinux/kas-container --ssh-dir ~/.ssh shell meta-calculinux/kas-luckfox-lyra-bundle.yaml
 ```
@@ -90,6 +143,38 @@ To drop into the Yocto build shell environment (for custom builds, debugging, or
 Inside this shell, you can run commands like:
 ```bash
 bitbake virtual/kernel
+bitbake -c menuconfig linux-rockchip
+bitbake-layers show-recipes
+```
+
+### Building Specific Recipes
+
+**Using Makefile**:
+```bash
+# Build a specific recipe
+make recipe RECIPE=x48ng
+
+# Clean and rebuild a recipe
+make clean-recipe RECIPE=x48ng
+make recipe RECIPE=x48ng
+
+# Open development shell for a recipe
+make devshell RECIPE=linux-rockchip
+```
+
+**Using KAS directly**:
+```bash
+./meta-calculinux/kas-container shell meta-calculinux/kas-luckfox-lyra-bundle.yaml -c "bitbake x48ng"
+```
+
+### Searching for Recipes
+
+```bash
+# Find recipes by name
+make list-recipes SEARCH=sdl
+
+# List all Calculinux images
+make list-images
 ```
 
 ## Device Tree Overlays
