@@ -1,7 +1,7 @@
 SUMMARY = "RTL8188eu WiFi kernel driver"
 DESCRIPTION = "RTL8188eu WiFi kernel driver"
 LICENSE = "GPL-2.0-only"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=3224303dd2d22c5ba741033e02e71cc6"
+LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
 PV = "1.0+git${SRCPV}"
 SRCREV = "96ecc776167a15cc7df4efc4f721ba5784c55c85"
@@ -26,12 +26,12 @@ RREPLACES:${PN} = "linux-firmware-rtl8188"
 
 module_do_install() {
     install -d ${D}${MODULE_DIR}
-    install -m 0644 ${S}/rtl8188eu.ko ${D}${MODULE_DIR}
+    install -m 0644 ${S}/8188eu.ko ${D}${MODULE_DIR}
 }
 
 do_install:append() {
     install -d ${D}${libdir}/firmware/rtlwifi
-    install -m 0644 ${S}/firmware/rtl8188eufw.bin ${D}${libdir}/firmware/rtlwifi
+    install -m 0644 ${S}/rtl8188eufw.bin ${D}${libdir}/firmware/rtlwifi
 }
 
 FILES:${PN} += " \
