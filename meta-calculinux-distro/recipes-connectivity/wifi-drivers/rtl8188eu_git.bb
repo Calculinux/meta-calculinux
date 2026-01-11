@@ -14,8 +14,7 @@ inherit module
 
 MODULE_DIR="${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"
 
-EXTRA_OEMAKE += "MODULE_NAME=rtl8188eu \
-                 USER_EXTRA_CFLAGS='-Wno-address' \
+EXTRA_OEMAKE += "USER_EXTRA_CFLAGS='-Wno-address' \
                  KSRC=${STAGING_KERNEL_DIR} \
                  KVER=${KERNEL_VERSION} \
                  "
