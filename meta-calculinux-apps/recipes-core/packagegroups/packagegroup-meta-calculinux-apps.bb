@@ -14,15 +14,24 @@ PACKAGES = "${PN}"
 # These will be built as IPKs and made available in the package feed
 RDEPENDS:${PN} = " \
     android-adbd \
+    autoconf \
+    automake \
     basilisk-ii \
     beetle-pce-fast-libretro \
+    binutils \
+    bison \
     cargo \
     circumflex \
+    diffutils \
     dosbox-pure-libretro \
     emacs-full \
     fceumm-libretro \
+    file \
+    flex \
     frodo-libretro \
     gambatte-libretro \
+    gdb \
+    gettext \
     glkcli \
     glkterm \
     hoard-of-bitfonts-acorn \
@@ -69,7 +78,9 @@ RDEPENDS:${PN} = " \
     iotop \
     jq \
     kiwix-tools \
+    libtool \
     lsof \
+    m4 \
     mame2003-plus-libretro \
     mc \
     meshtasticd \
@@ -80,6 +91,7 @@ RDEPENDS:${PN} = " \
     notcurses \
     notcurses-demos \
     oldschool-console-fonts \
+    patch \
     pcsx-rearmed-libretro \
     picoarch \
     picodrive-libretro \
@@ -92,11 +104,13 @@ RDEPENDS:${PN} = " \
     screen \
     sdl2-test \
     snes9x-libretro \
+    strace \
     sysstat \
     tcpdump \
     terminus-font \
     tmux \
     tree \
+    valgrind \
     vice-libretro \
     vim \
     x48ng \
