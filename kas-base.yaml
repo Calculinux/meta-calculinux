@@ -36,7 +36,7 @@ repos:
         path: patches/meta-retro-walnascar-compat.patch
   meta-wayland:
     url: https://codeberg.org/flk/meta-wayland.git
-    commit: 2e2a3746a50b7cd8f1896d4c3a29c270fb129405
+    commit: 4e47cb0a14ec168a814e95ef2cfa2fc8618fc689
     layers:
       .:
   meta-calculinux:
