@@ -34,6 +34,12 @@ repos:
       0001-meta-retro-walnascar-compat.patch:
         repo: meta-calculinux
         path: patches/meta-retro-walnascar-compat.patch
+  meta-wayland:
+    url: https://codeberg.org/flk/meta-wayland
+    refspec: master
+    commit: HEAD
+    layers:
+      .:
   meta-calculinux:
     layers:
       meta-calculinux-distro:

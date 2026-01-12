@@ -26,9 +26,11 @@ RDEPENDS:${PN} = " \
     dosbox-pure-libretro \
     emacs-full \
     fceumm-libretro \
+    fd-find \
     file \
     flex \
     frodo-libretro \
+    fzf \
     gambatte-libretro \
     gdb \
     gettext \
@@ -99,6 +101,7 @@ RDEPENDS:${PN} = " \
     python3-pip \
     reddit-tui \
     retro8-libretro \
+    ripgrep \
     rsync \
     rust \
     screen \
