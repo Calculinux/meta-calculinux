@@ -101,7 +101,6 @@ RDEPENDS:${PN} = " \
     python3-pip \
     reddit-tui \
     retro8-libretro \
-    ripgrep \
     rsync \
     rust \
     screen \
