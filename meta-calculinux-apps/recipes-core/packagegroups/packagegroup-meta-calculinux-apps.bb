@@ -30,7 +30,6 @@ RDEPENDS:${PN} = " \
     file \
     flex \
     frodo-libretro \
-    fzf \
     gambatte-libretro \
     gdb \
     gettext \
