@@ -27,7 +27,7 @@ permissions:
   pull-requests: write # Needed for commenting on PRs
 
 # To add a new machine configuration, do something similar to the following:
-# 
+#
 # matrix:
 #   machine: [luckfox-lyra, rpi4]  # Add rpi4 here
 #   include:
@@ -41,12 +41,12 @@ permissions:
 #       kas_file: "kas-rpi4-bundle.yaml"
 #       target: "calculinux-bundle"
 #       dockerfile: "Dockerfile.arm64"
-  
+
 jobs:
   build:
     name: Build Yocto Images and Packages
     runs-on: [self-hosted, Linux, X64]
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -201,19 +201,19 @@ jobs:
       run: |
         echo "Disk space after build:"
         df -h
-        
+
         echo "Cache directory sizes:"
         du -sh $DL_DIR $SSTATE_DIR || true
-        
+
     - name: Cleanup
       if: always()
       run: |
         # Clean up build directory but preserve caches
         rm -rf build/tmp/work/* || true
-        
+
         # Clean up docker containers and images
         docker system prune -f || true
-        
+
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
 
@@ -222,6 +222,9 @@ jobs:
     needs: build
     if: needs.build.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
