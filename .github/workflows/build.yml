@@ -21,6 +21,8 @@ env:
   # Package repository storage
   OPKG_REPO_DIR: /mnt/opkg-repo
   UPDATE_BASE_URL: https://opkg.calculinux.org
+  # Shared artifacts directory across runners (hidden from web server)
+  SHARED_ARTIFACTS_DIR: /mnt/opkg-repo/.build-artifacts/${{ github.run_id }}
 
 permissions:
   contents: write      # Needed for creating releases
@@ -141,21 +143,22 @@ jobs:
 
     - name: Collect build artifacts (images)
       run: |
-        bash .github/scripts/collect-images.sh "${{ matrix.machine }}" artifacts
+        mkdir -p "$SHARED_ARTIFACTS_DIR"
+        bash .github/scripts/collect-images.sh "${{ matrix.machine }}" "$SHARED_ARTIFACTS_DIR"
 
     - name: Collect build artifacts (packages)
       run: |
-        bash .github/scripts/collect-packages.sh artifacts
+        bash .github/scripts/collect-packages.sh "$SHARED_ARTIFACTS_DIR"
 
     - name: Collect build artifacts (SDK)
       run: |
-        bash .github/scripts/collect-sdk.sh artifacts
+        bash .github/scripts/collect-sdk.sh "$SHARED_ARTIFACTS_DIR"
 
     - name: Generate build information
       run: |
         set -euo pipefail
         bash .github/scripts/generate-build-info.sh \
-          artifacts/build-info.txt \
+          "$SHARED_ARTIFACTS_DIR/build-info.txt" \
           "${{ matrix.name }}" \
           "${{ matrix.machine }}" \
           "${{ matrix.target }}" \
@@ -165,8 +168,7 @@ jobs:
     - name: Persist publish metadata
       run: |
         set -euo pipefail
-        mkdir -p artifacts
-        cat > artifacts/workflow-metadata.env << EOF
+        cat > "$SHARED_ARTIFACTS_DIR/workflow-metadata.env" << EOF
         FEED_NAME=${{ steps.feed-config.outputs.feed_name }}
         SUBFOLDER=${{ steps.feed-config.outputs.subfolder }}
         FEED_SUBFOLDER=${{ steps.feed-config.outputs.feed_subfolder }}
@@ -177,23 +179,23 @@ jobs:
         DISTRO_VERSION=${{ steps.prepare-config.outputs.distro_version }}
         EOF
 
-    - name: Upload artifacts
+    - name: Upload artifacts to GitHub (for PRs and external access)
       uses: actions/upload-artifact@v4
-      if: always()
+      if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
       with:
         name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
         path: |
-          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb
-          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
-          artifacts/uboot-${{ matrix.machine }}-*.bin
-          artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
-          artifacts/sdk/x86_64/*.sh
-          artifacts/sdk/x86_64/*.manifest
-          artifacts/sdk/aarch64/*.sh
-          artifacts/sdk/aarch64/*.manifest
-          artifacts/workflow-metadata.env
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
+          ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/workflow-metadata.env
         retention-days: 30
 
     - name: Show disk space after build
@@ -216,6 +218,11 @@ jobs:
 
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
+
+        # Clean up shared artifacts on failure (success cleanup handled by publish job)
+        if [ "${{ needs.build.result }}" != "success" ]; then
+          rm -rf "$SHARED_ARTIFACTS_DIR" || true
+        fi
 
   publish:
     name: Publish artifacts and notifications
@@ -242,17 +249,20 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
-        path: artifacts
+    - name: Verify shared artifacts exist
+      run: |
+        if [ ! -d "$SHARED_ARTIFACTS_DIR" ]; then
+          echo "ERROR: Shared artifacts directory not found: $SHARED_ARTIFACTS_DIR" >&2
+          exit 1
+        fi
+        echo "Found artifacts in $SHARED_ARTIFACTS_DIR:"
+        ls -lh "$SHARED_ARTIFACTS_DIR"
 
     - name: Load workflow metadata
       id: publish-meta
       run: |
         set -euo pipefail
-        META_FILE="artifacts/workflow-metadata.env"
+        META_FILE="$SHARED_ARTIFACTS_DIR/workflow-metadata.env"
         if [ ! -f "$META_FILE" ]; then
           echo "Metadata file not found: $META_FILE" >&2
           exit 1
@@ -270,7 +280,7 @@ jobs:
         bash .github/scripts/publish-pr-bundle.sh \
           "${{ matrix.machine }}" \
           "${{ github.event.pull_request.number }}" \
-          "artifacts" \
+          "$SHARED_ARTIFACTS_DIR" \
           "${{ env.OPKG_REPO_DIR }}" \
           "${{ env.UPDATE_BASE_URL }}"
 
@@ -281,7 +291,7 @@ jobs:
         opkg-repo-dir: ${{ env.OPKG_REPO_DIR }}
         feed-name: ${{ env.FEED_NAME }}
         subfolder: ${{ env.SUBFOLDER }}
-        artifacts-dir: artifacts
+        artifacts-dir: ${{ env.SHARED_ARTIFACTS_DIR }}
         sync-all: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sync_all_packages == 'true' && 'true' || 'false' }}
 
     - name: Publish images to webserver
@@ -292,7 +302,7 @@ jobs:
           "${{ env.FEED_NAME }}" \
           "${{ env.SUBFOLDER }}" \
           "${{ matrix.machine }}" \
-          artifacts \
+          "$SHARED_ARTIFACTS_DIR" \
           "${{ env.IS_TAGGED_RELEASE }}" \
           "${{ env.IS_PRERELEASE }}" \
           "${{ github.ref_name }}"
@@ -308,7 +318,7 @@ jobs:
           "${{ matrix.machine }}" \
           "${{ env.DISTRO_VERSION }}" \
           "${{ github.sha }}" \
-          "artifacts" \
+          "$SHARED_ARTIFACTS_DIR" \
           "${{ env.UPDATE_BASE_URL }}"
 
     - name: Publish SDK to webserver
@@ -319,22 +329,16 @@ jobs:
           "${{ env.FEED_NAME }}" \
           "${{ env.SUBFOLDER }}" \
           "${{ matrix.machine }}" \
-          artifacts \
+          "$SHARED_ARTIFACTS_DIR" \
           "${{ env.IS_TAGGED_RELEASE }}" \
           "${{ env.IS_PRERELEASE }}" \
           "${{ github.ref_name }}"
-
-    - name: Comment artifact links on PR
-      if: github.event_name == 'pull_request'
-      uses: ./.github/actions/comment-artifacts
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create release
       if: env.IS_TAGGED_RELEASE == 'true'
       uses: softprops/action-gh-release@v1
       with:
-        files: artifacts/*
+        files: ${{ env.SHARED_ARTIFACTS_DIR }}/*
         generate_release_notes: true
         draft: false
         prerelease: ${{ env.IS_PRERELEASE == 'true' }}
@@ -351,7 +355,7 @@ jobs:
         tag-name: ${{ github.ref_name }}
         run-number: ${{ github.run_number }}
         release-url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
-        artifacts-dir: artifacts
+        artifacts-dir: ${{ env.SHARED_ARTIFACTS_DIR }}
         opkg-repo-base: ${{ env.UPDATE_BASE_URL }}
 
     - name: Show disk space after publish
@@ -363,5 +367,5 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        rm -rf artifacts || true
+        rm -rf "$SHARED_ARTIFACTS_DIR" || true
         docker system prune -f || true
