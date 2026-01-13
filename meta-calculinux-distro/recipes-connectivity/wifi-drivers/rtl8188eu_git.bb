@@ -19,7 +19,6 @@ EXTRA_OEMAKE += "USER_EXTRA_CFLAGS='-Wno-address' \
                  KVER=${KERNEL_VERSION} \
                  "
 
-RDEPENDS:${PN} += "wireless-regdb"
 RPROVIDES:${PN} += "kernel-module-rtl8188eu"
 RCONFLICTS:${PN} = "linux-firmware-rtl8188"
 RREPLACES:${PN} = "linux-firmware-rtl8188"
