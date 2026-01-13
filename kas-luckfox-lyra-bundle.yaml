@@ -54,6 +54,15 @@ local_conf_header:
       linux-firmware-rtl8761 \
       linux-firmware-rtl8168 \
       linux-firmware-rtl8822 \
+      linux-firmware-ath9k \
+      linux-firmware-ath6k \
+      linux-firmware-ralink \
+      linux-firmware-mt7601u \
+      linux-firmware-mt7650 \
+      linux-firmware-mt76x2 \
+      linux-firmware-bcm43xx \
+      linux-firmware-bcm43430 \
+      linux-firmware-bcm43455 \
     "
     
     EXTRA_WIFI_DRIVERS = "\
