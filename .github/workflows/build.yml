@@ -219,22 +219,7 @@ jobs:
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
 
-        # Clean up shared artifacts on failure (success cleanup handled by publish job)
-        if [ "${{ needs.build.result }}" != "success" ]; then
-          rm -rf "$SHARED_ARTIFACTS_DIR" || true
-        fi
-
-  publish:
-    name: Publish artifacts and notifications
-    needs: build
-    if: needs.build.result == 'success'
-    runs-on: [self-hosted, Linux, X64]
-    permissions:
-      contents: write
-      pull-requests: write
-    strategy:
-      fail-fast: false
-      matrix:
+        # Note: Shared artifacts cleanup handled by publish job
         machine: [luckfox-lyra]
         include:
           - machine: luckfox-lyra
@@ -369,3 +354,21 @@ jobs:
       run: |
         rm -rf "$SHARED_ARTIFACTS_DIR" || true
         docker system prune -f || true
+
+  cleanup-artifacts:
+    name: Cleanup shared artifacts
+    needs: [build, publish]
+    if: always()
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+    - name: Clean up shared artifacts directory
+      run: |
+        # Clean up the run-specific artifacts directory
+        SHARED_ARTIFACTS_DIR="/mnt/opkg-repo/.build-artifacts/${{ github.run_id }}"
+        if [ -d "$SHARED_ARTIFACTS_DIR" ]; then
+          echo "Cleaning up $SHARED_ARTIFACTS_DIR"
+          rm -rf "$SHARED_ARTIFACTS_DIR" || true
+        fi
+
+        # Clean up old artifacts directories (older than 7 days)
+        find /mnt/opkg-repo/.build-artifacts -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; 2>/dev/null || true
