@@ -26,7 +26,6 @@ RDEPENDS:${PN} = " \
     dosbox-pure-libretro \
     emacs-full \
     fceumm-libretro \
-    fd-find \
     file \
     flex \
     frodo-libretro \
