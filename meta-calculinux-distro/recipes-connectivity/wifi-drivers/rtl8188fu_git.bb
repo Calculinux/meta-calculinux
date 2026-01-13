@@ -22,6 +22,7 @@ EXTRA_OEMAKE += "MODULE_NAME=rtl8188fu \
                  KVER=${KERNEL_VERSION} \
                  "
 
+RDEPENDS:${PN} += "wireless-regdb"
 RPROVIDES:${PN} += "kernel-module-rtl8188fu"
 RCONFLICTS:${PN} = "linux-firmware-rtl8188"
 RREPLACES:${PN} = "linux-firmware-rtl8188"
