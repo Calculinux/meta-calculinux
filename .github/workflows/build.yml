@@ -220,6 +220,18 @@ jobs:
         docker rmi kas-custom:latest || true
 
         # Note: Shared artifacts cleanup handled by publish job
+
+  publish:
+    name: Publish artifacts and notifications
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
         machine: [luckfox-lyra]
         include:
           - machine: luckfox-lyra
