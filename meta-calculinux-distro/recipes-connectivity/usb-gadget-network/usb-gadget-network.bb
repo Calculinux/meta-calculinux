@@ -7,6 +7,7 @@ SRC_URI = " \
     file://usb-gadget-network.sh \
     file://usb-gadget-network.service \
     file://usb0.network \
+    file://usb-gadget-network.default \
     file://README.md \
 "
 
@@ -20,7 +21,9 @@ RDEPENDS:${PN} = " \
     kernel-module-libcomposite \
     kernel-module-usb-f-rndis \
     kernel-module-usb-f-ecm \
+    kernel-module-usb-f-fs \
     kernel-module-dwc2 \
+    android-adbd \
     iproute2 \
     systemd \
 "
@@ -41,12 +44,17 @@ do_install() {
     # Install documentation
     install -d ${D}${docdir}/${PN}
     install -m 0644 ${UNPACKDIR}/README.md ${D}${docdir}/${PN}/
+
+    # Install defaults
+    install -d ${D}${sysconfdir}/default
+    install -m 0644 ${UNPACKDIR}/usb-gadget-network.default ${D}${sysconfdir}/default/usb-gadget-network
 }
 
 FILES:${PN} += " \
     ${systemd_system_unitdir}/usb-gadget-network.service \
     ${systemd_unitdir}/network/usb0.network \
     ${docdir}/${PN}/README.md \
+    ${sysconfdir}/default/usb-gadget-network \
 "
 
 # Only compatible with machines that have USB gadget support

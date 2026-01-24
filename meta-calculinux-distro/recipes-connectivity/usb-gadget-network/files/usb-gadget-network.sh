@@ -4,9 +4,20 @@
 
 set -e
 
+# Optional runtime configuration
+if [ -f /etc/default/usb-gadget-network ]; then
+    . /etc/default/usb-gadget-network
+fi
+
 GADGET_DIR="/sys/kernel/config/usb_gadget"
 GADGET_NAME="g1"
 GADGET_PATH="${GADGET_DIR}/${GADGET_NAME}"
+
+# Optional ADB FunctionFS support (drives custom adbd outside Android)
+ENABLE_ADB=${ENABLE_ADB:-1}
+ADB_FUNCTION_NAME=${ADB_FUNCTION_NAME:-ffs.adb}
+ADB_MOUNTPOINT=${ADB_MOUNTPOINT:-/dev/ffs/adb}
+ADB_CONFIGS=${ADB_CONFIGS:-"c.1 c.2"}
 
 # USB IDs
 ID_VENDOR="0x1d6b"  # Linux Foundation
@@ -43,7 +54,12 @@ cleanup_gadget() {
                 rmdir "$conf"
             fi
         done
-        
+
+        # Unmount FunctionFS if mounted
+        if mountpoint -q "${ADB_MOUNTPOINT}"; then
+            umount "${ADB_MOUNTPOINT}" || true
+        fi
+
         # Remove functions
         for func in ${GADGET_PATH}/functions/*/; do
             if [ -d "$func" ]; then
@@ -125,6 +141,19 @@ setup_gadget() {
     mkdir -p configs/c.2/strings/0x409
     echo "CDC-Ether/ECM" > configs/c.2/strings/0x409/configuration
     
+    # Optional: Create ADB FunctionFS function (added to all configs)
+    if [ "${ENABLE_ADB}" = "1" ]; then
+        mkdir -p "functions/${ADB_FUNCTION_NAME}"
+        mkdir -p "${ADB_MOUNTPOINT}"
+        if ! mountpoint -q "${ADB_MOUNTPOINT}"; then
+            mount -t functionfs adb "${ADB_MOUNTPOINT}"
+        fi
+        for cfg in ${ADB_CONFIGS}; do
+            mkdir -p "configs/${cfg}"
+            ln -sf "../../functions/${ADB_FUNCTION_NAME}" "configs/${cfg}/${ADB_FUNCTION_NAME}"
+        done
+    fi
+
     # Link functions to configurations
     ln -s functions/rndis.usb0 configs/c.1/
     ln -s functions/ecm.usb0 configs/c.2/
@@ -152,6 +181,7 @@ case "$1" in
         modprobe libcomposite || true
         modprobe usb_f_rndis || true
         modprobe usb_f_ecm || true
+        modprobe usb_f_fs || true
         modprobe dwc2 || true
         
         # Wait for configfs to be mounted

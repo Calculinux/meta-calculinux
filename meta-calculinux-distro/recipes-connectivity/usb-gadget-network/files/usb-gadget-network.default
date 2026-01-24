@@ -1,0 +1,8 @@
+# Defaults for USB gadget network + optional ADB
+# Toggle ADB FunctionFS gadget integration (1=enable, 0=disable)
+ENABLE_ADB=1
+# Function name and mountpoint for FunctionFS (leave default unless you know why)
+ADB_FUNCTION_NAME=ffs.adb
+ADB_MOUNTPOINT=/dev/ffs/adb
+# Configurations that should include the ADB function
+ADB_CONFIGS="c.1 c.2"
