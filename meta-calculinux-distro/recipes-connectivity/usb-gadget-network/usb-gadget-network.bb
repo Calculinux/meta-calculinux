@@ -10,8 +10,6 @@ SRC_URI = " \
     file://README.md \
 "
 
-S = "${WORKDIR}"
-
 inherit systemd
 
 SYSTEMD_SERVICE:${PN} = "usb-gadget-network.service"
