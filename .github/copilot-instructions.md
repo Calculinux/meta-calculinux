@@ -74,6 +74,45 @@
 
 ## Recipe Development
 
+### Yocto Version and Modern Syntax
+
+**Yocto Version**: Calculinux is based on **Yocto Scarthgap (2024.x)** via Poky
+
+**Important Syntax Changes** - Avoid deprecated patterns:
+
+| ❌ AVOID | ✅ USE INSTEAD | REASON |
+|---------|----------------|--------|
+| `S = "${WORKDIR}"` | Don't set S for file-only recipes | No longer supported in modern Yocto |
+| `${WORKDIR}` in do_install | `${UNPACKDIR}` | Explicit, modern way to reference unpacked source files |
+| `file://` with implicit workdir | `${UNPACKDIR}/filename` | Clearer variable usage |
+| `FILESEXTRAPATHS` only | `FILESEXTRAPATHS` + explicit paths | Combine with proper file location setup |
+
+**Example - Modern File Recipe** (like usb-gadget-network):
+```bitbake
+# ✅ CORRECT - Modern approach
+SUMMARY = "My Package"
+LICENSE = "MIT"
+
+SRC_URI = " \
+    file://myfile.sh \
+    file://myconfig.conf \
+"
+
+# DO NOT set S = "${WORKDIR}"
+
+do_install() {
+    install -d ${D}${bindir}
+    install -m 0755 ${UNPACKDIR}/myfile.sh ${D}${bindir}/
+    install -d ${D}${sysconfdir}
+    install -m 0644 ${UNPACKDIR}/myconfig.conf ${D}${sysconfdir}/
+}
+```
+
+**Why these changes**:
+- `${UNPACKDIR}` is explicitly the location of unpacked files from `SRC_URI`
+- Yocto automatically manages build directories
+- Setting `S` is only needed for recipes that have actual source to build from
+
 ### Finding Existing Recipes
 **Always** search https://layers.openembedded.org/layerindex/branch/master/recipes/?q=<package-name> before creating new recipes. Check for both the package and its dependencies.
 

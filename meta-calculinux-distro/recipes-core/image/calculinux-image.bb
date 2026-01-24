@@ -76,6 +76,7 @@ IMAGE_INSTALL += " \
     terminus-font \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
+    usb-gadget-network \
     usbutils \
     util-linux \
     wget \
