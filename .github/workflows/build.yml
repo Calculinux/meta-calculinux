@@ -129,7 +129,7 @@ jobs:
         ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
 
     - name: Build SDKs
-      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
+      if: github.ref_name == 'develop' || github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/')
       env:
         KAS_OVERRIDE_FILE: ${{ steps.prepare-config.outputs.kas_override_file }}
       run: |
