@@ -46,7 +46,6 @@ local_conf_header:
     INHERIT:append = " rockchip-image"
     
     WIFI_FIRMWARE = "\
-      linux-firmware-rtl8xxxu \
       linux-firmware-rtl8192cu \
       linux-firmware-rtl8192su \
       linux-firmware-rtl8723 \
