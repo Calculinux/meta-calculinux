@@ -37,21 +37,33 @@ cleanup_gadget() {
     if [ -d "${GADGET_PATH}" ]; then
         echo "Cleaning up existing gadget configuration..."
         
-        # Remove symbolic links to configurations
+        # Unbind from UDC first
+        if [ -f "${GADGET_PATH}/UDC" ]; then
+            echo "" > "${GADGET_PATH}/UDC" 2>/dev/null || true
+        fi
+        
+        # Remove symbolic links from configurations
         for conf in ${GADGET_PATH}/configs/*/; do
             if [ -d "$conf" ]; then
-                for func in ${conf}*.*; do
-                    if [ -L "$func" ]; then
+                # Remove function symlinks (files matching *.*)
+                for func in "${conf}"*; do
+                    if [ -L "$func" ] && [ "$(basename "$func")" != "strings" ]; then
                         rm "$func"
+                    fi
+                done
+                # Remove strings subdirectories
+                for lang in "${conf}strings/"*/; do
+                    if [ -d "$lang" ]; then
+                        rmdir "$lang" 2>/dev/null || true
                     fi
                 done
             fi
         done
         
-        # Remove configurations
+        # Remove configurations (strings directory removed automatically)
         for conf in ${GADGET_PATH}/configs/*/; do
             if [ -d "$conf" ]; then
-                rmdir "$conf"
+                rmdir "$conf" 2>/dev/null || true
             fi
         done
 
@@ -129,6 +141,9 @@ setup_gadget() {
     echo ${HOST_MAC} > functions/ecm.usb0/host_addr
     echo ${DEVICE_MAC} > functions/ecm.usb0/dev_addr
     
+    # Create ACM serial function (for console access)
+    mkdir -p functions/acm.usb0
+    
     # Create configuration for RNDIS (Windows)
     mkdir -p configs/c.1
     echo 250 > configs/c.1/MaxPower
@@ -156,7 +171,9 @@ setup_gadget() {
 
     # Link functions to configurations
     ln -s functions/rndis.usb0 configs/c.1/
+    ln -s functions/acm.usb0 configs/c.1/
     ln -s functions/ecm.usb0 configs/c.2/
+    ln -s functions/acm.usb0 configs/c.2/
     
     # Link OS descriptors
     ln -s configs/c.1 os_desc/
@@ -182,6 +199,7 @@ case "$1" in
         modprobe usb_f_rndis || true
         modprobe usb_f_ecm || true
         modprobe usb_f_fs || true
+        modprobe usb_f_acm || true
         modprobe dwc2 || true
         
         # Wait for configfs to be mounted
@@ -193,17 +211,11 @@ case "$1" in
         cleanup_gadget
         setup_gadget
         
-        # Wait for interface to appear
+        # Wait for interface to appear and let systemd-networkd configure it
+        # The usb0.network file handles both DHCP (for network sharing) and static IP (for manual connection)
         sleep 2
         
-        # Configure network interface
-        if ip link show usb0 > /dev/null 2>&1; then
-            ip addr add 192.168.7.2/24 dev usb0
-            ip link set usb0 up
-            echo "USB network interface usb0 configured with IP 192.168.7.2"
-        else
-            echo "Warning: usb0 interface not found"
-        fi
+        echo "USB gadget configured - network interface usb0 will be managed by systemd-networkd"
         ;;
     stop)
         # Bring down interface
