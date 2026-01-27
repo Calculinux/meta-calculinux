@@ -3,6 +3,7 @@ Description=USB Gadget Network
 After=sys-kernel-config.mount
 Requires=sys-kernel-config.mount
 Before=network.target
+Before=shutdown.target
 DefaultDependencies=no
 
 [Service]

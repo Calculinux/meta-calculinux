@@ -6,6 +6,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = " \
     file://usb-gadget-network.sh \
     file://usb-gadget-network.service \
+    file://99-usb-gadget-detach \
     file://usb0.network \
     file://usb-gadget-network.default \
     file://serial-getty@ttyGS0.service \
@@ -51,6 +52,10 @@ do_install() {
     # Install defaults
     install -d ${D}${sysconfdir}/default
     install -m 0644 ${UNPACKDIR}/usb-gadget-network.default ${D}${sysconfdir}/default/usb-gadget-network
+
+    # Install systemd shutdown hook to forcefully detach the USB gadget early
+    install -d ${D}/usr/lib/systemd/system-shutdown
+    install -m 0755 ${UNPACKDIR}/99-usb-gadget-detach ${D}/usr/lib/systemd/system-shutdown/99-usb-gadget-detach
 }
 
 FILES:${PN} += " \
@@ -59,6 +64,7 @@ FILES:${PN} += " \
     ${systemd_unitdir}/network/usb0.network \
     ${docdir}/${PN}/README.md \
     ${sysconfdir}/default/usb-gadget-network \
+    /usr/lib/systemd/system-shutdown/99-usb-gadget-detach \
 "
 
 # Only compatible with machines that have USB gadget support
