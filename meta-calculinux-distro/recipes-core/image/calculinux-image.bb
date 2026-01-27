@@ -27,7 +27,6 @@ IMAGE_INSTALL += " \
     alsa-plugins \
     alsa-tools \
     alsa-utils \
-    android-tools \
     autoconf \
     bash \
     bash-completion \
