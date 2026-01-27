@@ -6,6 +6,7 @@ BindsTo=dev-%i.device
 After=dev-%i.device systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target
 After=usb-gadget-network.service
 Wants=usb-gadget-network.service
+Before=shutdown.target
 
 # If additional gettys are spawned during boot then we should make
 # sure that this is synchronized before getty.target, even though
@@ -23,7 +24,9 @@ Before=rescue.service
 # The '-o' option value tells agetty to replace 'login' arguments with an
 # option to preserve environment (-p), followed by '--' for safety, and then
 # the entered username.
-ExecStart=-/sbin/agetty -o '-p -- \\u' --keep-baud 1500000,115200,57600,38400,9600 %I $TERM
+# '-L' forces a local line so agetty does not wait for carrier detect; this keeps
+# shutdown from hanging when the USB serial function is not attached to a host.
+ExecStart=-/sbin/agetty -L -o '-p -- \\u' --keep-baud 1500000,115200,57600,38400,9600 %I $TERM
 Type=idle
 Restart=always
 RestartSec=0
