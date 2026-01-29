@@ -27,7 +27,7 @@ setup:
 help:
 	@echo "Calculinux Build System - Available targets:"
 	@echo ""
-	@echo "  make image           - Build full system image"
+	@echo "  make image           - Build full system image (alias: make build)"
 	@echo "  make bundle          - Build RAUC update bundle"
 	@echo "  make sdk             - Build SDK (x86_64 + aarch64)"
 	@echo "  make apps            - Build application packagegroup"
@@ -39,10 +39,17 @@ help:
 	@echo "  make clean-sstate    - Remove shared state cache"
 	@echo ""
 	@echo "  make recipe RECIPE=<name>       - Build specific recipe"
-	@echo "  make  (all depend on setup)
+	@echo "  make clean-recipe RECIPE=<name> - Clean specific recipe"
+	@echo "  make devshell RECIPE=<name>     - Open devshell for recipe"
+	@echo ""
+	@echo "All targets depend on setup"
+
 .PHONY: image
 image: setup
 	cd $(BUILD_ROOT) && $(KAS_CONTAINER) build $(KAS_CONFIG)
+
+.PHONY: build
+build: image
 
 .PHONY: bundle
 bundle: setup
@@ -59,18 +66,7 @@ apps: setup
 # Interactive shell
 .PHONY: shell
 shell: setup
-	cd $(BUILD_ROOT
-sdk:
-	cd $(PARENT_DIR) && $(KAS_CONTAINER) shell $(KAS_CONFIG) -c "bitbake calculinux-image -c populate_sdk"
-
-.PHONY: apps
-apps:
-	cd $(PARENT_DIR) && $(KAS_CONTAINER) shell $(KAS_CONFIG) -c "bitbake packagegroup-meta-calculinux-apps"
-
-# Interactive shell
-.PHONY: shell
-shell:
-	cd $(PARENT_DIR) && $(KAS_CONTAINER) shell $(KAS_CONFIG)
+	cd $(BUILD_ROOT) && $(KAS_CONTAINER) shell $(KAS_CONFIG)
 
 # Clean targets
 .PHONY: clean-all

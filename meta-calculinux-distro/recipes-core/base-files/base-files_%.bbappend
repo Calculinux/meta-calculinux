@@ -7,6 +7,12 @@ SRC_URI:append := " \
                   "
                   
 do_install:append() {
+    # Create standard FHS directories that are missing from base-files
+    # These are needed for overlayfs mounts in the preinit script
+    install -d ${D}/opt
+    install -d ${D}${ROOT_HOME}
+    install -d ${D}/mnt
+    
     install -d ${D}${sysconfdir}/profile.d
     install -m 0644 ${WORKDIR}/sources/locale.sh ${D}${sysconfdir}/profile.d/locale.sh
 
