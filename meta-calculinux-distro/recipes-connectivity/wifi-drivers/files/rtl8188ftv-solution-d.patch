@@ -1,10 +1,10 @@
 diff --git a/rtl8xxxu_8188f.c b/rtl8xxxu_8188f.c
-index bcbf8df..fc73e73 100644
+index bcbf8df..b007969 100644
 --- a/rtl8xxxu_8188f.c
 +++ b/rtl8xxxu_8188f.c
-@@ -701,11 +701,70 @@ static void rtl8188fu_init_statistics(struct rtl8xxxu_priv *priv)
- #define TX_POWER_INDEX_DEFAULT_CCK 0x22
- #define TX_POWER_INDEX_DEFAULT_HT40 0x27
+@@ -775,9 +775,69 @@ static void rtl8188fu_init_phy_bb(struct rtl8xxxu_priv *priv)
+ 	rtl8xxxu_init_phy_regs(priv, rtl8188f_agc_table);
+ }
  
 +static void rtl8188f_write_usb2phy(struct rtl8xxxu_priv *priv, u8 offset, u8 value)
 +{
@@ -59,17 +59,17 @@ index bcbf8df..fc73e73 100644
 +		rtl8xxxu_write16(priv, 0xC4, val16);
 +
 +		rtl8188f_write_usb2phy(priv, 0xE1, 0xB6);
-+		dev_info(dev, "Applied RTL8188F solution D workaround\n");
++		dev_info(dev, "Applied RTL8188F solution D workaround
++");
 +	}
 +}
 +
- static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
+ static int rtl8188fu_init_phy_rf(struct rtl8xxxu_priv *priv)
  {
- 	struct rtl8188fu_efuse *efuse = &priv->efuse_wifi.efuse8188fu;
- 	int i;
- 
+-	int ret;
 +	rtl8188f_apply_solution_d(priv);
 +
- 	if (efuse->rtl_id != cpu_to_le16(0x8129))
- 		return -EINVAL;
++int ret;
  
+ 	if (priv->chip_cut == 1)
+ 		ret = rtl8xxxu_init_phy_rf(priv, rtl8188fu_cut_b_radioa_init_table, RF_A);
