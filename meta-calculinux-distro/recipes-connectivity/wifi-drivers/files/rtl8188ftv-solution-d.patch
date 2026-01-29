@@ -1,8 +1,8 @@
 diff --git a/rtl8xxxu_8188f.c b/rtl8xxxu_8188f.c
-index bcbf8df..b007969 100644
+index bcbf8df..1f4c3f8 100644
 --- a/rtl8xxxu_8188f.c
 +++ b/rtl8xxxu_8188f.c
-@@ -775,9 +775,69 @@ static void rtl8188fu_init_phy_bb(struct rtl8xxxu_priv *priv)
+@@ -775,8 +775,67 @@ static void rtl8188fu_init_phy_bb(struct rtl8xxxu_priv *priv)
  	rtl8xxxu_init_phy_regs(priv, rtl8188f_agc_table);
  }
  
@@ -59,17 +59,14 @@ index bcbf8df..b007969 100644
 +		rtl8xxxu_write16(priv, 0xC4, val16);
 +
 +		rtl8188f_write_usb2phy(priv, 0xE1, 0xB6);
-+		dev_info(dev, "Applied RTL8188F solution D workaround
-+");
++		dev_info(dev, "Applied RTL8188F solution D workaround\n");
 +	}
 +}
 +
  static int rtl8188fu_init_phy_rf(struct rtl8xxxu_priv *priv)
  {
--	int ret;
 +	rtl8188f_apply_solution_d(priv);
 +
-+int ret;
+ 	int ret;
  
  	if (priv->chip_cut == 1)
- 		ret = rtl8xxxu_init_phy_rf(priv, rtl8188fu_cut_b_radioa_init_table, RF_A);
