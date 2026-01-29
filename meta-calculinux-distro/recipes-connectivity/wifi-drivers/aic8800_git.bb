@@ -9,7 +9,6 @@ SRC_URI = "git://github.com/radxa-pkg/aic8800.git;branch=main;protocol=https \
            file://fix-usb-build.patch;patchdir=${WORKDIR}/git \
            file://fix-linux-6.1-build.patch;patchdir=${WORKDIR}/git \
            file://fix-aic_btusb.patch;patchdir=${WORKDIR}/git \
-           file://fix-request-firmware-path.patch;patchdir=${WORKDIR}/git \
            file://99-aic8800-usb.rules \
           "
 SRCREV = "451a1c8f14dad821034017ccb902eaf0a2b8c2ee"
@@ -28,6 +27,7 @@ EXTRA_OEMAKE += "KSRC=${STAGING_KERNEL_DIR}"
 EXTRA_OEMAKE += "ARCH=${ARCH}"
 EXTRA_OEMAKE += "CROSS_COMPILE=${TARGET_PREFIX}"
 EXTRA_OEMAKE += "CONFIG_PLATFORM_UBUNTU=n"
+EXTRA_OEMAKE += "CONFIG_USE_FW_REQUEST=y"
 EXTRA_OEMAKE += "CONFIG_AIC_FW_PATH=/lib/firmware/aic8800/USB"
 
 PACKAGES =+ "${PN}-firmware ${PN}-udev"
