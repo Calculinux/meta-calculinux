@@ -25,6 +25,7 @@ SRC_URI = "\
     file://0012-adb-daemon-fix-typeof-cpp17.patch \
     file://adbd.service \
     file://adbd-auth \
+    file://adbd.default \
 "
 
 SRC_URI[sha256sum] = "74689eaf472763aa7f842eb277cb62fbe08ebcabc7687f4546cec2383838435e"
@@ -83,6 +84,12 @@ do_install:append() {
     
     # Create ADB keys directory
     install -d ${D}/data/misc/adb
+
+    # Install auth helper and defaults
+    install -d ${D}${bindir}
+    install -m 0755 ${WORKDIR}/sources-unpack/adbd-auth ${D}${bindir}/adbd-auth.sh
+    install -d ${D}${sysconfdir}/default
+    install -m 0644 ${WORKDIR}/sources-unpack/adbd.default ${D}${sysconfdir}/default/adbd
 }
 
 SYSTEMD_SERVICE:${PN} = "adbd.service"
@@ -91,6 +98,8 @@ SYSTEMD_AUTO_ENABLE = "enable"
 FILES:${PN} += "\
     ${sysconfdir}/profile.d/adbd.sh \
     /data/misc/adb \
+    ${bindir}/adbd-auth.sh \
+    ${sysconfdir}/default/adbd \
 "
 
 RDEPENDS:${PN} = "openssl bash"

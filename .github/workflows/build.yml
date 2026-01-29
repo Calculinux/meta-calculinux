@@ -129,7 +129,7 @@ jobs:
         ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
 
     - name: Build SDKs
-      if: github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')
+      if: github.ref_name == 'develop' || github.ref_name == 'main' || startsWith(github.ref, 'refs/tags/')
       env:
         KAS_OVERRIDE_FILE: ${{ steps.prepare-config.outputs.kas_override_file }}
       run: |
@@ -331,7 +331,17 @@ jobs:
       if: env.IS_TAGGED_RELEASE == 'true'
       uses: softprops/action-gh-release@v1
       with:
-        files: artifacts/*
+        files: |
+          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
+          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          artifacts/uboot-${{ matrix.machine }}-*.bin
+          artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
+          artifacts/sdk/x86_64/*.sh
+          artifacts/sdk/x86_64/*.manifest
+          artifacts/sdk/aarch64/*.sh
+          artifacts/sdk/aarch64/*.manifest
         generate_release_notes: true
         draft: false
         prerelease: ${{ env.IS_PRERELEASE == 'true' }}

@@ -1,0 +1,21 @@
+diff --git a/src/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_platform.c b/src/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_platform.c
+index 32b207b..42e3bc2 100644
+--- a/src/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_platform.c
++++ b/src/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_platform.c
+@@ -615,10 +615,14 @@ static int rwnx_load_firmware(u32 **fw_buf, const char *name, struct device *dev
+ 	unsigned char decrypt[16];
+ 	int size = 0;
+ 	int ret = 0;
++	char full_fw_path[256];
++	const char *fw_name;
+ 
+-	AICWFDBG(LOGINFO, "%s: request firmware = %s \n", __func__ ,name);
++			// Try to load from aic8800DC subdirectory for AIC8800DC variants
++		snprintf(full_fw_path, sizeof(full_fw_path), "aic8800DC/%s", name);
++		fw_name = full_fw_path;
+ 
+-	ret = request_firmware(&fw, name, NULL);
++	ret = request_firmware(&fw, fw_name, NULL);
+ 
+ 	if (ret < 0) {
+ 		AICWFDBG(LOGERROR, "Load %s fail\n", name);

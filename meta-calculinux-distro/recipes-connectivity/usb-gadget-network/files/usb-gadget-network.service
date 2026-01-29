@@ -1,0 +1,16 @@
+[Unit]
+Description=USB Gadget Network
+After=sys-kernel-config.mount
+Requires=sys-kernel-config.mount
+Before=network.target
+Before=shutdown.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/usb-gadget-network.sh start
+ExecStop=/usr/bin/usb-gadget-network.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

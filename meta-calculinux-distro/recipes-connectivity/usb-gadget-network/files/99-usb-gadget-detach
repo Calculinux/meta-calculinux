@@ -1,0 +1,15 @@
+#!/bin/sh
+# systemd system-shutdown hook: force-detach USB gadget before final shutdown/reboot
+# Runs with argument: $1 = {halt|poweroff|reboot|kexec}
+
+GADGET_DIR="/sys/kernel/config/usb_gadget"
+GADGET_NAME="g1"
+GADGET_PATH="${GADGET_DIR}/${GADGET_NAME}"
+
+# Be best-effort and quiet; system is going down
+if [ -f "${GADGET_PATH}/UDC" ]; then
+    # Unbind from UDC to ensure ttyGS0 and network functions are gone
+    echo "" > "${GADGET_PATH}/UDC" 2>/dev/null || true
+fi
+
+exit 0
