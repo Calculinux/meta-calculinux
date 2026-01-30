@@ -26,13 +26,10 @@ EXTRA_OEMAKE += "KDIR=${STAGING_KERNEL_BUILDDIR}"
 EXTRA_OEMAKE += "KSRC=${STAGING_KERNEL_DIR}"
 EXTRA_OEMAKE += "ARCH=${ARCH}"
 EXTRA_OEMAKE += "CROSS_COMPILE=${TARGET_PREFIX}"
-EXTRA_OEMAKE += "CONFIG_PLATFORM_UBUNTU=n"
+EXTRA_OEMAKE += "CONFIG_PLATFORM_UBUNTU=y"
 EXTRA_OEMAKE += "CONFIG_USE_FW_REQUEST=n"
 EXTRA_OEMAKE += "CONFIG_PREALLOC_RX_SKB=y"
 EXTRA_OEMAKE += "CONFIG_PREALLOC_TXQ=y"
-
-# Firmware location - driver looks for DC firmware here
-EXTRA_OEMAKE += "CONFIG_AIC_FW_PATH=/lib/firmware/aic8800DC"
 
 PACKAGES =+ "${PN}-firmware ${PN}-udev"
 
@@ -41,7 +38,7 @@ INSANE_SKIP:${PN} += "buildpaths"
 INSANE_SKIP:${PN}-dbg += "buildpaths"
 
 FILES:${PN} = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/*.ko"
-FILES:${PN}-firmware = "${nonarch_base_libdir}/firmware/aic8800DC"
+FILES:${PN}-firmware = "${nonarch_base_libdir}/firmware/aic8800"
 FILES:${PN}-udev = "${sysconfdir}/udev/rules.d/aic.rules"
 
 RDEPENDS:${PN} += "${PN}-firmware ${PN}-udev"
@@ -132,10 +129,11 @@ do_install() {
     install -m 0644 ${S}/aic_load_fw/aic_load_fw.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/
     install -m 0644 ${S}/aic8800_fdrv/aic8800_fdrv.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/
 
-    # Install firmware files from extracted deb
-    install -d ${D}${nonarch_base_libdir}/firmware/aic8800DC
+    # Install firmware files from extracted deb to /lib/firmware/aic8800
+    # (driver with CONFIG_PLATFORM_UBUNTU=y looks for DC variant here)
+    install -d ${D}${nonarch_base_libdir}/firmware/aic8800
     if [ -d ${WORKDIR}/lib/firmware/aic8800DC ]; then
-        cp -r --no-preserve=ownership ${WORKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800DC/
+        cp -r --no-preserve=ownership ${WORKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800/
     fi
 
     # Install udev rules extracted from deb
