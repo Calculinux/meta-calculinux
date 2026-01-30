@@ -1,0 +1,14 @@
+[Unit]
+Description=USB Gadget Serial Console Configuration
+After=usb-gadget-network.service
+Requires=usb-gadget-network.service
+Before=serial-getty@ttyGS0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/usb-gadget-serial-console.sh start
+ExecStop=/usr/bin/usb-gadget-serial-console.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
