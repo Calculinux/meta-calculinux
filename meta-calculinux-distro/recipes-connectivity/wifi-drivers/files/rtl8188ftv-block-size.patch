@@ -1,11 +1,11 @@
 diff --git a/rtl8xxxu_8188f.c b/rtl8xxxu_8188f.c
-index 1f4c3f8..abc8d64 100644
+index e0fe26e..5892bf9 100644
 --- a/rtl8xxxu_8188f.c
 +++ b/rtl8xxxu_8188f.c
-@@ -1794,7 +1794,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
+@@ -1735,7 +1794,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
+ 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
  	.set_crystal_cap = rtl8188f_set_crystal_cap,
  	.cck_rssi = rtl8188f_cck_rssi,
- 	.led_classdev_brightness_set = rtl8188fu_led_brightness_set,
 -	.writeN_block_size = 128,
 +	.writeN_block_size = 196,
  	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),
