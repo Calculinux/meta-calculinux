@@ -38,7 +38,7 @@ INSANE_SKIP:${PN} += "buildpaths"
 INSANE_SKIP:${PN}-dbg += "buildpaths"
 
 FILES:${PN} = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/*.ko"
-FILES:${PN}-firmware = "${nonarch_base_libdir}/firmware/aic8800"
+FILES:${PN}-firmware = "${nonarch_base_libdir}/firmware/aic8800DC"
 FILES:${PN}-udev = "${sysconfdir}/udev/rules.d/aic.rules"
 
 RDEPENDS:${PN} += "${PN}-firmware ${PN}-udev"
@@ -129,11 +129,10 @@ do_install() {
     install -m 0644 ${S}/aic_load_fw/aic_load_fw.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/
     install -m 0644 ${S}/aic8800_fdrv/aic8800_fdrv.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/
 
-    # Install firmware files from extracted deb to /lib/firmware/aic8800
-    # (driver with CONFIG_PLATFORM_UBUNTU=y looks for DC variant here)
-    install -d ${D}${nonarch_base_libdir}/firmware/aic8800
+    # Install firmware files from extracted deb
+    install -d ${D}${nonarch_base_libdir}/firmware/aic8800DC
     if [ -d ${WORKDIR}/lib/firmware/aic8800DC ]; then
-        cp -r --no-preserve=ownership ${WORKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800/
+        cp -r --no-preserve=ownership ${WORKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800DC/
     fi
 
     # Install udev rules extracted from deb
