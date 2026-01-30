@@ -1,7 +1,8 @@
 [Unit]
 Description=Android Debug Bridge Daemon
 Documentation=https://developer.android.com/studio/command-line/adb
-After=network.target
+After=network.target usb-gadget-network.service sys-kernel-config.mount
+Wants=usb-gadget-network.service
 
 [Service]
 Type=simple
@@ -11,8 +12,10 @@ RestartSec=5
 
 # Environment configuration
 Environment="ADB_TCP_PORT=5555"
+Environment="ADB_TCP_PORT=0"
 Environment="ADBD_SHELL=/bin/bash"
-Environment="ADB_SECURE=0"
+Environment="ADB_SECURE=1"
+Environment="ADBD_AUTH_COMMAND=/usr/bin/adbd-auth.sh"
 
 # Read additional configuration from environment file
 EnvironmentFile=-/etc/default/adbd

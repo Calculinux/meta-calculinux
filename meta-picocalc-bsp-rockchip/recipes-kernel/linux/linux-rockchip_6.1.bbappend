@@ -19,6 +19,7 @@ SRC_URI = " \
     file://removed.cfg \
     file://utf8.cfg \
     file://filesystems.cfg \
+    file://usb-gadget.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
 "
@@ -34,6 +35,7 @@ KERNEL_CONFIG_FRAGMENTS += " \
     removed.cfg \
     utf8.cfg \
     filesystems.cfg \
+    usb-gadget.cfg \
 "
 
 DEPENDS += "gzip"

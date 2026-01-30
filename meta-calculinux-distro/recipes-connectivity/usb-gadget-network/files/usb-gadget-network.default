@@ -1,0 +1,19 @@
+# Defaults for USB Gadget
+
+# USB network protocol: "ecm" for Linux/macOS (default), "rndis" for Windows
+# ECM (CDC-Ether) is the native Linux protocol and works on macOS
+# RNDIS is required for Windows compatibility
+USB_PROTOCOL=ecm
+
+# Toggle USB serial console on ttyGS0 (1=enable, 0=disable)
+# When enabled, provides console access via USB ACM (Abstract Control Model)
+# Access via /dev/ttyACM0 on host at 1500000 baud
+ENABLE_SERIAL_CONSOLE=0
+
+# Toggle ADB FunctionFS gadget integration (1=enable, 0=disable)
+# NOTE: ADB requires adbd daemon running - see documentation
+ENABLE_ADB=0
+
+# Function name and mountpoint for FunctionFS (leave default unless you know why)
+ADB_FUNCTION_NAME=ffs.adb
+ADB_MOUNTPOINT=/dev/ffs/adb

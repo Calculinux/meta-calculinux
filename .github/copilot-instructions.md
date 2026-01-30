@@ -74,6 +74,45 @@
 
 ## Recipe Development
 
+### Yocto Version and Modern Syntax
+
+**Yocto Version**: Calculinux is based on **Yocto Scarthgap (2024.x)** via Poky
+
+**Important Syntax Changes** - Avoid deprecated patterns:
+
+| ❌ AVOID | ✅ USE INSTEAD | REASON |
+|---------|----------------|--------|
+| `S = "${WORKDIR}"` | Don't set S for file-only recipes | No longer supported in modern Yocto |
+| `${WORKDIR}` in do_install | `${UNPACKDIR}` | Explicit, modern way to reference unpacked source files |
+| `file://` with implicit workdir | `${UNPACKDIR}/filename` | Clearer variable usage |
+| `FILESEXTRAPATHS` only | `FILESEXTRAPATHS` + explicit paths | Combine with proper file location setup |
+
+**Example - Modern File Recipe** (like usb-gadget-network):
+```bitbake
+# ✅ CORRECT - Modern approach
+SUMMARY = "My Package"
+LICENSE = "MIT"
+
+SRC_URI = " \
+    file://myfile.sh \
+    file://myconfig.conf \
+"
+
+# DO NOT set S = "${WORKDIR}"
+
+do_install() {
+    install -d ${D}${bindir}
+    install -m 0755 ${UNPACKDIR}/myfile.sh ${D}${bindir}/
+    install -d ${D}${sysconfdir}
+    install -m 0644 ${UNPACKDIR}/myconfig.conf ${D}${sysconfdir}/
+}
+```
+
+**Why these changes**:
+- `${UNPACKDIR}` is explicitly the location of unpacked files from `SRC_URI`
+- Yocto automatically manages build directories
+- Setting `S` is only needed for recipes that have actual source to build from
+
 ### Finding Existing Recipes
 **Always** search https://layers.openembedded.org/layerindex/branch/master/recipes/?q=<package-name> before creating new recipes. Check for both the package and its dependencies.
 
@@ -182,6 +221,102 @@ Located in `meta-picocalc-bsp-rockchip/recipes-kernel/linux/linux-rockchip-6.1/`
 bitbake -c cleanall <recipe-name>  # Clear all recipe state
 bitbake <recipe-name>              # Rebuild from scratch
 ```
+
+## Connecting to PicoCalc for Troubleshooting
+
+### USB Gadget Networking
+
+Calculinux includes built-in **USB gadget networking** (`usb-gadget-network` recipe in `meta-calculinux-distro`) that provides direct USB connection to the device without requiring WiFi. This is the **primary method** for accessing the device during development and troubleshooting.
+
+**Quick Connection:**
+1. Connect PicoCalc to host computer via USB-C cable (PicoCalc's main USB-C port)
+2. Device appears as USB Ethernet adapter
+3. SSH to device: `ssh pico@192.168.7.2` (password: `calc`)
+
+**Network Configuration:**
+- **PicoCalc IP**: `192.168.7.2/24` (static fallback, also supports DHCP)
+- **Interface**: `usb0` (managed by systemd-networkd)
+- **Default mode**: ECM (CDC-Ether) - works natively on Linux/macOS
+- **Windows mode**: RNDIS (configure via `/etc/default/usb-gadget-network`)
+- **Speed**: USB 2.0 High-Speed (480 Mbps theoretical)
+
+**Host Setup (Linux with NetworkManager):**
+```bash
+# Option 1: Internet sharing (DHCP) - recommended
+nmcli connection add type ethernet ifname usb0 \
+    con-name "PicoCalc USB" ipv4.method shared
+nmcli connection up "PicoCalc USB"
+
+# Option 2: Direct connection (static)
+nmcli connection add type ethernet ifname usb0 \
+    con-name "PicoCalc USB" \
+    ipv4.method manual ipv4.addresses 192.168.7.1/24
+nmcli connection up "PicoCalc USB"
+```
+
+**Transferring Files:**
+```bash
+# SCP to device
+scp file.txt pico@192.168.7.2:/home/pico/
+
+# SCP from device
+scp pico@192.168.7.2:/var/log/messages ./
+
+# Alternative: HTTP server on device
+ssh pico@192.168.7.2
+python3 -m http.server 8000
+# Then browse to http://192.168.7.2:8000
+```
+
+**Troubleshooting USB Network:**
+- Check device interface: `ip addr show usb0`
+- Verify service: `systemctl status usb-gadget-network.service`
+- Check host sees device: `lsusb` (should show CDC-Ether or RNDIS device)
+- View network status: `networkctl status usb0`
+- Recipe location: `meta-calculinux-distro/recipes-connectivity/usb-gadget-network/`
+
+### USB Serial Console
+
+The USB gadget also exposes a **USB serial console** via ACM (Abstract Control Model) function, providing direct terminal access over USB at **1500000 baud**.
+
+**Accessing Serial Console:**
+```bash
+# Linux (device appears as /dev/ttyACM0)
+screen /dev/ttyACM0 1500000
+# OR
+python3 -m serial.tools.miniterm /dev/ttyACM0 1500000
+
+# macOS (device appears as /dev/tty.usbmodem*)
+screen /dev/tty.usbmodem* 1500000
+```
+
+**Login credentials:**
+- Username: `pico`
+- Password: `calc`
+
+**When to use serial vs SSH:**
+- **SSH over USB network**: Preferred for file transfers, development, normal usage
+- **Serial console**: Boot debugging, network troubleshooting, emergency access when USB network fails
+- **Hardware serial** (separate CH340 on PicoCalc USB-C port, also 1500000 baud): Early boot debugging, U-Boot access
+
+**Serial service status:**
+- Systemd service: `serial-getty@ttyGS0.service`
+- Depends on: `usb-gadget-network.service`
+- Device-side interface: `/dev/ttyGS0`
+
+**Important Notes:**
+- Both USB network AND serial console work simultaneously over single USB connection
+- USB gadget uses ConfigFS (`/sys/kernel/config/usb_gadget/`)
+- Configuration file: `/etc/default/usb-gadget-network`
+- Recipe provides both network and serial: `usb-gadget-network.bb`
+
+### Hardware Serial Console (Alternative)
+
+For **early boot debugging** or when USB gadget isn't working, use the hardware serial port via CH340 USB-UART bridge:
+- Requires opening PicoCalc and connecting to internal UART pads
+- Same baud rate: **1500000**
+- Shows bootloader (U-Boot) output and kernel messages from power-on
+- See hardware documentation for pin locations and wiring
 
 ## GitHub CI Workflows
 
