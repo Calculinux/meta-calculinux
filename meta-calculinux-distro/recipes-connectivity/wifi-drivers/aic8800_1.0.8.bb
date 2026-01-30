@@ -46,6 +46,9 @@ FILES:${PN}-udev = "${sysconfdir}/udev/rules.d/aic.rules"
 
 RDEPENDS:${PN} += "${PN}-firmware ${PN}-udev"
 
+# Declare that this recipe provides the kernel modules
+RPROVIDES:${PN} += "kernel-module-aic-load-fw-${KERNEL_VERSION} kernel-module-aic8800-fdrv-${KERNEL_VERSION}"
+
 # Module autoload order - loader first, then driver
 KERNEL_MODULE_AUTOLOAD:${PN} = "aic_load_fw aic8800_fdrv"
 
