@@ -8,6 +8,9 @@ PV = "1.0.8"
 LIC_FILES_CHKSUM = "file://${WORKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=dda5bafa8afaed74f884152b2b3efd00"
 
 # Download the prebuilt DKMS deb package
+# Patches:
+#  0001: Compilation fixes (-Werror, address checking)
+#  0002: Remove FT callback - firmware doesn't implement 802.11r (prevents "Operation not supported")
 SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0 \
            file://0001-disable-werror-and-fix-address-check.patch \
            file://0002-disable-ft-ies-update.patch \

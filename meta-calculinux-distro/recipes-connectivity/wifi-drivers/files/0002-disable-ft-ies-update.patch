@@ -1,12 +1,10 @@
-diff -Naur aic8800-1.0.8-orig/aic8800_fdrv/rwnx_main.c aic8800-1.0.8/aic8800_fdrv/rwnx_main.c
---- aic8800-1.0.8-orig/aic8800_fdrv/rwnx_main.c	2026-01-29 16:55:08.053383858 -0500
-+++ aic8800-1.0.8/aic8800_fdrv/rwnx_main.c	2026-01-31 00:00:00.000000000 -0500
-@@ -6239,7 +6239,8 @@
-     .get_channel = rwnx_cfg80211_get_channel,
-     .start_radar_detection = rwnx_cfg80211_start_radar_detection,
--    .update_ft_ies = rwnx_cfg80211_update_ft_ies,
-+    /* FT (802.11r) not properly supported on this FullMAC driver */
-+    //.update_ft_ies = rwnx_cfg80211_update_ft_ies,
-     .set_cqm_rssi_config = rwnx_cfg80211_set_cqm_rssi_config,
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-     .channel_switch = rwnx_cfg80211_channel_switch,
+--- a/aic8800_fdrv/rwnx_main.c
++++ b/aic8800_fdrv/rwnx_main.c
+@@ -4944,5 +4944,5 @@
+ int rwnx_cfg80211_update_ft_ies(struct wiphy *wiphy,
+                             struct net_device *dev,
+                             struct cfg80211_update_ft_ies_params *ftie)
+ {
+-    return 0;
++    return -EOPNOTSUPP;
+ }
