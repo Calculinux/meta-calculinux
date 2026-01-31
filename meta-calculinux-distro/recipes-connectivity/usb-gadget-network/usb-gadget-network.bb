@@ -66,5 +66,9 @@ FILES:${PN} += " \
     ${sysconfdir}/default/usb-gadget-network \
 "
 
+# Mark config file as conffile so opkg handles updates properly
+# This prevents overlayfs-persisted old config from blocking package updates
+CONFFILES:${PN} = "${sysconfdir}/default/usb-gadget-network"
+
 # Only compatible with machines that have USB gadget support
 COMPATIBLE_MACHINE = "luckfox-lyra"
