@@ -10,6 +10,7 @@ LIC_FILES_CHKSUM = "file://${WORKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=d
 # Download the prebuilt DKMS deb package
 SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0 \
            file://0001-disable-werror-and-fix-address-check.patch \
+           file://0002-disable-ft-ies-update.patch \
 "
 SRC_URI[sha256sum] = "952152f3add4ec24fee4af5a677b40135eec7759945268c8539bcc8b8da655eb"
 
