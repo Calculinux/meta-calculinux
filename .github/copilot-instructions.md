@@ -50,6 +50,25 @@
 
 **Always wait for builds to complete before declaring success/failure.**
 
+## Terminal Command Output Guidelines
+
+### IMPORTANT: Do NOT Pipe Long-Running Commands to head/tail
+- **NEVER** use `| head`, `| tail`, or similar output limiting for long-running build/fetch tasks
+- This removes all intermediate output, hiding progress and diagnostics
+- Users cannot see what's happening or debug issues when the command fails
+- Run commands without piping to capture full output
+- Exception: Only use output limiting when explicitly inspecting specific data (e.g., `grep` results)
+
+**Example - WRONG:**
+```bash
+./meta-calculinux/kas-container build ... | tail -20  # BAD: hides build progress
+```
+
+**Example - CORRECT:**
+```bash
+./meta-calculinux/kas-container build ...  # GOOD: full output visible
+```
+
 ## Patch Creation Guidelines - READ CAREFULLY
 
 ### ABSOLUTELY CRITICAL
@@ -171,8 +190,11 @@ TCLIBC = "musl"  # Uses musl libc, not glibc
 - RAUC slots: `/dev/disk/by-partlabel/ROOT_A` and `ROOT_B`
 
 ### Device Tree Workflow
-1. Picocalc-specific device tree data in `picocalc-devicetree` recipe (`.dtsi` files)
-2. Kernel recipe copies these into kernel source tree before compilation (`do_prepare_kernel_picocalc`)
+1. Device tree source-of-truth lives in the `picocalc-drivers` repo.
+    - Linux files are prefixed `linux-` (e.g., `linux-rk3506-luckfox-lyra.dtsi`, `linux-rk3506g-luckfox-lyra.dts`).
+    - U-Boot files are prefixed `uboot-` (e.g., `uboot-rk3506-luckfox.dtsi`, `uboot-rk3506-luckfox.dts`).
+2. `picocalc-devicetree` installs these into the sysroot with the historical filenames (no prefixes).
+3. Kernel and U-Boot recipes copy from the sysroot into their source trees (e.g., `do_prepare_kernel_picocalc`, `do_prepare_uboot_picocalc`).
 3. Runtime overlays via ConfigFS (no dtbocfg module needed):
    ```bash
    mkdir /sys/kernel/config/device-tree/overlays/<name>
