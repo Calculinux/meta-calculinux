@@ -1,9 +1,0 @@
-# Defaults for adbd daemon
-# Set to 1 to require custom auth command (password prompt), 0 for no auth
-ADB_SECURE=1
-# Disable TCP listener by default; set to a port (e.g. 5555) to enable
-ADB_TCP_PORT=0
-# Shell to use for adb shell
-ADBD_SHELL=/bin/bash
-# Custom auth command; reads /etc/adbd.passwd if present
-ADBD_AUTH_COMMAND=/usr/bin/adbd-auth.sh
