@@ -15,8 +15,19 @@ do_compile[noexec] = "1"
 do_install() {
     install -d ${D}${datadir}/picocalc
     install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
+    install -m 0644 ${S}/linux-rk3506-luckfox-lyra.dtsi ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
+    install -m 0644 ${S}/linux-rk3506g-luckfox-lyra.dts ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
+    install -m 0644 ${S}/uboot-rk3506-luckfox.dtsi ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
+    install -m 0644 ${S}/uboot-rk3506-luckfox.dts ${D}${datadir}/picocalc/rk3506-luckfox.dts
 }
 
+FILES:${PN} = "\
+    ${datadir}/picocalc/picocalc-luckfox-lyra.dtsi \
+    ${datadir}/picocalc/rk3506-luckfox-lyra.dtsi \
+    ${datadir}/picocalc/rk3506g-luckfox-lyra.dts \
+    ${datadir}/picocalc/rk3506-luckfox.dtsi \
+    ${datadir}/picocalc/rk3506-luckfox.dts \
+"
 SYSROOT_DIRS += "${datadir}/picocalc"
 
 FILES:${PN} = "${datadir}/picocalc/picocalc-luckfox-lyra.dtsi"
