@@ -171,8 +171,11 @@ TCLIBC = "musl"  # Uses musl libc, not glibc
 - RAUC slots: `/dev/disk/by-partlabel/ROOT_A` and `ROOT_B`
 
 ### Device Tree Workflow
-1. Picocalc-specific device tree data in `picocalc-devicetree` recipe (`.dtsi` files)
-2. Kernel recipe copies these into kernel source tree before compilation (`do_prepare_kernel_picocalc`)
+1. Device tree source-of-truth lives in the `picocalc-drivers` repo.
+    - Linux files are prefixed `linux-` (e.g., `linux-rk3506-luckfox-lyra.dtsi`, `linux-rk3506g-luckfox-lyra.dts`).
+    - U-Boot files are prefixed `uboot-` (e.g., `uboot-rk3506-luckfox.dtsi`, `uboot-rk3506-luckfox.dts`).
+2. `picocalc-devicetree` installs these into the sysroot with the historical filenames (no prefixes).
+3. Kernel and U-Boot recipes copy from the sysroot into their source trees (e.g., `do_prepare_kernel_picocalc`, `do_prepare_uboot_picocalc`).
 3. Runtime overlays via ConfigFS (no dtbocfg module needed):
    ```bash
    mkdir /sys/kernel/config/device-tree/overlays/<name>
