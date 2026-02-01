@@ -13,8 +13,12 @@ GADGET_DIR="/sys/kernel/config/usb_gadget"
 GADGET_NAME="g1"
 GADGET_PATH="${GADGET_DIR}/${GADGET_NAME}"
 
+# USB port mode: "gadget" (device mode) or "host" (host mode)
+USB_MODE=${USB_MODE:-gadget}
+
 # USB network protocol selection: "ecm" (Linux/macOS) or "rndis" (Windows)
 # ECM is preferred for Linux/macOS, RNDIS for Windows
+# Only applies when USB_MODE=gadget
 USB_PROTOCOL=${USB_PROTOCOL:-ecm}
 
 # Optional USB serial console on ttyGS0 (ACM function)
@@ -82,6 +86,24 @@ cleanup_gadget() {
             return 1
         }
     fi
+}
+
+# Function to enable USB host mode
+enable_host_mode() {
+    echo "Enabling USB host mode..."
+    
+    # Find UDC device
+    UDC_DEVICE=$(ls /sys/class/udc 2>/dev/null | head -n1)
+    if [ -z "${UDC_DEVICE}" ]; then
+        echo "Error: No UDC device found"
+        return 1
+    fi
+    
+    # The dwc2 driver supports both host and gadget modes
+    # When no gadget is bound, it operates in host mode
+    echo "USB port configured for host mode (gadget unbound)"
+    echo "You can now connect USB devices to the OTG port"
+    echo "Note: USB gadget networking will not be available in host mode"
 }
 
 # Function to setup gadget
@@ -182,27 +204,37 @@ setup_gadget() {
 case "$1" in
     start)
         # Load required kernel modules
-        modprobe libcomposite || true
-        modprobe usb_f_rndis || true
-        modprobe usb_f_ecm || true
-        modprobe usb_f_fs || true
-        modprobe usb_f_acm || true
         modprobe dwc2 || true
         
-        # Wait for configfs to be mounted
-        if [ ! -d "${GADGET_DIR}" ]; then
-            echo "ConfigFS not mounted at ${GADGET_DIR}"
-            exit 1
+        if [ "${USB_MODE}" = "host" ]; then
+            # Host mode - ensure no gadget is configured
+            if [ -d "${GADGET_DIR}" ]; then
+                cleanup_gadget
+            fi
+            enable_host_mode
+        else
+            # Gadget mode (default)
+            modprobe libcomposite || true
+            modprobe usb_f_rndis || true
+            modprobe usb_f_ecm || true
+            modprobe usb_f_fs || true
+            modprobe usb_f_acm || true
+            
+            # Wait for configfs to be mounted
+            if [ ! -d "${GADGET_DIR}" ]; then
+                echo "ConfigFS not mounted at ${GADGET_DIR}"
+                exit 1
+            fi
+            
+            cleanup_gadget
+            setup_gadget
+            
+            # Wait for interface to appear and let systemd-networkd configure it
+            # The usb0.network file handles both DHCP (for network sharing) and static IP (for manual connection)
+            sleep 2
+            
+            echo "USB gadget configured - network interface usb0 will be managed by systemd-networkd"
         fi
-        
-        cleanup_gadget
-        setup_gadget
-        
-        # Wait for interface to appear and let systemd-networkd configure it
-        # The usb0.network file handles both DHCP (for network sharing) and static IP (for manual connection)
-        sleep 2
-        
-        echo "USB gadget configured - network interface usb0 will be managed by systemd-networkd"
         ;;
     stop)
         # Bring down interface

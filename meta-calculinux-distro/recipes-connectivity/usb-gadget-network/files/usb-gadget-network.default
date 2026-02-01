@@ -1,8 +1,14 @@
 # Defaults for USB Gadget
 
+# USB port mode: "gadget" for USB device mode (network/serial), "host" for USB host mode
+# gadget - Enables USB gadget networking (device acts as network adapter to host computer)
+# host - Enables USB host mode (device can connect to USB peripherals like flash drives, keyboards)
+USB_MODE=gadget
+
 # USB network protocol: "ecm" for Linux/macOS (default), "rndis" for Windows
 # ECM (CDC-Ether) is the native Linux protocol and works on macOS
 # RNDIS is required for Windows compatibility
+# Only applies when USB_MODE=gadget
 USB_PROTOCOL=ecm
 
 # Toggle USB serial console on ttyGS0 (1=enable, 0=disable)
