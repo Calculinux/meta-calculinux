@@ -4,7 +4,12 @@
 
 set -e
 
-# Load configuration
+# Load configuration (temporary overrides in /run)
+if [ -f /run/usb-gadget-network.env ]; then
+    . /run/usb-gadget-network.env
+fi
+
+# Persistent defaults
 if [ -f /etc/default/usb-gadget-network ]; then
     . /etc/default/usb-gadget-network
 fi

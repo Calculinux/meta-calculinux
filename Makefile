@@ -49,7 +49,7 @@ image: setup
 	cd $(BUILD_ROOT) && $(KAS_CONTAINER) build $(KAS_CONFIG)
 
 .PHONY: build
-build: image
+build: bundle
 
 .PHONY: bundle
 bundle: setup

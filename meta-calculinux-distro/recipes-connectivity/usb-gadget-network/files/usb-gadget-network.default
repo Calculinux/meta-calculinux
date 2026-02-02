@@ -16,6 +16,10 @@ USB_PROTOCOL=ecm
 # Access via /dev/ttyACM0 on host at 1500000 baud
 ENABLE_SERIAL_CONSOLE=0
 
+# Toggle USB networking function (1=enable, 0=disable)
+# When disabled, only non-network functions (serial/ADB) are enabled
+ENABLE_NETWORK=1
+
 # Toggle ADB FunctionFS gadget integration (1=enable, 0=disable)
 # NOTE: ADB requires adbd daemon running - see documentation
 ENABLE_ADB=0

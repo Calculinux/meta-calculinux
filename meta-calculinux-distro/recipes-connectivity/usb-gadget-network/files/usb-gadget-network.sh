@@ -4,7 +4,12 @@
 
 set -e
 
-# Optional runtime configuration
+# Optional runtime configuration (temporary overrides in /run)
+if [ -f /run/usb-gadget-network.env ]; then
+    . /run/usb-gadget-network.env
+fi
+
+# Persistent defaults
 if [ -f /etc/default/usb-gadget-network ]; then
     . /etc/default/usb-gadget-network
 fi
@@ -23,6 +28,9 @@ USB_PROTOCOL=${USB_PROTOCOL:-ecm}
 
 # Optional USB serial console on ttyGS0 (ACM function)
 ENABLE_SERIAL_CONSOLE=${ENABLE_SERIAL_CONSOLE:-0}
+
+# Optional USB networking function
+ENABLE_NETWORK=${ENABLE_NETWORK:-1}
 
 # Optional ADB FunctionFS support (drives custom adbd outside Android)
 ENABLE_ADB=${ENABLE_ADB:-0}
@@ -99,9 +107,37 @@ enable_host_mode() {
         return 1
     fi
     
-    # The dwc2 driver supports both host and gadget modes
-    # When no gadget is bound, it operates in host mode
-    echo "USB port configured for host mode (gadget unbound)"
+    # Try to use USB role switch framework (modern kernels)
+    # Look for the role switch device associated with our UDC
+    ROLE_SWITCH=""
+    for role_dev in /sys/class/usb_role/*; do
+        if [ -d "$role_dev" ]; then
+            # Check if this role switch is for our UDC
+            if grep -q "${UDC_DEVICE}" "${role_dev}/uevent" 2>/dev/null || \
+               [ "$(basename $role_dev)" = "${UDC_DEVICE}-role-switch" ]; then
+                ROLE_SWITCH="${role_dev}/role"
+                break
+            fi
+        fi
+    done
+    
+    # If we found a role switch, use it to explicitly set host mode
+    if [ -n "${ROLE_SWITCH}" ] && [ -f "${ROLE_SWITCH}" ]; then
+        echo "Setting USB role to host via ${ROLE_SWITCH}"
+        echo "host" > "${ROLE_SWITCH}" || {
+            echo "Warning: Failed to set USB role to host"
+        }
+    else
+        echo "USB role switch not found, relying on unbound gadget for host mode"
+    fi
+    
+    # Verify host mode is active
+    if [ -n "${ROLE_SWITCH}" ] && [ -f "${ROLE_SWITCH}" ]; then
+        CURRENT_ROLE=$(cat "${ROLE_SWITCH}" 2>/dev/null || echo "unknown")
+        echo "Current USB role: ${CURRENT_ROLE}"
+    fi
+    
+    echo "USB port configured for host mode"
     echo "You can now connect USB devices to the OTG port"
     echo "Note: USB gadget networking will not be available in host mode"
 }
@@ -109,6 +145,31 @@ enable_host_mode() {
 # Function to setup gadget
 setup_gadget() {
     echo "Setting up USB gadget network..."
+    
+    # Find UDC device early for role switching
+    UDC_DEVICE=$(ls /sys/class/udc 2>/dev/null | head -n1)
+    if [ -z "${UDC_DEVICE}" ]; then
+        echo "Warning: No UDC device found yet, will retry later"
+    else
+        # Try to use USB role switch framework to explicitly set device mode
+        ROLE_SWITCH=""
+        for role_dev in /sys/class/usb_role/*; do
+            if [ -d "$role_dev" ]; then
+                if grep -q "${UDC_DEVICE}" "${role_dev}/uevent" 2>/dev/null || \
+                   [ "$(basename $role_dev)" = "${UDC_DEVICE}-role-switch" ]; then
+                    ROLE_SWITCH="${role_dev}/role"
+                    break
+                fi
+            fi
+        done
+        
+        if [ -n "${ROLE_SWITCH}" ] && [ -f "${ROLE_SWITCH}" ]; then
+            echo "Setting USB role to device via ${ROLE_SWITCH}"
+            echo "device" > "${ROLE_SWITCH}" || {
+                echo "Warning: Failed to set USB role to device"
+            }
+        fi
+    fi
     
     # Create gadget
     mkdir -p ${GADGET_PATH}
@@ -136,30 +197,50 @@ setup_gadget() {
         mkdir -p functions/acm.usb0
     fi
     
-    # Create network function based on protocol selection
-    if [ "${USB_PROTOCOL}" = "rndis" ]; then
-        # RNDIS function for Windows
-        mkdir -p functions/rndis.usb0
-        echo ${HOST_MAC} > functions/rndis.usb0/host_addr
-        echo ${DEVICE_MAC} > functions/rndis.usb0/dev_addr
-        
-        # RNDIS needs OS descriptors for Windows compatibility
-        echo 1 > os_desc/use
-        echo 0xcd > os_desc/b_vendor_code
-        echo MSFT100 > os_desc/qw_sign
-        
-        NETWORK_FUNCTION="rndis.usb0"
-        CONFIG_LABEL="RNDIS"
-    else
-        # ECM/CDC-Ether function for Linux/macOS (default)
-        mkdir -p functions/ecm.usb0
-        echo ${HOST_MAC} > functions/ecm.usb0/host_addr
-        echo ${DEVICE_MAC} > functions/ecm.usb0/dev_addr
-        
-        NETWORK_FUNCTION="ecm.usb0"
-        CONFIG_LABEL="CDC-Ether/ECM"
+    NETWORK_FUNCTION=""
+    CONFIG_LABEL_PARTS=()
+
+    # Create network function based on protocol selection (if enabled)
+    if [ "${ENABLE_NETWORK}" = "1" ]; then
+        if [ "${USB_PROTOCOL}" = "rndis" ]; then
+            # RNDIS function for Windows
+            mkdir -p functions/rndis.usb0
+            echo ${HOST_MAC} > functions/rndis.usb0/host_addr
+            echo ${DEVICE_MAC} > functions/rndis.usb0/dev_addr
+
+            # RNDIS needs OS descriptors for Windows compatibility
+            echo 1 > os_desc/use
+            echo 0xcd > os_desc/b_vendor_code
+            echo MSFT100 > os_desc/qw_sign
+
+            NETWORK_FUNCTION="rndis.usb0"
+            CONFIG_LABEL_PARTS+=("RNDIS")
+        else
+            # ECM/CDC-Ether function for Linux/macOS (default)
+            mkdir -p functions/ecm.usb0
+            echo ${HOST_MAC} > functions/ecm.usb0/host_addr
+            echo ${DEVICE_MAC} > functions/ecm.usb0/dev_addr
+
+            NETWORK_FUNCTION="ecm.usb0"
+            CONFIG_LABEL_PARTS+=("CDC-Ether/ECM")
+        fi
     fi
     
+    if [ "${ENABLE_SERIAL_CONSOLE}" = "1" ]; then
+        CONFIG_LABEL_PARTS+=("ACM")
+    fi
+
+    if [ "${ENABLE_ADB}" = "1" ]; then
+        CONFIG_LABEL_PARTS+=("ADB")
+    fi
+
+    if [ ${#CONFIG_LABEL_PARTS[@]} -eq 0 ]; then
+        echo "Error: No USB functions enabled (set ENABLE_NETWORK=1, ENABLE_SERIAL_CONSOLE=1, or ENABLE_ADB=1)"
+        exit 1
+    fi
+
+    CONFIG_LABEL=$(IFS=" + "; echo "${CONFIG_LABEL_PARTS[*]}")
+
     # Create single configuration
     mkdir -p configs/c.1
     echo 250 > configs/c.1/MaxPower
@@ -177,13 +258,15 @@ setup_gadget() {
     fi
 
     # Link functions to configuration
-    ln -s functions/${NETWORK_FUNCTION} configs/c.1/
+    if [ -n "${NETWORK_FUNCTION}" ]; then
+        ln -s functions/${NETWORK_FUNCTION} configs/c.1/
+    fi
     if [ "${ENABLE_SERIAL_CONSOLE}" = "1" ]; then
         ln -s functions/acm.usb0 configs/c.1/
     fi
     
     # Link OS descriptors (only needed for RNDIS)
-    if [ "${USB_PROTOCOL}" = "rndis" ]; then
+    if [ "${ENABLE_NETWORK}" = "1" ] && [ "${USB_PROTOCOL}" = "rndis" ]; then
         ln -s configs/c.1 os_desc/
     fi
     
