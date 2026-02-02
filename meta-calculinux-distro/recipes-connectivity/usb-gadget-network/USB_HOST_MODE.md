@@ -36,6 +36,8 @@ Edit `/etc/default/usb-gadget-network` to set the USB mode:
 USB_MODE=gadget  # or USB_MODE=host
 ```
 
+For user-facing documentation on the `usb-modeswitch` command and USB mode switching, see the [USB Networking documentation](https://calculinux.github.io/docs/user-guide/usb-networking/#usb-hostgadget-mode-switching).
+
 ### Switching to Host Mode
 
 1. Connect to your PicoCalc via WiFi or serial console (not USB)
@@ -103,8 +105,16 @@ Added USB host support:
 ### Script Logic
 The `usb-gadget-network.sh` script now:
 - Checks `USB_MODE` from `/etc/default/usb-gadget-network`
-- In gadget mode: Sets up ConfigFS gadget as before
-- In host mode: Leaves the DWC2 controller unbound from gadget, allowing it to operate as a host
+- In gadget mode: 
+  - Attempts to set USB role to "device" via `/sys/class/usb_role/*/role` if available
+  - Sets up ConfigFS gadget as before
+  - Binds to the UDC controller
+- In host mode: 
+  - Cleans up any existing gadget configuration
+  - Attempts to set USB role to "host" via `/sys/class/usb_role/*/role` if available
+  - Leaves the DWC2 controller unbound from gadget, allowing it to operate as a host
+
+The script uses the USB role switch framework when available (modern kernels with `CONFIG_USB_ROLE_SWITCH=y`) to explicitly set the OTG controller role. If the role switch interface is not available, it relies on the controller's default behavior (host mode when no gadget is bound).
 
 ## Troubleshooting
 
