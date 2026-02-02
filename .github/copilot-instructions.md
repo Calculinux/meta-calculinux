@@ -50,6 +50,25 @@
 
 **Always wait for builds to complete before declaring success/failure.**
 
+## Terminal Command Output Guidelines
+
+### IMPORTANT: Do NOT Pipe Long-Running Commands to head/tail
+- **NEVER** use `| head`, `| tail`, or similar output limiting for long-running build/fetch tasks
+- This removes all intermediate output, hiding progress and diagnostics
+- Users cannot see what's happening or debug issues when the command fails
+- Run commands without piping to capture full output
+- Exception: Only use output limiting when explicitly inspecting specific data (e.g., `grep` results)
+
+**Example - WRONG:**
+```bash
+./meta-calculinux/kas-container build ... | tail -20  # BAD: hides build progress
+```
+
+**Example - CORRECT:**
+```bash
+./meta-calculinux/kas-container build ...  # GOOD: full output visible
+```
+
 ## Patch Creation Guidelines - READ CAREFULLY
 
 ### ABSOLUTELY CRITICAL
