@@ -186,6 +186,24 @@ lsmod | grep -E 'libcomposite|rndis|ecm|dwc2'
 
 ## Advanced Configuration
 
+### Temporary USB Mode Switching
+
+Use `usb-modeswitch` for quick, temporary changes without editing `/etc/default/usb-gadget-network`. It writes runtime overrides to `/run/usb-gadget-network.env` and restarts the services.
+
+```bash
+# Switch to host mode (temporary)
+sudo usb-modeswitch --mode host
+
+# Switch to gadget mode with RNDIS
+sudo usb-modeswitch --mode gadget --protocol rndis
+
+# Disable networking and enable serial console
+sudo usb-modeswitch --network off --serial on
+
+# Clear temporary overrides
+sudo usb-modeswitch --clear
+```
+
 ### Changing IP Addresses
 
 To use a different IP range, edit:
