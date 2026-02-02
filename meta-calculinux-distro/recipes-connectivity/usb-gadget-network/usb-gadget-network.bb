@@ -5,6 +5,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 
 SRC_URI = " \
     file://usb-gadget-network.sh \
+    file://usb-modeswitch \
     file://usb-gadget-network.service \
     file://usb0.network \
     file://usb-gadget-network.default \
@@ -37,6 +38,7 @@ do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${UNPACKDIR}/usb-gadget-network.sh ${D}${bindir}/
     install -m 0755 ${UNPACKDIR}/usb-gadget-serial-console.sh ${D}${bindir}/
+    install -m 0755 ${UNPACKDIR}/usb-modeswitch ${D}${bindir}/
 
     # Install systemd service
     install -d ${D}${systemd_system_unitdir}
