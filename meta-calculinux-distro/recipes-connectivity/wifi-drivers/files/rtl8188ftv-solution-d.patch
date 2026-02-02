@@ -1,0 +1,72 @@
+diff --git a/rtl8xxxu_8188f.c b/rtl8xxxu_8188f.c
+index bcbf8df..6554c78 100644
+--- a/rtl8xxxu_8188f.c
++++ b/rtl8xxxu_8188f.c
+@@ -775,8 +775,67 @@ static void rtl8188fu_init_phy_bb(struct rtl8xxxu_priv *priv)
+ 	rtl8xxxu_init_phy_regs(priv, rtl8188f_agc_table);
+ }
+ 
++static void rtl8188f_write_usb2phy(struct rtl8xxxu_priv *priv, u8 offset, u8 value)
++{
++	rtl8xxxu_write8(priv, 0xFE41, value);
++	rtl8xxxu_write8(priv, 0xFE40, offset);
++	rtl8xxxu_write8(priv, 0xFE42, 0x81);
++}
++
++static u8 rtl8188f_read_usb2phy(struct rtl8xxxu_priv *priv, u8 offset)
++{
++	rtl8xxxu_write8(priv, 0xFE40, offset);
++	rtl8xxxu_write8(priv, 0xFE42, 0x81);
++
++	return rtl8xxxu_read8(priv, 0xFE43);
++}
++
++static void rtl8188f_apply_solution_d(struct rtl8xxxu_priv *priv)
++{
++	struct device *dev = &priv->udev->dev;
++	u16 reg0mask = BIT(10) | BIT(11) | BIT(12) | BIT(13);
++	u16 reg1mask = BIT(0) | BIT(1) | BIT(2) | BIT(3);
++	u8 reg_val[6];
++	u16 val16;
++
++	val16 = rtl8xxxu_read16(priv, 0x10);
++	reg_val[0] = (val16 & reg0mask) >> 10;
++
++	val16 = rtl8xxxu_read16(priv, 0xC4);
++	reg_val[1] = val16 & reg1mask;
++
++	reg_val[2] = rtl8188f_read_usb2phy(priv, 0xC1);
++
++	val16 = rtl8xxxu_read16(priv, 0x04);
++	reg_val[3] = (val16 & BIT(11)) ? 1 : 0;
++
++	reg_val[4] = rtl8188f_read_usb2phy(priv, 0xD2);
++	reg_val[5] = rtl8188f_read_usb2phy(priv, 0xD3);
++
++	if (reg_val[3] == 0 && reg_val[4] == 0 && reg_val[5] == 0x31)
++		return;
++
++	if ((reg_val[0] == 0xC && reg_val[1] == 0xC && reg_val[2] == 0xAE) ||
++	    (reg_val[0] == 0xF && reg_val[1] == 0xC && reg_val[2] == 0xAE) ||
++	    (reg_val[0] == 0xC && reg_val[1] == 0xB && reg_val[2] == 0xAE) ||
++	    (reg_val[0] == 0xC && reg_val[1] == 0xC && reg_val[2] == 0xBE)) {
++		val16 = rtl8xxxu_read16(priv, 0x10);
++		val16 = (val16 & ~reg0mask) | (0xF << 10);
++		rtl8xxxu_write16(priv, 0x10, val16);
++
++		val16 = rtl8xxxu_read16(priv, 0xC4);
++		val16 = (val16 & ~reg1mask) | 0x7;
++		rtl8xxxu_write16(priv, 0xC4, val16);
++
++		rtl8188f_write_usb2phy(priv, 0xE1, 0xB6);
++		dev_info(dev, "Applied RTL8188F solution D workaround\n");
++	}
++}
++
+ static int rtl8188fu_init_phy_rf(struct rtl8xxxu_priv *priv)
+ {
++	rtl8188f_apply_solution_d(priv);
++
+ 	int ret;
+ 
+ 	if (priv->chip_cut == 1)

@@ -181,7 +181,7 @@
 
 /**********usb**********/
 &usb20_otg0 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 	/* vbus-supply = <&vcc5v0_otg0>;
 	rockchip,gpio-vbus-det; */
 	status = "okay";

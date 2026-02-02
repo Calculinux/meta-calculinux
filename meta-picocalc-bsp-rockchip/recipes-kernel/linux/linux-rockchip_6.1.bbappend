@@ -2,7 +2,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 LICENSE = "GPL-2.0-only"
 
-SRCREV = "7e3209499d520d8960fd0a37e0dc34bf88252b04"
+SRCREV = "815d6a4af7589b0da6cc765658913d05fe550965"
 
 SRC_URI = " \
     git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1 \

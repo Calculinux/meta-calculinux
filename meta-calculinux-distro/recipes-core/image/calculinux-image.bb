@@ -127,4 +127,28 @@ calculinux_export_bundle_extras() {
     if [ "$has_data" = "1" ] && [ -d "${DEPLOY_DIR_IMAGE}/bundle-extras/extras" ]; then
         tar -czf "${DEPLOY_DIR_IMAGE}/bundle-extras.tar.gz" -C "${DEPLOY_DIR_IMAGE}/bundle-extras" extras
     fi
+
+# Override rockchip-image.bbclass to remove Android-style firmware symlinks
+#
+# The upstream meta-rockchip layer creates /system/etc/firmware and /vendor/etc/firmware
+# symlinks pointing to /usr/lib/firmware for compatibility with Rockchip's Android-based
+# rkwifibt drivers. Calculinux uses standard Linux firmware loading and doesn't need these.
+ROOTFS_POSTPROCESS_COMMAND:remove = " do_post_rootfs;"
+ROOTFS_POSTPROCESS_COMMAND:append = " do_post_rootfs_calculinux;"
+
+do_post_rootfs_calculinux() {
+        # Apply RK_OVERLAY_DIRS without creating Android firmware symlinks
+        for overlay in ${RK_OVERLAY_DIRS};do
+                [ -d "${overlay}" ] || continue
+                echo "Installing overlay: ${overlay}..."
+                rsync -av --chmod=u=rwX,go=rX "${overlay}/" "${IMAGE_ROOTFS}"
+        done
+
+        # Run post-rootfs scripts
+        for script in ${RK_POST_ROOTFS_SCRIPTS};do
+                [ -f "${script}" ] || continue
+                echo "Running script: ${script}..."
+                cd "${script%/*}"
+                "${script}" "${IMAGE_ROOTFS}"
+        done
 }

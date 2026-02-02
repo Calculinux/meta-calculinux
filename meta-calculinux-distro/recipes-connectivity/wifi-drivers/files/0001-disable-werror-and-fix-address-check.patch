@@ -1,0 +1,32 @@
+diff -Naur aic8800-1.0.8-orig/aic8800_fdrv/aicwf_wext_linux.c aic8800-1.0.8/aic8800_fdrv/aicwf_wext_linux.c
+--- aic8800-1.0.8-orig/aic8800_fdrv/aicwf_wext_linux.c	2026-01-29 16:55:08.053383858 -0500
++++ aic8800-1.0.8/aic8800_fdrv/aicwf_wext_linux.c	2026-01-29 16:55:17.194602470 -0500
+@@ -400,7 +400,7 @@
+ 	iwe->cmd = SIOCGIWAP;
+ 	iwe->u.ap_addr.sa_family = ARPHRD_ETHER;
+ 
+-	if(scan_re->bss && &scan_re->bss->bssid[0]){
++	if(scan_re->bss){
+ 	memcpy(iwe->u.ap_addr.sa_data, scan_re->bss->bssid, ETH_ALEN);
+ 	}
+ 
+diff -Naur aic8800-1.0.8-orig/aic8800_fdrv/Makefile aic8800-1.0.8/aic8800_fdrv/Makefile
+--- aic8800-1.0.8-orig/aic8800_fdrv/Makefile	2026-01-29 16:55:08.052372185 -0500
++++ aic8800-1.0.8/aic8800_fdrv/Makefile	2026-01-29 16:55:17.189862444 -0500
+@@ -1,6 +1,7 @@
+ EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
+ EXTRA_CFLAGS += -Wno-implicit-fallthrough
+ #EXTRA_CFLAGS += -Wno-unused-variable
++EXTRA_CFLAGS += -Wno-error
+ 
+ RWNX_VERS_NUM := 6.4.3.0
+ 
+diff -Naur aic8800-1.0.8-orig/aic_load_fw/Makefile aic8800-1.0.8/aic_load_fw/Makefile
+--- aic8800-1.0.8-orig/aic_load_fw/Makefile	2026-01-29 16:55:08.056543692 -0500
++++ aic8800-1.0.8/aic_load_fw/Makefile	2026-01-29 16:55:17.192536003 -0500
+@@ -1,3 +1,5 @@
++EXTRA_CFLAGS += -Wno-error
++
+ CONFIG_USB_SUPPORT =y
+ CONFIG_RFTEST =y
+ CONFIG_USB_BT =y
