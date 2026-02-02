@@ -187,10 +187,26 @@ setup_gadget() {
         ln -s configs/c.1 os_desc/
     fi
     
-    # Find and enable UDC
-    UDC_DEVICE=$(ls /sys/class/udc | head -n1)
+    # Find and enable UDC (with retry logic)
+    # The UDC device can take time to initialize during boot
+    MAX_ATTEMPTS=30
+    ATTEMPT=0
+    RETRY_DELAY=1
+    
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        UDC_DEVICE=$(ls /sys/class/udc 2>/dev/null | head -n1)
+        if [ -n "${UDC_DEVICE}" ]; then
+            break
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Waiting for UDC device... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            sleep $RETRY_DELAY
+        fi
+    done
+    
     if [ -z "${UDC_DEVICE}" ]; then
-        echo "Error: No UDC device found"
+        echo "Error: No UDC device found after $MAX_ATTEMPTS attempts"
         exit 1
     fi
     

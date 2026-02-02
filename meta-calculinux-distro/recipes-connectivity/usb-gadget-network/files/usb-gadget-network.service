@@ -11,6 +11,8 @@ Type=oneshot
 ExecStart=/usr/bin/usb-gadget-network.sh start
 ExecStop=/usr/bin/usb-gadget-network.sh stop
 RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2
 
 [Install]
 WantedBy=sysinit.target
