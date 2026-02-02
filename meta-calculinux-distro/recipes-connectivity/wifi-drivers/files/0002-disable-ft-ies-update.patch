@@ -1,0 +1,29 @@
+--- aic8800-1.0.8.orig/aic8800_fdrv/rwnx_main.c	2025-10-18 08:38:30.000000000 -0400
++++ aic8800-1.0.8/aic8800_fdrv/rwnx_main.c	2026-02-01 14:57:59.389484639 -0500
+@@ -4940,7 +4940,7 @@
+                             struct net_device *dev,
+                             struct cfg80211_update_ft_ies_params *ftie)
+ {
+-    return 0;
++    return -EOPNOTSUPP;
+ }
+ 
+ /**
+@@ -6239,7 +6239,7 @@
+     .dump_survey = rwnx_cfg80211_dump_survey,
+     .get_channel = rwnx_cfg80211_get_channel,
+     .start_radar_detection = rwnx_cfg80211_start_radar_detection,
+-    .update_ft_ies = rwnx_cfg80211_update_ft_ies,
++    //    .update_ft_ies = rwnx_cfg80211_update_ft_ies,
+     .set_cqm_rssi_config = rwnx_cfg80211_set_cqm_rssi_config,
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+     .channel_switch = rwnx_cfg80211_channel_switch,
+@@ -8775,7 +8775,7 @@
+         0;
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0) || defined(CONFIG_WPA3_FOR_OLD_KERNEL)
+-    wiphy->features |= NL80211_FEATURE_SAE;
++    //    wiphy->features |= NL80211_FEATURE_SAE;
+ #endif
+ 
+     if (rwnx_mod_params.tdls)

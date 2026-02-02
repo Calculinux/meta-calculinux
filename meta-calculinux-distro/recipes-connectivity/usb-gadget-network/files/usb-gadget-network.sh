@@ -17,6 +17,9 @@ GADGET_PATH="${GADGET_DIR}/${GADGET_NAME}"
 # ECM is preferred for Linux/macOS, RNDIS for Windows
 USB_PROTOCOL=${USB_PROTOCOL:-ecm}
 
+# Optional USB serial console on ttyGS0 (ACM function)
+ENABLE_SERIAL_CONSOLE=${ENABLE_SERIAL_CONSOLE:-0}
+
 # Optional ADB FunctionFS support (drives custom adbd outside Android)
 ENABLE_ADB=${ENABLE_ADB:-0}
 ADB_FUNCTION_NAME=${ADB_FUNCTION_NAME:-ffs.adb}
@@ -106,8 +109,10 @@ setup_gadget() {
     echo ${MANUFACTURER} > strings/0x409/manufacturer
     echo ${PRODUCT} > strings/0x409/product
     
-    # Create ACM serial function (for console access)
-    mkdir -p functions/acm.usb0
+    # Create ACM serial function (for console access) if enabled
+    if [ "${ENABLE_SERIAL_CONSOLE}" = "1" ]; then
+        mkdir -p functions/acm.usb0
+    fi
     
     # Create network function based on protocol selection
     if [ "${USB_PROTOCOL}" = "rndis" ]; then
@@ -151,17 +156,35 @@ setup_gadget() {
 
     # Link functions to configuration
     ln -s functions/${NETWORK_FUNCTION} configs/c.1/
-    ln -s functions/acm.usb0 configs/c.1/
+    if [ "${ENABLE_SERIAL_CONSOLE}" = "1" ]; then
+        ln -s functions/acm.usb0 configs/c.1/
+    fi
     
     # Link OS descriptors (only needed for RNDIS)
     if [ "${USB_PROTOCOL}" = "rndis" ]; then
         ln -s configs/c.1 os_desc/
     fi
     
-    # Find and enable UDC
-    UDC_DEVICE=$(ls /sys/class/udc | head -n1)
+    # Find and enable UDC (with retry logic)
+    # The UDC device can take time to initialize during boot
+    MAX_ATTEMPTS=30
+    ATTEMPT=0
+    RETRY_DELAY=1
+    
+    while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+        UDC_DEVICE=$(ls /sys/class/udc 2>/dev/null | head -n1)
+        if [ -n "${UDC_DEVICE}" ]; then
+            break
+        fi
+        ATTEMPT=$((ATTEMPT + 1))
+        if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Waiting for UDC device... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            sleep $RETRY_DELAY
+        fi
+    done
+    
     if [ -z "${UDC_DEVICE}" ]; then
-        echo "Error: No UDC device found"
+        echo "Error: No UDC device found after $MAX_ATTEMPTS attempts"
         exit 1
     fi
     

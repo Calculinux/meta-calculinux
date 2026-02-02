@@ -204,3 +204,53 @@ The device uses fixed MAC addresses:
 - Host: 48:6f:73:74:50:43
 
 These can be changed in `/usr/bin/usb-gadget-network.sh`.
+## Configuration File Updates (with OverlayFS)
+
+When updating this package on a system with OverlayFS persistence (like Calculinux), the `/etc/default/usb-gadget-network` configuration file may not automatically update due to the overlay layer.
+
+### Checking for Updated Config
+
+After package upgrade, check if a new config version is available:
+```bash
+# Check if opkg created a new version
+ls -la /etc/default/usb-gadget-network*
+
+# Should see files like:
+# /etc/default/usb-gadget-network (current, possibly old)
+# /etc/default/usb-gadget-network.dpkg-new (new version from package)
+```
+
+### Updating Your Config
+
+If `.dpkg-new` exists with new settings you need:
+
+**Option 1: Replace with new version (loses your customizations)**
+```bash
+sudo mv /etc/default/usb-gadget-network.dpkg-new /etc/default/usb-gadget-network
+sudo systemctl restart usb-gadget-network
+```
+
+**Option 2: Merge changes (keep your customizations)**
+```bash
+# View the new version
+cat /etc/default/usb-gadget-network.dpkg-new
+
+# Manually edit your current config with any new options
+sudo nano /etc/default/usb-gadget-network
+
+# Then restart
+sudo systemctl restart usb-gadget-network
+```
+
+**Option 3: Clean overlay and reinstall (most thorough)**
+```bash
+# Remove the old config from overlay
+sudo rm /etc/default/usb-gadget-network
+sudo rm /etc/default/usb-gadget-network.dpkg-new
+
+# Reinstall the package
+sudo opkg install --force-reinstall usb-gadget-network
+
+# Restart service
+sudo systemctl restart usb-gadget-network
+```

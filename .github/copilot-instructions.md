@@ -50,6 +50,25 @@
 
 **Always wait for builds to complete before declaring success/failure.**
 
+## Terminal Command Output Guidelines
+
+### IMPORTANT: Do NOT Pipe Long-Running Commands to head/tail
+- **NEVER** use `| head`, `| tail`, or similar output limiting for long-running build/fetch tasks
+- This removes all intermediate output, hiding progress and diagnostics
+- Users cannot see what's happening or debug issues when the command fails
+- Run commands without piping to capture full output
+- Exception: Only use output limiting when explicitly inspecting specific data (e.g., `grep` results)
+
+**Example - WRONG:**
+```bash
+./meta-calculinux/kas-container build ... | tail -20  # BAD: hides build progress
+```
+
+**Example - CORRECT:**
+```bash
+./meta-calculinux/kas-container build ...  # GOOD: full output visible
+```
+
 ## Patch Creation Guidelines - READ CAREFULLY
 
 ### ABSOLUTELY CRITICAL
@@ -171,8 +190,11 @@ TCLIBC = "musl"  # Uses musl libc, not glibc
 - RAUC slots: `/dev/disk/by-partlabel/ROOT_A` and `ROOT_B`
 
 ### Device Tree Workflow
-1. Picocalc-specific device tree data in `picocalc-devicetree` recipe (`.dtsi` files)
-2. Kernel recipe copies these into kernel source tree before compilation (`do_prepare_kernel_picocalc`)
+1. Device tree source-of-truth lives in the `picocalc-drivers` repo.
+    - Linux files are prefixed `linux-` (e.g., `linux-rk3506-luckfox-lyra.dtsi`, `linux-rk3506g-luckfox-lyra.dts`).
+    - U-Boot files are prefixed `uboot-` (e.g., `uboot-rk3506-luckfox.dtsi`, `uboot-rk3506-luckfox.dts`).
+2. `picocalc-devicetree` installs these into the sysroot with the historical filenames (no prefixes).
+3. Kernel and U-Boot recipes copy from the sysroot into their source trees (e.g., `do_prepare_kernel_picocalc`, `do_prepare_uboot_picocalc`).
 3. Runtime overlays via ConfigFS (no dtbocfg module needed):
    ```bash
    mkdir /sys/kernel/config/device-tree/overlays/<name>
@@ -221,6 +243,102 @@ Located in `meta-picocalc-bsp-rockchip/recipes-kernel/linux/linux-rockchip-6.1/`
 bitbake -c cleanall <recipe-name>  # Clear all recipe state
 bitbake <recipe-name>              # Rebuild from scratch
 ```
+
+## Connecting to PicoCalc for Troubleshooting
+
+### USB Gadget Networking
+
+Calculinux includes built-in **USB gadget networking** (`usb-gadget-network` recipe in `meta-calculinux-distro`) that provides direct USB connection to the device without requiring WiFi. This is the **primary method** for accessing the device during development and troubleshooting.
+
+**Quick Connection:**
+1. Connect PicoCalc to host computer via USB-C cable (PicoCalc's main USB-C port)
+2. Device appears as USB Ethernet adapter
+3. SSH to device: `ssh pico@192.168.7.2` (password: `calc`)
+
+**Network Configuration:**
+- **PicoCalc IP**: `192.168.7.2/24` (static fallback, also supports DHCP)
+- **Interface**: `usb0` (managed by systemd-networkd)
+- **Default mode**: ECM (CDC-Ether) - works natively on Linux/macOS
+- **Windows mode**: RNDIS (configure via `/etc/default/usb-gadget-network`)
+- **Speed**: USB 2.0 High-Speed (480 Mbps theoretical)
+
+**Host Setup (Linux with NetworkManager):**
+```bash
+# Option 1: Internet sharing (DHCP) - recommended
+nmcli connection add type ethernet ifname usb0 \
+    con-name "PicoCalc USB" ipv4.method shared
+nmcli connection up "PicoCalc USB"
+
+# Option 2: Direct connection (static)
+nmcli connection add type ethernet ifname usb0 \
+    con-name "PicoCalc USB" \
+    ipv4.method manual ipv4.addresses 192.168.7.1/24
+nmcli connection up "PicoCalc USB"
+```
+
+**Transferring Files:**
+```bash
+# SCP to device
+scp file.txt pico@192.168.7.2:/home/pico/
+
+# SCP from device
+scp pico@192.168.7.2:/var/log/messages ./
+
+# Alternative: HTTP server on device
+ssh pico@192.168.7.2
+python3 -m http.server 8000
+# Then browse to http://192.168.7.2:8000
+```
+
+**Troubleshooting USB Network:**
+- Check device interface: `ip addr show usb0`
+- Verify service: `systemctl status usb-gadget-network.service`
+- Check host sees device: `lsusb` (should show CDC-Ether or RNDIS device)
+- View network status: `networkctl status usb0`
+- Recipe location: `meta-calculinux-distro/recipes-connectivity/usb-gadget-network/`
+
+### USB Serial Console
+
+The USB gadget also exposes a **USB serial console** via ACM (Abstract Control Model) function, providing direct terminal access over USB at **1500000 baud**.
+
+**Accessing Serial Console:**
+```bash
+# Linux (device appears as /dev/ttyACM0)
+screen /dev/ttyACM0 1500000
+# OR
+python3 -m serial.tools.miniterm /dev/ttyACM0 1500000
+
+# macOS (device appears as /dev/tty.usbmodem*)
+screen /dev/tty.usbmodem* 1500000
+```
+
+**Login credentials:**
+- Username: `pico`
+- Password: `calc`
+
+**When to use serial vs SSH:**
+- **SSH over USB network**: Preferred for file transfers, development, normal usage
+- **Serial console**: Boot debugging, network troubleshooting, emergency access when USB network fails
+- **Hardware serial** (separate CH340 on PicoCalc USB-C port, also 1500000 baud): Early boot debugging, U-Boot access
+
+**Serial service status:**
+- Systemd service: `serial-getty@ttyGS0.service`
+- Depends on: `usb-gadget-network.service`
+- Device-side interface: `/dev/ttyGS0`
+
+**Important Notes:**
+- Both USB network AND serial console work simultaneously over single USB connection
+- USB gadget uses ConfigFS (`/sys/kernel/config/usb_gadget/`)
+- Configuration file: `/etc/default/usb-gadget-network`
+- Recipe provides both network and serial: `usb-gadget-network.bb`
+
+### Hardware Serial Console (Alternative)
+
+For **early boot debugging** or when USB gadget isn't working, use the hardware serial port via CH340 USB-UART bridge:
+- Requires opening PicoCalc and connecting to internal UART pads
+- Same baud rate: **1500000**
+- Shows bootloader (U-Boot) output and kernel messages from power-on
+- See hardware documentation for pin locations and wiring
 
 ## GitHub CI Workflows
 
