@@ -30,4 +30,10 @@ FILES:${PN} = "\
 "
 SYSROOT_DIRS += "${datadir}/picocalc"
 
-FILES:${PN} = "${datadir}/picocalc/picocalc-luckfox-lyra.dtsi"
+FILES:${PN} = "\
+    ${datadir}/picocalc/picocalc-luckfox-lyra.dtsi \
+    ${datadir}/picocalc/rk3506-luckfox-lyra.dtsi \
+    ${datadir}/picocalc/rk3506g-luckfox-lyra.dts \
+    ${datadir}/picocalc/rk3506-luckfox.dtsi \
+    ${datadir}/picocalc/rk3506-luckfox.dts \
+"
