@@ -9,6 +9,17 @@ echo "RAUC post-install handler starting"
 echo "RAUC_BUNDLE_MOUNT_POINT=${RAUC_BUNDLE_MOUNT_POINT}"
 echo "RAUC_TARGET_SLOTS=${RAUC_TARGET_SLOTS}"
 
+# Extract bundle extras if present (tarball contains extras/ e.g. extras/opkg/status.image)
+EXTRAS_TARBALL="${RAUC_BUNDLE_MOUNT_POINT}/bundle-extras.tar.gz"
+if [ -f "${EXTRAS_TARBALL}" ]; then
+    echo "Extracting bundle extras..."
+    if ! tar -xzf "${EXTRAS_TARBALL}" -C "${RAUC_BUNDLE_MOUNT_POINT}/"; then
+        echo "ERROR: Failed to extract bundle extras" >&2
+        exit 1
+    fi
+    echo "Bundle extras extracted successfully"
+fi
+
 # Check if bundle extras contain the status.image file
 BUNDLE_STATUS_IMAGE="${RAUC_BUNDLE_MOUNT_POINT}/extras/opkg/status.image"
 

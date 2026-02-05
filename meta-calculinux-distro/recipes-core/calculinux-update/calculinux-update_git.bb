@@ -6,8 +6,8 @@ validates checksums, and launches installs via rauc."
 LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
-SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
-SRCREV = "2d261cce120e336edc63c78ecaaf6f6c6fbf3b98"
+SRC_URI = "git://github.com/Calculinux/calculinux-update.git;nobranch=1;protocol=https"
+SRCREV = "f8b3f036fe1cd5f153c2d303f6e6b3d6ab50d0b6"
 
 S = "${WORKDIR}/git"
 

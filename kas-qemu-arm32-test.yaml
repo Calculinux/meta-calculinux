@@ -1,0 +1,10 @@
+# KAS configuration for QEMU ARM32 test image (calculinux-update / ovl-restore validation)
+# Build: kas build kas-qemu-arm32-test.yaml
+header:
+  version: 18
+
+includes:
+  - kas-base.yaml
+
+machine: qemu-arm32-test
+target: calculinux-qemu-test-image

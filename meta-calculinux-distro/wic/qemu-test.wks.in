@@ -1,0 +1,7 @@
+# QEMU ARM32 Test Image Layout
+# Rootfs + data partition for overlayfs (kernel passed by runqemu)
+
+part / --source rootfs --fstype=ext4 --label root --align 4 --size 400M
+part /data --fstype=ext4 --label data --align 4 --size 100M
+
+bootloader --ptable msdos
