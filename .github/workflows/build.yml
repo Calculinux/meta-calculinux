@@ -336,16 +336,16 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb
-          artifacts/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-          artifacts/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
-          artifacts/uboot-${{ matrix.machine }}-*.bin
-          artifacts/u-boot-*initial-env-${{ matrix.machine }}-*
-          artifacts/sdk/x86_64/*.sh
-          artifacts/sdk/x86_64/*.manifest
-          artifacts/sdk/aarch64/*.sh
-          artifacts/sdk/aarch64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
+          ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
         generate_release_notes: true
         draft: false
         prerelease: ${{ env.IS_PRERELEASE == 'true' }}
