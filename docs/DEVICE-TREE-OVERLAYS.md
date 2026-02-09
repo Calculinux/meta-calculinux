@@ -7,10 +7,17 @@ Calculinux supports runtime device tree overlays using the kernel's ConfigFS int
 ### DS3231 I2C RTC Module
 
 **File**: `/lib/firmware/overlays/ds3231-rtc.dtbo`  
-**Recipe**: `picocalc-ds3231-overlay`  
+**Recipe**: `picocalc-dt-overlays`  
 **Documentation**: [DS3231-RTC.md](DS3231-RTC.md)
 
 Enables the Maxim DS3231 Real-Time Clock module on I2C bus 2.
+
+### I2C Bus 2 @ 100 kHz
+
+**File**: `/lib/firmware/overlays/100khz-i2c.dtbo`  
+**Recipe**: `picocalc-dt-overlays`
+
+Reduces the I2C2 bus clock from 400 kHz to 100 kHz.
 
 ## How Overlays Work
 
