@@ -78,6 +78,7 @@ local_conf_header:
       picocalc-drivers-snd-pwm \
       picocalc-drivers-snd-softpwm \
       picocalc-drivers-mfd \
+      picocalc-dt-overlays \
     "
 
     CORE_IMAGE_EXTRA_INSTALL += " ${WIFI_FIRMWARE} ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "

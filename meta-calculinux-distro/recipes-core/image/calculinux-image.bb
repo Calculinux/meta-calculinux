@@ -41,6 +41,7 @@ IMAGE_INSTALL += " \
     file \
     gdb \
     git \
+    gptfdisk \
     grep \
     groff \
     hoard-of-bitfonts-commodore \
