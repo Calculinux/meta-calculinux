@@ -11,6 +11,9 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 
 inherit devicetree
 
+# Overlays need -@ flag to generate __fixups__ node for phandle resolution
+DTC_FLAGS += "-@"
+
 # Copy overlay sources from git checkout to where devicetree.bbclass expects them
 # devicetree.bbclass sets UNPACKDIR=${S}=sources, so git unpacks to ${UNPACKDIR}/git
 do_unpack[postfuncs] += "copy_overlay_sources"
