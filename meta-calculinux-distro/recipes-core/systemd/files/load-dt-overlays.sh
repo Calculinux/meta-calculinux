@@ -7,7 +7,7 @@
 # Config format (one overlay per line):
 #   - Blank lines and lines starting with # are ignored
 #   - Lines may be:
-#       * an overlay name (with or without .dtbo), resolved in /lib/firmware/overlays/
+#       * an overlay name (with or without .dtbo), resolved first in /etc/devicetree/, then /boot/devicetree/
 #       * an absolute path to a .dtbo file
 #
 # Example:
@@ -61,7 +61,12 @@ while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
         if [[ "$line" != *.dtbo ]]; then
             line="${line}.dtbo"
         fi
-        overlay_file="/lib/firmware/overlays/${line}"
+        # Check user directory first, then system directory
+        if [[ -f "/etc/devicetree/${line}" ]]; then
+            overlay_file="/etc/devicetree/${line}"
+        else
+            overlay_file="/boot/devicetree/${line}"
+        fi
     fi
 
     if [[ ! -f "$overlay_file" ]]; then
