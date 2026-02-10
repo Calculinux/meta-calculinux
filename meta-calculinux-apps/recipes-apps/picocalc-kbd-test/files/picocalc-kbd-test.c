@@ -13,7 +13,7 @@
 #include <string.h>
 
 #define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 480
+#define SCREEN_HEIGHT 320
 #define KEY_SIZE 18
 #define KEY_SPACING 2
 #define SMALL_KEY_SIZE 16
@@ -49,91 +49,91 @@ typedef struct {
 // Define the keyboard layout based on the PicoCalc image
 Key keyboard_layout[] = {
     // D-Pad (top left)
-    {10, 130, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_UP, "↑", true},
-    {10, 148, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_LEFT, "←", true},
-    {28, 148, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_RIGHT, "→", true},
-    {10, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_DOWN, "↓", true},
+    {10, 40, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_UP, "↑", true},
+    {10, 58, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_LEFT, "←", true},
+    {28, 58, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_RIGHT, "→", true},
+    {10, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_DOWN, "↓", true},
     
     // Function keys row
-    {80, 130, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F1, "F1", true},
-    {100, 130, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F2, "F2", true},
-    {120, 130, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F3, "F3", true},
-    {140, 130, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F4, "F4", true},
-    {160, 130, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F5, "F5", true},
+    {80, 40, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F1, "F1", true},
+    {100, 40, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F2, "F2", true},
+    {120, 40, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F3, "F3", true},
+    {140, 40, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F4, "F4", true},
+    {160, 40, KEY_SIZE, SMALL_KEY_SIZE, SDLK_F5, "F5", true},
     
     // Second function row
-    {80, 148, KEY_SIZE, SMALL_KEY_SIZE, SDLK_ESCAPE, "Esc", true},
-    {100, 148, KEY_SIZE, SMALL_KEY_SIZE, SDLK_TAB, "Tab", true},
-    {120, 148, KEY_SIZE, SMALL_KEY_SIZE, SDLK_CAPSLOCK, "Cap", true},
-    {140, 148, KEY_SIZE, SMALL_KEY_SIZE, SDLK_DELETE, "Del", true},
-    {160, 148, KEY_SIZE, SMALL_KEY_SIZE, SDLK_BACKSPACE, "Bk", true},
+    {80, 58, KEY_SIZE, SMALL_KEY_SIZE, SDLK_ESCAPE, "Esc", true},
+    {100, 58, KEY_SIZE, SMALL_KEY_SIZE, SDLK_TAB, "Tab", true},
+    {120, 58, KEY_SIZE, SMALL_KEY_SIZE, SDLK_CAPSLOCK, "Cap", true},
+    {140, 58, KEY_SIZE, SMALL_KEY_SIZE, SDLK_DELETE, "Del", true},
+    {160, 58, KEY_SIZE, SMALL_KEY_SIZE, SDLK_BACKSPACE, "Bk", true},
     
     // Symbol row
-    {80, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_BACKSLASH, "\\", false},
-    {98, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_SLASH, "/", false},
-    {116, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_BACKQUOTE, "`", false},
-    {134, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_MINUS, "-", false},
-    {152, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_EQUALS, "=", false},
-    {170, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_LEFTBRACKET, "[", false},
-    {188, 166, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_RIGHTBRACKET, "]", false},
+    {80, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_BACKSLASH, "\\", false},
+    {98, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_SLASH, "/", false},
+    {116, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_BACKQUOTE, "`", false},
+    {134, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_MINUS, "-", false},
+    {152, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_EQUALS, "=", false},
+    {170, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_LEFTBRACKET, "[", false},
+    {188, 76, SMALL_KEY_SIZE, SMALL_KEY_SIZE, SDLK_RIGHTBRACKET, "]", false},
     
     // Number row
-    {10, 188, KEY_SIZE, KEY_SIZE, SDLK_1, "1", false},
-    {30, 188, KEY_SIZE, KEY_SIZE, SDLK_2, "2", false},
-    {50, 188, KEY_SIZE, KEY_SIZE, SDLK_3, "3", false},
-    {70, 188, KEY_SIZE, KEY_SIZE, SDLK_4, "4", false},
-    {90, 188, KEY_SIZE, KEY_SIZE, SDLK_5, "5", false},
-    {110, 188, KEY_SIZE, KEY_SIZE, SDLK_6, "6", false},
-    {130, 188, KEY_SIZE, KEY_SIZE, SDLK_7, "7", false},
-    {150, 188, KEY_SIZE, KEY_SIZE, SDLK_8, "8", false},
-    {170, 188, KEY_SIZE, KEY_SIZE, SDLK_9, "9", false},
-    {190, 188, KEY_SIZE, KEY_SIZE, SDLK_0, "0", false},
+    {10, 98, KEY_SIZE, KEY_SIZE, SDLK_1, "1", false},
+    {30, 98, KEY_SIZE, KEY_SIZE, SDLK_2, "2", false},
+    {50, 98, KEY_SIZE, KEY_SIZE, SDLK_3, "3", false},
+    {70, 98, KEY_SIZE, KEY_SIZE, SDLK_4, "4", false},
+    {90, 98, KEY_SIZE, KEY_SIZE, SDLK_5, "5", false},
+    {110, 98, KEY_SIZE, KEY_SIZE, SDLK_6, "6", false},
+    {130, 98, KEY_SIZE, KEY_SIZE, SDLK_7, "7", false},
+    {150, 98, KEY_SIZE, KEY_SIZE, SDLK_8, "8", false},
+    {170, 98, KEY_SIZE, KEY_SIZE, SDLK_9, "9", false},
+    {190, 98, KEY_SIZE, KEY_SIZE, SDLK_0, "0", false},
     
     // QWERTY row
-    {10, 210, KEY_SIZE, KEY_SIZE, SDLK_q, "Q", false},
-    {30, 210, KEY_SIZE, KEY_SIZE, SDLK_w, "W", false},
-    {50, 210, KEY_SIZE, KEY_SIZE, SDLK_e, "E", false},
-    {70, 210, KEY_SIZE, KEY_SIZE, SDLK_r, "R", false},
-    {90, 210, KEY_SIZE, KEY_SIZE, SDLK_t, "T", false},
-    {110, 210, KEY_SIZE, KEY_SIZE, SDLK_y, "Y", false},
-    {130, 210, KEY_SIZE, KEY_SIZE, SDLK_u, "U", false},
-    {150, 210, KEY_SIZE, KEY_SIZE, SDLK_i, "I", false},
-    {170, 210, KEY_SIZE, KEY_SIZE, SDLK_o, "O", false},
-    {190, 210, KEY_SIZE, KEY_SIZE, SDLK_p, "P", false},
+    {10, 120, KEY_SIZE, KEY_SIZE, SDLK_q, "Q", false},
+    {30, 120, KEY_SIZE, KEY_SIZE, SDLK_w, "W", false},
+    {50, 120, KEY_SIZE, KEY_SIZE, SDLK_e, "E", false},
+    {70, 120, KEY_SIZE, KEY_SIZE, SDLK_r, "R", false},
+    {90, 120, KEY_SIZE, KEY_SIZE, SDLK_t, "T", false},
+    {110, 120, KEY_SIZE, KEY_SIZE, SDLK_y, "Y", false},
+    {130, 120, KEY_SIZE, KEY_SIZE, SDLK_u, "U", false},
+    {150, 120, KEY_SIZE, KEY_SIZE, SDLK_i, "I", false},
+    {170, 120, KEY_SIZE, KEY_SIZE, SDLK_o, "O", false},
+    {190, 120, KEY_SIZE, KEY_SIZE, SDLK_p, "P", false},
     
     // ASDF row
-    {10, 232, KEY_SIZE, KEY_SIZE, SDLK_a, "A", false},
-    {30, 232, KEY_SIZE, KEY_SIZE, SDLK_s, "S", false},
-    {50, 232, KEY_SIZE, KEY_SIZE, SDLK_d, "D", false},
-    {70, 232, KEY_SIZE, KEY_SIZE, SDLK_f, "F", false},
-    {90, 232, KEY_SIZE, KEY_SIZE, SDLK_g, "G", false},
-    {110, 232, KEY_SIZE, KEY_SIZE, SDLK_h, "H", false},
-    {130, 232, KEY_SIZE, KEY_SIZE, SDLK_j, "J", false},
-    {150, 232, KEY_SIZE, KEY_SIZE, SDLK_k, "K", false},
-    {170, 232, KEY_SIZE, KEY_SIZE, SDLK_l, "L", false},
-    {190, 232, KEY_SIZE, KEY_SIZE, SDLK_SEMICOLON, ";", false},
+    {10, 142, KEY_SIZE, KEY_SIZE, SDLK_a, "A", false},
+    {30, 142, KEY_SIZE, KEY_SIZE, SDLK_s, "S", false},
+    {50, 142, KEY_SIZE, KEY_SIZE, SDLK_d, "D", false},
+    {70, 142, KEY_SIZE, KEY_SIZE, SDLK_f, "F", false},
+    {90, 142, KEY_SIZE, KEY_SIZE, SDLK_g, "G", false},
+    {110, 142, KEY_SIZE, KEY_SIZE, SDLK_h, "H", false},
+    {130, 142, KEY_SIZE, KEY_SIZE, SDLK_j, "J", false},
+    {150, 142, KEY_SIZE, KEY_SIZE, SDLK_k, "K", false},
+    {170, 142, KEY_SIZE, KEY_SIZE, SDLK_l, "L", false},
+    {190, 142, KEY_SIZE, KEY_SIZE, SDLK_SEMICOLON, ";", false},
     
     // ZXCV row
-    {10, 254, KEY_SIZE, KEY_SIZE, SDLK_z, "Z", false},
-    {30, 254, KEY_SIZE, KEY_SIZE, SDLK_x, "X", false},
-    {50, 254, KEY_SIZE, KEY_SIZE, SDLK_c, "C", false},
-    {70, 254, KEY_SIZE, KEY_SIZE, SDLK_v, "V", false},
-    {90, 254, KEY_SIZE, KEY_SIZE, SDLK_b, "B", false},
-    {110, 254, KEY_SIZE, KEY_SIZE, SDLK_n, "N", false},
-    {130, 254, KEY_SIZE, KEY_SIZE, SDLK_m, "M", false},
-    {150, 254, KEY_SIZE, KEY_SIZE, SDLK_COMMA, ",", false},
-    {170, 254, KEY_SIZE, KEY_SIZE, SDLK_PERIOD, ".", false},
-    {190, 254, KEY_SIZE + 10, KEY_SIZE, SDLK_RETURN, "Ent", true},
+    {10, 164, KEY_SIZE, KEY_SIZE, SDLK_z, "Z", false},
+    {30, 164, KEY_SIZE, KEY_SIZE, SDLK_x, "X", false},
+    {50, 164, KEY_SIZE, KEY_SIZE, SDLK_c, "C", false},
+    {70, 164, KEY_SIZE, KEY_SIZE, SDLK_v, "V", false},
+    {90, 164, KEY_SIZE, KEY_SIZE, SDLK_b, "B", false},
+    {110, 164, KEY_SIZE, KEY_SIZE, SDLK_n, "N", false},
+    {130, 164, KEY_SIZE, KEY_SIZE, SDLK_m, "M", false},
+    {150, 164, KEY_SIZE, KEY_SIZE, SDLK_COMMA, ",", false},
+    {170, 164, KEY_SIZE, KEY_SIZE, SDLK_PERIOD, ".", false},
+    {190, 164, KEY_SIZE + 10, KEY_SIZE, SDLK_RETURN, "Ent", true},
     
     // Bottom row (modifiers and space)
-    {10, 276, KEY_SIZE + 5, KEY_SIZE, SDLK_LSHIFT, "Shift", true},
-    {38, 276, KEY_SIZE, KEY_SIZE, SDLK_LCTRL, "Ctrl", true},
-    {60, 276, KEY_SIZE, KEY_SIZE, SDLK_LALT, "Alt", true},
-    {82, 276, KEY_SIZE * 4, KEY_SIZE, SDLK_SPACE, "", true},
-    {162, 276, SMALL_KEY_SIZE, KEY_SIZE, SDLK_QUOTE, "'", false},
-    {180, 276, SMALL_KEY_SIZE, KEY_SIZE, SDLK_LEFTPAREN, "(", false},
-    {198, 276, SMALL_KEY_SIZE, KEY_SIZE, SDLK_RIGHTPAREN, ")", false},
-    {216, 276, KEY_SIZE + 10, KEY_SIZE, SDLK_RSHIFT, "Shift", true},
+    {10, 186, KEY_SIZE + 5, KEY_SIZE, SDLK_LSHIFT, "Shift", true},
+    {38, 186, KEY_SIZE, KEY_SIZE, SDLK_LCTRL, "Ctrl", true},
+    {60, 186, KEY_SIZE, KEY_SIZE, SDLK_LALT, "Alt", true},
+    {82, 186, KEY_SIZE * 4, KEY_SIZE, SDLK_SPACE, "", true},
+    {162, 186, SMALL_KEY_SIZE, KEY_SIZE, SDLK_QUOTE, "'", false},
+    {180, 186, SMALL_KEY_SIZE, KEY_SIZE, SDLK_LEFTPAREN, "(", false},
+    {198, 186, SMALL_KEY_SIZE, KEY_SIZE, SDLK_RIGHTPAREN, ")", false},
+    {216, 186, KEY_SIZE + 10, KEY_SIZE, SDLK_RSHIFT, "Shift", true},
 };
 
 #define NUM_KEYS (sizeof(keyboard_layout) / sizeof(Key))
@@ -268,36 +268,24 @@ void draw_key(App *app, Key *key) {
 
 void draw_header(App *app) {
     SDL_Color text_color = COLOR_TEXT;
-    const char *title = "PicoCalc Keyboard Test";
+    const char *title = "Keyboard Test";
     
     if (app->font) {
         int text_w, text_h;
         TTF_SizeText(app->font, title, &text_w, &text_h);
-        draw_text(app, title, (SCREEN_WIDTH - text_w) / 2, 10, text_color, app->font);
+        draw_text(app, title, (SCREEN_WIDTH - text_w) / 2, 5, text_color, app->font);
         
-        const char *instruction = "Press ESC+Q to quit";
+        const char *instruction = "ESC+Q=quit";
         TTF_SizeText(app->small_font, instruction, &text_w, &text_h);
-        draw_text(app, instruction, (SCREEN_WIDTH - text_w) / 2, 30, text_color, app->small_font);
+        draw_text(app, instruction, (SCREEN_WIDTH - text_w) / 2, 22, text_color, app->small_font);
     }
-    
-    // Draw device outline
-    SDL_SetRenderDrawColor(app->renderer, 80, 80, 80, 255);
-    SDL_Rect device_outline = {5, 50, SCREEN_WIDTH - 10, 260};
-    SDL_RenderDrawRect(app->renderer, &device_outline);
-    
-    // Screen area representation
-    SDL_SetRenderDrawColor(app->renderer, 30, 30, 50, 255);
-    SDL_Rect screen_area = {15, 60, SCREEN_WIDTH - 30, 60};
-    SDL_RenderFillRect(app->renderer, &screen_area);
-    SDL_SetRenderDrawColor(app->renderer, 0, 100, 0, 255);
-    SDL_RenderDrawRect(app->renderer, &screen_area);
 }
 
 void draw_info_panel(App *app) {
     // Info panel background
     SDL_Color bg_color = COLOR_INFO_BG;
     SDL_SetRenderDrawColor(app->renderer, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
-    SDL_Rect info_rect = {0, SCREEN_HEIGHT - 160, SCREEN_WIDTH, 160};
+    SDL_Rect info_rect = {0, SCREEN_HEIGHT - 110, SCREEN_WIDTH, 110};
     SDL_RenderFillRect(app->renderer, &info_rect);
     
     // Border
@@ -307,21 +295,18 @@ void draw_info_panel(App *app) {
     if (app->font) {
         SDL_Color text_color = COLOR_TEXT;
         
-        // Title
-        draw_text(app, "Key Information:", 10, SCREEN_HEIGHT - 150, text_color, app->font);
-        
-        // Key info
-        draw_text(app, app->key_info, 10, SCREEN_HEIGHT - 130, text_color, app->small_font);
+        // Key info (compact)
+        draw_text(app, app->key_info, 5, SCREEN_HEIGHT - 105, text_color, app->small_font);
         
         // Modifier state
         char mod_info[128];
-        snprintf(mod_info, sizeof(mod_info), "Modifiers: %s%s%s%s%s",
-                (app->mod_state & KMOD_SHIFT) ? "SHIFT " : "",
-                (app->mod_state & KMOD_CTRL) ? "CTRL " : "",
-                (app->mod_state & KMOD_ALT) ? "ALT " : "",
+        snprintf(mod_info, sizeof(mod_info), "Mods: %s%s%s%s%s",
+                (app->mod_state & KMOD_SHIFT) ? "Shift " : "",
+                (app->mod_state & KMOD_CTRL) ? "Ctrl " : "",
+                (app->mod_state & KMOD_ALT) ? "Alt " : "",
                 (app->mod_state & KMOD_GUI) ? "GUI " : "",
                 (app->mod_state == KMOD_NONE) ? "None" : "");
-        draw_text(app, mod_info, 10, SCREEN_HEIGHT - 110, text_color, app->small_font);
+        draw_text(app, mod_info, 5, SCREEN_HEIGHT - 65, text_color, app->small_font);
         
         // Active keys count
         int active_count = 0;
@@ -329,13 +314,11 @@ void draw_info_panel(App *app) {
             if (app->keys_pressed[i]) active_count++;
         }
         char count_info[64];
-        snprintf(count_info, sizeof(count_info), "Active keys: %d", active_count);
-        draw_text(app, count_info, 10, SCREEN_HEIGHT - 90, text_color, app->small_font);
+        snprintf(count_info, sizeof(count_info), "Active: %d key%s", active_count, active_count == 1 ? "" : "s");
+        draw_text(app, count_info, 5, SCREEN_HEIGHT - 45, text_color, app->small_font);
         
         // Instructions
-        draw_text(app, "Press keys to test", 10, SCREEN_HEIGHT - 60, text_color, app->small_font);
-        draw_text(app, "ESC + Q to quit", 10, SCREEN_HEIGHT - 40, text_color, app->small_font);
-        draw_text(app, "All keys with modifiers shown above", 10, SCREEN_HEIGHT - 20, text_color, app->small_font);
+        draw_text(app, "Press any key to test", 5, SCREEN_HEIGHT - 25, text_color, app->small_font);
     }
 }
 
@@ -371,8 +354,8 @@ void handle_key_event(App *app, SDL_Event *event) {
         const char *scancode_name = SDL_GetScancodeName(scancode);
         
         snprintf(app->key_info, MAX_KEY_INFO_LEN,
-                "Key: %s (0x%X)\nScancode: %s (%d)\nMod: 0x%X",
-                key_name, keycode, scancode_name, scancode, app->mod_state);
+                "%s (0x%X) | SC:%d",
+                key_name, keycode, scancode);
         
         // Check for quit combination (ESC + Q)
         if (keycode == SDLK_q && (app->mod_state & KMOD_CTRL)) {
