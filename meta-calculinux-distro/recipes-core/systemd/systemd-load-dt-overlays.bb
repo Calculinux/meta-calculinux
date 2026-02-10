@@ -18,6 +18,9 @@ inherit systemd
 SYSTEMD_SERVICE:${PN} = "load-dt-overlays.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
+# Add bash as a runtime dependency
+RDEPENDS:${PN} += "bash"
+
 do_install() {
     install -D -m 0755 ${S}/load-dt-overlays.sh ${D}${libdir}/systemd/load-dt-overlays.sh
     install -D -m 0644 ${S}/load-dt-overlays.service ${D}${systemd_system_unitdir}/load-dt-overlays.service
