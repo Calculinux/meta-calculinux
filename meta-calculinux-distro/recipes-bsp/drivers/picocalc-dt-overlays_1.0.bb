@@ -11,8 +11,15 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 
 inherit devicetree
 
-# Point to the overlay sources in the picocalc-drivers repo
-DT_FILES_PATH = "${S}/devicetree-overlays"
+# Copy overlay sources from git checkout to where devicetree.bbclass expects them
+# devicetree.bbclass sets UNPACKDIR=${S}=sources, so git unpacks to ${UNPACKDIR}/git
+do_unpack[postfuncs] += "copy_overlay_sources"
+
+copy_overlay_sources() {
+    if [ -d ${UNPACKDIR}/git/devicetree-overlays ]; then
+        cp -r ${UNPACKDIR}/git/devicetree-overlays/* ${S}/
+    fi
+}
 
 # Build all overlay files
 DT_FILES = " \
