@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 320
@@ -44,6 +46,11 @@ typedef struct {
     bool keys_pressed[SDL_NUM_SCANCODES];
     char key_info[MAX_KEY_INFO_LEN];
     SDL_Keymod mod_state;
+    bool left_shift_pressed;
+    bool right_shift_pressed;
+    bool mouse_mode;
+    char shifted_key_info[MAX_KEY_INFO_LEN];
+    char led_path[256];
 } App;
 
 // Define the keyboard layout based on the PicoCalc image
@@ -138,6 +145,45 @@ Key keyboard_layout[] = {
 
 #define NUM_KEYS (sizeof(keyboard_layout) / sizeof(Key))
 
+// Find the keyboard mouse_mode sysfs attribute
+bool find_mouse_mode_path(char *path, size_t path_size) {
+    // Look for picocalc-mfd-kbd device in sysfs
+    const char *base_paths[] = {
+        "/sys/bus/platform/devices/picocalc-mfd-kbd/mouse_mode",
+        "/sys/devices/platform/picocalc-mfd-kbd/mouse_mode",
+        NULL
+    };
+    
+    for (int i = 0; base_paths[i] != NULL; i++) {
+        FILE *fp = fopen(base_paths[i], "r");
+        if (fp) {
+            fclose(fp);
+            snprintf(path, path_size, "%s", base_paths[i]);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Read mouse mode state from sysfs attribute
+bool read_mouse_mode_state(const char *path) {
+    if (!path || path[0] == '\0') {
+        return false;
+    }
+    
+    FILE *fp = fopen(path, "r");
+    if (!fp) {
+        return false;
+    }
+    
+    int value = 0;
+    fscanf(fp, "%d", &value);
+    fclose(fp);
+    
+    return (value != 0);
+}
+
 void init_app(App *app) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0) {
         fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
@@ -199,6 +245,21 @@ void init_app(App *app) {
     memset(app->keys_pressed, 0, sizeof(app->keys_pressed));
     snprintf(app->key_info, MAX_KEY_INFO_LEN, "Press any key...");
     app->mod_state = KMOD_NONE;
+    app->left_shift_pressed = false;
+    app->right_shift_pressed = false;
+    
+    // Find and read mouse mode sysfs attribute
+    if (find_mouse_mode_path(app->led_path, sizeof(app->led_path))) {
+        app->mouse_mode = read_mouse_mode_state(app->led_path);
+        printf("Found mouse mode attribute at: %s\n", app->led_path);
+        printf("Initial mouse mode state: %s\n", app->mouse_mode ? "ON" : "OFF");
+    } else {
+        app->led_path[0] = '\0';
+        app->mouse_mode = false;
+        printf("Warning: Could not find mouse_mode sysfs attribute\n");
+    }
+    
+    snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "");
 }
 
 void cleanup_app(App *app) {
@@ -298,14 +359,21 @@ void draw_info_panel(App *app) {
         // Key info (compact)
         draw_text(app, app->key_info, 5, SCREEN_HEIGHT - 105, text_color, app->small_font);
         
-        // Modifier state
+        // Shifted key info if applicable
+        if (strlen(app->shifted_key_info) > 0) {
+            draw_text(app, app->shifted_key_info, 5, SCREEN_HEIGHT - 90, text_color, app->small_font);
+        }
+        
+        // Modifier state with individual shift tracking
         char mod_info[128];
-        snprintf(mod_info, sizeof(mod_info), "Mods: %s%s%s%s%s",
-                (app->mod_state & KMOD_SHIFT) ? "Shift " : "",
+        snprintf(mod_info, sizeof(mod_info), "Mods: %s%s%s%s%s%s%s",
+                app->left_shift_pressed ? "LShift " : "",
+                app->right_shift_pressed ? "RShift " : "",
                 (app->mod_state & KMOD_CTRL) ? "Ctrl " : "",
                 (app->mod_state & KMOD_ALT) ? "Alt " : "",
                 (app->mod_state & KMOD_GUI) ? "GUI " : "",
-                (app->mod_state == KMOD_NONE) ? "None" : "");
+                app->mouse_mode ? "[MOUSE] " : "",
+                (app->mod_state == KMOD_NONE && !app->left_shift_pressed && !app->right_shift_pressed) ? "None" : "");
         draw_text(app, mod_info, 5, SCREEN_HEIGHT - 65, text_color, app->small_font);
         
         // Active keys count
@@ -349,6 +417,18 @@ void handle_key_event(App *app, SDL_Event *event) {
         app->keys_pressed[scancode] = true;
         app->mod_state = SDL_GetModState();
         
+        // Track individual shift keys
+        if (scancode == SDL_SCANCODE_LSHIFT) {
+            app->left_shift_pressed = true;
+        }
+        if (scancode == SDL_SCANCODE_RSHIFT) {
+            app->right_shift_pressed = true;
+        }
+        
+        // Note: Mouse mode is a toggle in the driver - we can't detect it reliably
+        // from key events alone. The driver maintains this state and changes what
+        // events it outputs. Check for REL_X/REL_Y events to detect if in mouse mode.
+        
         // Update key info
         const char *key_name = SDL_GetKeyName(keycode);
         const char *scancode_name = SDL_GetScancodeName(scancode);
@@ -356,6 +436,79 @@ void handle_key_event(App *app, SDL_Event *event) {
         snprintf(app->key_info, MAX_KEY_INFO_LEN,
                 "%s (0x%X) | SC:%d",
                 key_name, keycode, scancode);
+        
+        // Detect and display shifted key interpretations
+        app->shifted_key_info[0] = '\0';  // Clear shifted info
+        
+        // Shifted function keys F1-F5 → F6-F10
+        if ((app->mod_state & KMOD_SHIFT)) {
+            if (keycode == SDLK_F1) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: F6");
+            } else if (keycode == SDLK_F2) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: F7");
+            } else if (keycode == SDLK_F3) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: F8");
+            } else if (keycode == SDLK_F4) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: F9");
+            } else if (keycode == SDLK_F5) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: F10");
+            }
+            // Shifted number/symbol row
+            else if (keycode >= SDLK_1 && keycode <= SDLK_0) {
+                const char *shifted_symbols[] = {"!", "@", "#", "$", "%", "^", "&", "*", "(", ")"};
+                int idx = (keycode == SDLK_0) ? 9 : (keycode - SDLK_1);
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: %s", shifted_symbols[idx]);
+            }
+            // Other shifted keys
+            else if (keycode == SDLK_MINUS) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: _");
+            } else if (keycode == SDLK_EQUALS) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: +");
+            } else if (keycode == SDLK_LEFTBRACKET) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: {");
+            } else if (keycode == SDLK_RIGHTBRACKET) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: }");
+            } else if (keycode == SDLK_BACKSLASH) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: |");
+            } else if (keycode == SDLK_SEMICOLON) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: :");
+            } else if (keycode == SDLK_QUOTE) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: \"");
+            } else if (keycode == SDLK_COMMA) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: <");
+            } else if (keycode == SDLK_PERIOD) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: >");
+            } else if (keycode == SDLK_SLASH) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: ?");
+            } else if (keycode == SDLK_BACKQUOTE) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: ~");
+            }
+            // Shift + arrow keys
+            else if (keycode == SDLK_UP) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: PageUp");
+            } else if (keycode == SDLK_DOWN) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: PageDown");
+            } else if (keycode == SDLK_RETURN) {
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Shifted: Insert");
+            }
+        }
+        
+        // Alt+I → Insert detection
+        if ((app->mod_state & KMOD_ALT) && keycode == SDLK_i) {
+            snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, "Alt+I: Insert");
+        }
+        
+        // Detect potential mouse mode toggle (both shifts pressed)
+        if (app->left_shift_pressed && app->right_shift_pressed) {
+            // Read actual state from LED after a brief moment
+            SDL_Delay(50);  // Small delay for driver to update
+            bool new_mode = read_mouse_mode_state(app->led_path);
+            if (new_mode != app->mouse_mode) {
+                app->mouse_mode = new_mode;
+                snprintf(app->shifted_key_info, MAX_KEY_INFO_LEN, 
+                        "Mouse mode toggled %s", app->mouse_mode ? "ON" : "OFF");
+            }
+        }
         
         // Check for quit combination (ESC + Q)
         if (keycode == SDLK_q && (app->mod_state & KMOD_CTRL)) {
@@ -369,6 +522,14 @@ void handle_key_event(App *app, SDL_Event *event) {
     } else if (event->type == SDL_KEYUP) {
         app->keys_pressed[scancode] = false;
         app->mod_state = SDL_GetModState();
+        
+        // Track individual shift keys
+        if (scancode == SDL_SCANCODE_LSHIFT) {
+            app->left_shift_pressed = false;
+        }
+        if (scancode == SDL_SCANCODE_RSHIFT) {
+            app->right_shift_pressed = false;
+        }
     }
 }
 
@@ -400,8 +561,25 @@ int main(int argc, char *argv[]) {
     printf("Press keys to test the keyboard\n");
     printf("Press ESC+Q or Ctrl+Q to quit\n\n");
     
+    // Track last mouse mode check time
+    Uint32 last_mouse_check = SDL_GetTicks();
+    
     while (app.running) {
         handle_events(&app);
+        
+        // Periodically check mouse mode state from LED (every 100ms)
+        Uint32 now = SDL_GetTicks();
+        if (now - last_mouse_check > 100) {
+            if (app.led_path[0] != '\0') {
+                bool current_mode = read_mouse_mode_state(app.led_path);
+                if (current_mode != app.mouse_mode) {
+                    app.mouse_mode = current_mode;
+                    // Don't overwrite shifted_key_info if it has recent content
+                }
+            }
+            last_mouse_check = now;
+        }
+        
         render(&app);
         SDL_Delay(16); // ~60 FPS
     }
