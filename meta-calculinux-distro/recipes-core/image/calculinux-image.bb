@@ -38,6 +38,7 @@ IMAGE_INSTALL += " \
     dosfstools \
     e2fsprogs \
     e2fsprogs-resize2fs \
+    ffmpeg \
     file \
     gdb \
     git \
