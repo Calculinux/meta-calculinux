@@ -45,6 +45,9 @@ ROCKCHIP_KERNEL_IMAGES = "0"
 ROCKCHIP_KERNEL_COMPRESSED = "1"
 KERNEL_IMAGETYPES = "zboot.img"
 
+# Ensure base DTB includes __symbols__ so runtime overlays can resolve labels.
+KERNEL_DTC_FLAGS += "-@"
+
 # Copy PicoCalc device tree from devicetree helper recipe
 do_prepare_kernel_picocalc() {
     PICOCALC_DT_SOURCE="${RECIPE_SYSROOT}/usr/share/picocalc/picocalc-luckfox-lyra.dtsi"
