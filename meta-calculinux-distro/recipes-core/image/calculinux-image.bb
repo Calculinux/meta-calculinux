@@ -75,6 +75,7 @@ IMAGE_INSTALL += " \
     shadow \
     sudo \
     systemd-analyze \
+    systemd-load-dt-overlays \
     terminus-font \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
