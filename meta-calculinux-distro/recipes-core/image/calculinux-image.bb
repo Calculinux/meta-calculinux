@@ -69,6 +69,7 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
+    picocalc-dt-overlays \
     rauc \
     sdl2-test \
     shadow \
