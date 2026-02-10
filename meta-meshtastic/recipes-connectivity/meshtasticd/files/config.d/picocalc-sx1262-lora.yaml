@@ -1,0 +1,32 @@
+# PicoCalc + Waveshare SX1262HF LoRA Configuration
+# Connected via bitbang SPI to RMII1 test pads
+# Automatic RF switching via DIO2 (wired to TXEN on module)
+# RESET tied HIGH permanently (no pin control needed)
+# CS tied to GND permanently
+# 
+# IMPORTANT WIRING: On the SX1262 module itself, connect:
+#   DIO2 output → TXEN input (RF switch control)
+#   This enables automatic TX/RX switching without additional GPIO pins
+
+Lora:
+  Module: sx1262
+  gpiochip: 1  # Subtract 32 from the gpio numbers
+  DIO2_AS_RF_SWITCH: true  # Automatic RF switching - DIO2 → TXEN
+  DIO3_TCXO_VOLTAGE: true  # Enable TCXO via DIO3 output
+  
+  # SPI pins (bitbang - GPIO-based software SPI)
+  # Pin selection preserves UART5_TX/RX for future GPS module
+  CLK: 74      # P7 GPIO3_B2 (106 - 32) - UART5_CTSN (CTS not needed for GPS)
+  MOSI: 77     # P10 GPIO3_B5 (109 - 32) - UART5_RTSN (RTS not needed for GPS)
+  MISO: 102    # P3 GPIO3_A6 (134 - 32) - SAI2_SDI_M0 (ALT: I2S Data In)
+  
+  # Status/Control pins
+  CS: -1       # Not used, grounded on board
+  IRQ: 78      # P11 GPIO3_B6 (110 - 32) - DIO1 interrupt (ALT: I2S MCLK)
+  Busy: 32     # P13 GPIO1_D0 (64 - 32) - BUSY status (ALT: VO_LCDC_D3)
+  Reset: -1    # Not used, tied HIGH permanently via 10kΩ pull-up
+  
+  # SPI configuration
+  # Note: Using GPIO bitbang SPI instead of hardware SPI
+  # 2 MHz is perfectly adequate for LoRA communication
+  spiSpeed: 2000000  # 2 MHz software SPI
