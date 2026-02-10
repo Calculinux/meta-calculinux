@@ -9,7 +9,7 @@ require picocalc-drivers-source.inc
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
-DEPENDS = "dtc-native gcc-native virtual/kernel"
+DEPENDS = "dtc-native virtual/kernel"
 
 do_compile() {
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
