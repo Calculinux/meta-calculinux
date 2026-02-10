@@ -20,13 +20,13 @@ SYSTEMD_AUTO_ENABLE = "enable"
 
 do_install() {
     install -D -m 0755 ${S}/load-dt-overlays.sh ${D}${libdir}/systemd/load-dt-overlays.sh
-    install -D -m 0644 ${S}/load-dt-overlays.service ${D}${systemd_system_unitdir}/system/load-dt-overlays.service
+    install -D -m 0644 ${S}/load-dt-overlays.service ${D}${systemd_system_unitdir}/load-dt-overlays.service
     install -D -m 0644 ${S}/device-tree-overlays.conf ${D}${sysconfdir}/device-tree-overlays.conf
 }
 
 FILES:${PN} = " \
     ${libdir}/systemd/load-dt-overlays.sh \
-    ${systemd_system_unitdir}/system/load-dt-overlays.service \
+    ${systemd_system_unitdir}/load-dt-overlays.service \
     ${sysconfdir}/device-tree-overlays.conf \
 "
 
