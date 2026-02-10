@@ -94,6 +94,7 @@ RDEPENDS:${PN} = " \
     patch \
     pcsx-rearmed-libretro \
     picoarch \
+    picocalc-kbd-test \
     picodrive-libretro \
     python3 \
     python3-pip \
