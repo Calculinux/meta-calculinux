@@ -19,6 +19,30 @@ Enables the Maxim DS3231 Real-Time Clock module on I2C bus 2.
 
 Reduces the I2C2 bus clock from 400 kHz to 100 kHz.
 
+### PCM5102A I2S DAC Module
+
+**File**: `/lib/firmware/overlays/pcm5102a-i2s.dtbo`  
+**Recipe**: `picocalc-dt-overlays`  
+**Documentation**: [PCM5102A-I2S-DAC.md](PCM5102A-I2S-DAC.md)
+
+Enables I2S audio output via the PCM5102A DAC module on RMII1 test pads. Provides high-quality audio output for the PicoCalc.
+
+### SX1262 LoRA Module (Meshtastic)
+
+**File**: `/lib/firmware/overlays/sx1262-lora.dtbo`  
+**Recipe**: `picocalc-dt-overlays`  
+**Documentation**: [SX1262-LORA-MESHTASTIC.md](SX1262-LORA-MESHTASTIC.md)
+
+Configures GPIO pins for software SPI communication with the Waveshare SX1262 LoRA transceiver on RMII1 test pads. Enables Meshtastic mesh networking capabilities.
+
+### u-blox NEO-M8N GPS Module
+
+**File**: `/lib/firmware/overlays/neo-m8n-gps.dtbo`  
+**Recipe**: `picocalc-dt-overlays`  
+**Documentation**: [NEO-M8N-GPS.md](NEO-M8N-GPS.md)
+
+Enables UART5 for communication with the u-blox NEO-M8N GPS module on RMII1 test pads. Compatible with gpsd and standard NMEA applications. Can be used alongside the SX1262 LoRA module for GPS-equipped Meshtastic nodes.
+
 ## Runtime Overlay Loading (ConfigFS)
 
 Device tree overlays can also be loaded after boot using the kernel's ConfigFS interface, providing flexibility for development and testing.
