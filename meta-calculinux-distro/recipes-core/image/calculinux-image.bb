@@ -44,6 +44,7 @@ IMAGE_INSTALL += " \
     gptfdisk \
     grep \
     groff \
+    hibernate-support \
     hoard-of-bitfonts-commodore \
     htop \
     i2c-tools \
