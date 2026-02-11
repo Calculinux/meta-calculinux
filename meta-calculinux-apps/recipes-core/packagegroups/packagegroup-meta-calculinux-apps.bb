@@ -92,6 +92,7 @@ RDEPENDS:${PN} = " \
     notcurses-demos \
     oldschool-console-fonts \
     patch \
+    patchelf \
     pcsx-rearmed-libretro \
     picoarch \
     picocalc-kbd-test \
@@ -109,6 +110,7 @@ RDEPENDS:${PN} = " \
     sysstat \
     tcpdump \
     terminus-font \
+    tic-80 \
     tmux \
     tree \
     valgrind \
