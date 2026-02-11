@@ -110,7 +110,6 @@ RDEPENDS:${PN} = " \
     sysstat \
     tcpdump \
     terminus-font \
-    tic-80 \
     tmux \
     tree \
     valgrind \
