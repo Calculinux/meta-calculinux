@@ -11,9 +11,12 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 
 DEPENDS = "dtc-native virtual/kernel"
 
+# Ensure kernel shared workdir is available with headers
+do_compile[depends] += "virtual/kernel:do_shared_workdir"
+
 do_compile() {
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
-    KERNEL_DTS_INCLUDE="${STAGING_KERNEL_DIR}/arch/${ARCH}/boot/dts"
+    KERNEL_DTS_INCLUDE="${STAGING_KERNEL_DIR}/arch/arm/boot/dts"
     KERNEL_DTS_INCLUDE_COMMON="${KERNEL_DTS_INCLUDE}/include"
     
     for overlay in ${S}/devicetree-overlays/*-overlay.dts; do
@@ -34,12 +37,12 @@ do_compile() {
 }
 
 do_install() {
-    install -d ${D}${nonarch_base_libdir}/firmware/overlays
+    install -d ${D}/boot/devicetree
     for overlay in ${B}/*.dtbo; do
         [ -f "$overlay" ] || bbfatal "No compiled overlays found in ${B}"
-        install -m 0644 "$overlay" ${D}${nonarch_base_libdir}/firmware/overlays/
+        install -m 0644 "$overlay" ${D}/boot/devicetree/
     done
 }
 
-FILES:${PN} = "${nonarch_base_libdir}/firmware/overlays/*.dtbo"
+FILES:${PN} = "/boot/devicetree/*.dtbo"
 PACKAGES = "${PN}"
