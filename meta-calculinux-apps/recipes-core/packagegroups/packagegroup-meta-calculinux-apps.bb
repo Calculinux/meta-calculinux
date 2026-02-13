@@ -20,8 +20,10 @@ RDEPENDS:${PN} = " \
     beetle-pce-fast-libretro \
     binutils \
     bison \
+    bombadillo \
     cargo \
     circumflex \
+    criu \
     diffutils \
     dosbox-pure-libretro \
     emacs-full \
@@ -31,6 +33,7 @@ RDEPENDS:${PN} = " \
     frodo-libretro \
     gambatte-libretro \
     gdb \
+    gemini-cli \
     gettext \
     glkcli \
     glkterm \
@@ -99,6 +102,7 @@ RDEPENDS:${PN} = " \
     picodrive-libretro \
     python3 \
     python3-pip \
+    python3-wik \
     reddit-tui \
     retro8-libretro \
     rsync \
@@ -116,6 +120,7 @@ RDEPENDS:${PN} = " \
     valgrind \
     vice-libretro \
     vim \
+    wiki-tui \
     x48ng \
     zerotier-one \
 "
