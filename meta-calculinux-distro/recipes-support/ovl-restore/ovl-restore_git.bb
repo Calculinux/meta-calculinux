@@ -24,9 +24,10 @@ do_compile() {
 do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/ovl-restore ${D}${bindir}/ovl-restore
+    ln -s ovl-restore ${D}${bindir}/restore
 }
 
-FILES:${PN} = "${bindir}/ovl-restore"
+FILES:${PN} = "${bindir}/ovl-restore ${bindir}/restore"
 
 # Note: Requires CONFIG_OVERLAY_FS to be enabled in the kernel
 # Since overlayfs is built into the kernel (not a module), there's no

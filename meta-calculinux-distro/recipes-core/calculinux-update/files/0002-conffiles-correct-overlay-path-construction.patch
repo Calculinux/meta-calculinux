@@ -1,0 +1,78 @@
+From: meta-calculinux <noreply@calculinux.org>
+Subject: [PATCH] conffiles: correct overlay path construction for Calculinux layout
+
+Overlay layout is /data/overlay/<mountpoint>/upper and /lower with full
+relative path (e.g. /etc/foo.conf -> /data/overlay/etc/upper/foo.conf).
+Add get_overlay_dirs_for_path() and use it in detect_modified_conffiles
+and create_dpkg_new_files.
+
+Signed-off-by: meta-calculinux <noreply@calculinux.org>
+
+--- a/src/calculinux_update/opkg/conffiles.py
++++ b/src/calculinux_update/opkg/conffiles.py
+@@ -125,6 +125,35 @@ def get_all_conffiles(
+     return all_conffiles
+ 
+ 
++def get_overlay_dirs_for_path(file_path: Path) -> tuple[Optional[Path], Optional[Path]]:
++    """Get overlay upper/lower file paths for a given absolute path.
++
++    Calculinux mounts overlays for /etc, /root, /home, /var, /usr, /opt with
++    base /data/overlay/<mountpoint>/upper and /lower; relative path appended.
++    """
++    overlaid_paths = ['/etc', '/root', '/home', '/var', '/usr', '/opt']
++    path_str = str(file_path)
++    for overlay_mount in overlaid_paths:
++        if path_str == overlay_mount or path_str.startswith(overlay_mount + '/'):
++            rel_path = path_str[len(overlay_mount):].lstrip('/')
++            base = Path(f"/data/overlay{overlay_mount}")
++            upper = base / "upper" / rel_path
++            lower = base / "lower" / rel_path
++            return (upper, lower)
++    return (None, None)
++
++
+ def detect_modified_conffiles(
+     image_packages: List[str],
+     overlay_mount: str = "/data/overlay"
+@@ -155,15 +184,16 @@ def detect_modified_conffiles(
+     for conffile in image_conffiles:
+         file_path = Path(conffile.path)
+ 
+-        # Skip if file doesn't actually exist in the filesystem
++        # Skip if file doesn't actually exist in the filesystem
+         if not file_path.exists():
+             LOGGER.debug("Config file %s doesn't exist, skipping", conffile.path)
+             continue
+ 
+-        # Get paths for upper and lower copies
+-        # The actual file at /path/to/file is the merged view
+-        # Upper: /data/overlay/ /upper/ 
+-        # Lower: /data/overlay/ /lower/ 
+-        rel_dir = str(file_path.parent).lstrip('/')
+-        upper_file = Path(overlay_mount) / rel_dir / "upper" / file_path.name
+-        lower_file = Path(overlay_mount) / rel_dir / "lower" / file_path.name
++        upper_file, lower_file = get_overlay_dirs_for_path(file_path)
++        if upper_file is None or lower_file is None:
++            LOGGER.debug("Config file %s not in overlay, skipping", conffile.path)
++            continue
+ 
+         # If file only exists in lower, it hasn't been modified
+         if not upper_file.exists():
+@@ -230,10 +260,11 @@ def create_dpkg_new_files(
+     created_files = {}
+ 
+     for conffile in modified_conffiles:
+         file_path = Path(conffile.path)
+         dpkg_new_path = Path(str(file_path) + '.dpkg-new')
+ 
+-        # Get lower layer version
+-        rel_dir = str(file_path.parent).lstrip('/')
+-        lower_file = Path(overlay_mount) / rel_dir / "lower" / file_path.name
++        _, lower_file = get_overlay_dirs_for_path(file_path)
++        if lower_file is None:
++            LOGGER.warning("Config file %s not in overlay, skipping", conffile.path)
++            continue
+ 
+         if not lower_file.exists():
+             LOGGER.warning("Lower layer file missing for %s, skipping", conffile.path)
