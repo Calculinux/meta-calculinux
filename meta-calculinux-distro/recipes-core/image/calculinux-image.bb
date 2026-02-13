@@ -39,6 +39,7 @@ IMAGE_INSTALL += " \
     e2fsprogs \
     e2fsprogs-resize2fs \
     file \
+    gcompat \
     gdb \
     git \
     gptfdisk \
