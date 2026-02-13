@@ -6,7 +6,7 @@ remaining fully functional in the terminal. \
 "
 
 LICENSE = "GPL-3.0-only"
-LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=1ebbd3e37fb99a8f4b95b7840adf9910"
+LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 inherit go-mod
 
