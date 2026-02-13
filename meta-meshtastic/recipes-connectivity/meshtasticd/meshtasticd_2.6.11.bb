@@ -24,6 +24,7 @@ SRC_URI = " \
     file://config.d/luckfox_pico-lora-rfsw-tcxo.yaml \
     file://config.d/luckfox_pico-lora-rfsw-no_tcxo.yaml \
     file://config.d/luckfox_pico-lora-rfsw-ebyte_e22.yaml \
+    file://config.d/picocalc-sx1262-lora.yaml \
 "
 
 S = "${WORKDIR}/git"
@@ -130,6 +131,9 @@ do_install() {
     cp -r ${S}/bin/config.d/* ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
     find ${D}${sysconfdir}/meshtasticd/available.d -type f -exec chmod 0644 {} \;
     install -m 0644 ${WORKDIR}/config.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
+
+    # Link PicoCalc SX1262 LoRA config as default
+    ln -sf ../available.d/picocalc-sx1262-lora.yaml ${D}${sysconfdir}/meshtasticd/config.d/000-picocalc-lora.yaml
 
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/sources-unpack/meshtasticd.service ${D}${systemd_system_unitdir}/

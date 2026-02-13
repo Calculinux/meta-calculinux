@@ -70,11 +70,13 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
+    picocalc-dt-overlays \
     rauc \
     sdl2-test \
     shadow \
     sudo \
     systemd-analyze \
+    systemd-load-dt-overlays \
     terminus-font \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \

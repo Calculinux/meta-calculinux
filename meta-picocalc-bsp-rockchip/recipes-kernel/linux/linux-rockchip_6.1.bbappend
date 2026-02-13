@@ -18,6 +18,7 @@ SRC_URI = " \
     file://utf8.cfg \
     file://filesystems.cfg \
     file://usb-gadget.cfg \
+    file://audio-i2s.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
 "
@@ -26,6 +27,7 @@ KERNEL_CONFIG_FRAGMENTS += " \
     base-configs.cfg \
     display.cfg \
     wifi.cfg \
+    dto.cfg \
     rauc.cfg \
     cgroups.cfg \
     fonts.cfg \
@@ -34,6 +36,7 @@ KERNEL_CONFIG_FRAGMENTS += " \
     utf8.cfg \
     filesystems.cfg \
     usb-gadget.cfg \
+    audio-i2s.cfg \
 "
 
 DEPENDS += "gzip"
@@ -42,6 +45,18 @@ KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
 ROCKCHIP_KERNEL_IMAGES = "0"
 ROCKCHIP_KERNEL_COMPRESSED = "1"
 KERNEL_IMAGETYPES = "zboot.img"
+
+# Ensure base DTB includes __symbols__ so runtime overlays can resolve labels.
+# KERNEL_DTC_FLAGS is used by kernel-devicetree.bbclass to rebuild DTBs, but the
+# Rockchip .img make target (which packages the DTB into resource.img/zboot.img)
+# runs BEFORE kernel-devicetree sets DTC_FLAGS. We must export DTC_FLAGS early
+# via do_compile:prepend so the DTB compiled during the .img target already
+# includes __symbols__.
+KERNEL_DTC_FLAGS += "-@"
+
+do_compile:prepend() {
+    export DTC_FLAGS="${KERNEL_DTC_FLAGS}"
+}
 
 # Copy PicoCalc device tree from devicetree helper recipe
 do_prepare_kernel_picocalc() {
