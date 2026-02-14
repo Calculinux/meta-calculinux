@@ -25,6 +25,11 @@ repos:
       meta-networking:
       meta-filesystems:
       meta-multimedia:
+  meta-virtualization:
+    url: https://git.yoctoproject.org/meta-virtualization.git
+    commit: 8b1543e121deda2445f80f74d85c10316d5b31f4
+    layers:
+      .:
   meta-retro:
     url: https://github.com/dev-0x7C6/meta-retro.git
     commit: 4d8736a2037fcc901d1a79a45c0e61538554245e
@@ -42,12 +47,6 @@ repos:
   meta-calculinux:
     layers:
       meta-calculinux-distro:
-
-  meta-virtualization:
-    url: https://git.yoctoproject.org/meta-virtualization.git
-    commit: 8b1543e121deda2445f80f74d85c10316d5b31f4
-    layers:
-      .:
 
 local_conf_header:
   standard: |
