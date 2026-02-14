@@ -27,6 +27,11 @@ if growpart --free-percent=10 "$PARTITION_DISK" $PARTITION_NUM; then
   resize2fs "/dev/$PARTITION_NAME"
 fi
 
+# Ensure ext4 has xattrs enabled (e.g. if partition was created without ext_attr)
+if [ "{OVERLAYFS_ETC_FSTYPE}" = "ext4" ]; then
+  tune2fs -O ext_attr "/dev/$PARTITION_NAME" 2>/dev/null || true
+fi
+
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
 if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
     -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \

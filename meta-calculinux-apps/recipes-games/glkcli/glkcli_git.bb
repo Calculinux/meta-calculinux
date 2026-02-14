@@ -25,7 +25,7 @@ S = "${WORKDIR}/git"
 inherit cargo cargo-update-recipe-crates
 
 # Build dependencies
-DEPENDS = "glkterm openssl"
+DEPENDS = "glkterm openssl criu"
 
 # Runtime dependencies
 RDEPENDS:${PN} = "glkterm"
