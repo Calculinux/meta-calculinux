@@ -43,6 +43,11 @@ repos:
     layers:
       meta-calculinux-distro:
 
+  meta-virtualization:
+    url: https://git.yoctoproject.org/meta-virtualization.git
+    commit: 8b1543e121deda2445f80f74d85c10316d5b31f4
+    layers:
+      .:
 
 local_conf_header:
   standard: |
