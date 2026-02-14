@@ -15,8 +15,7 @@ S = "${WORKDIR}/git"
 
 PV = "0.9.2+git${SRCPV}"
 
-inherit cargo
+inherit cargo cargo-update-recipe-crates
 
-# Run 'bitbake -c update_crates wiki-tui' to generate wiki-tui-crates.inc
-# for reproducible offline builds, then add: inherit cargo-update-recipe-crates
-# and: require ${BPN}-crates.inc
+# Include the auto-generated crates file (run 'bitbake -c update_crates wiki-tui' to regenerate)
+require ${BPN}-crates.inc
