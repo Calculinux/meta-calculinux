@@ -6,7 +6,7 @@ HOMEPAGE = "https://github.com/yashsinghcodes/wik"
 SECTION = "console/utils"
 
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=8da2e9527e5472276c35b9ca6e1a7f2e"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=0a421caab6054dca789a07a50d1a162f"
 
 PYPI_PACKAGE = "wik"
 

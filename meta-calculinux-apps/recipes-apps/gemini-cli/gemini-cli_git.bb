@@ -6,7 +6,7 @@ chat history management. Requires GEMINI_API_KEY environment variable."
 SECTION = "console/utils"
 
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=8da2e9527e5472276c35b9ca6e1a7f2e"
+LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=6104b260e1c764d0c6a341310c5f34c7"
 
 inherit go-mod
 

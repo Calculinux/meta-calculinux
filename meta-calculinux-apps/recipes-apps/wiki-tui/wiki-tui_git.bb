@@ -6,7 +6,7 @@ HOMEPAGE = "https://wiki-tui.net"
 SECTION = "console/utils"
 
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=07a1575cca9e5ea3cad4706fdfe02bf2"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=0d4b70885d03e5f949ce9030bac50c5d"
 
 SRC_URI = "git://github.com/Builditluc/wiki-tui.git;protocol=https;branch=main"
 SRCREV = "ff41c522ae89627ea4ba7e0d630ea7cae9d3374b"

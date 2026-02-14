@@ -7,7 +7,7 @@ and configurable settings."
 SECTION = "console/network"
 
 LICENSE = "GPL-3.0-only"
-LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=d32239bcb673463ab874e80d47fae504"
+LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=ff3103b5db8ba4e2c66c511b7a73e407"
 
 inherit go-mod
 
