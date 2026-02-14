@@ -27,7 +27,7 @@ repos:
       meta-multimedia:
   meta-virtualization:
     url: https://git.yoctoproject.org/meta-virtualization.git
-    ref: scarthgap
+    branch: scarthgap
     layers:
       .:
   meta-retro:
