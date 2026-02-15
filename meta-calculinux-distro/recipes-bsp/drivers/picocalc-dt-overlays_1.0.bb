@@ -31,8 +31,10 @@ do_compile() {
             -undef -D__DTS__ -x assembler-with-cpp \
             "$overlay" > "${B}/${name}.pp.dts"
         
-        # Compile preprocessed DTS to DTBO
-        dtc -@ -I dts -O dtb -o ${B}/${name}.dtbo "${B}/${name}.pp.dts"
+        # Compile preprocessed DTS to DTBO.
+        # -@ generates symbols; -L generates __fixups__ so the kernel can resolve
+        # fragment targets (e.g. &i2c2) from the base DTB __symbols__ at apply time.
+        dtc -@ -L -I dts -O dtb -o ${B}/${name}.dtbo "${B}/${name}.pp.dts"
     done
 }
 
