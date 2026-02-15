@@ -97,14 +97,13 @@ while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
         fi
     fi
 
-    # Load the overlay blob
+    # Load the overlay blob (kernel applies immediately on write; status is read-only)
     if cat "$overlay_file" > "$overlay_path/dtbo" 2>/dev/null; then
-        # Activate the overlay
-        if echo 1 > "$overlay_path/status" 2>/dev/null; then
+        if [[ "$(cat "$overlay_path/status" 2>/dev/null)" == "applied" ]]; then
             echo "  -> Loaded successfully"
             ((LOADED++))
         else
-            echo "  -> ERROR: Failed to activate overlay" >&2
+            echo "  -> ERROR: Overlay blob written but status is not 'applied' (check dmesg)" >&2
             ((FAILED++))
             rmdir "$overlay_path" 2>/dev/null || true
         fi

@@ -15,25 +15,23 @@ DEPENDS = "dtc-native virtual/kernel"
 do_compile[depends] += "virtual/kernel:do_shared_workdir"
 
 do_compile() {
+    # Include only kernel include/ (for dt-bindings like <dt-bindings/pinctrl/rockchip.h>).
+    # Do NOT add arch/.../boot/dts so that labels like &i2c2 stay undefined in the overlay;
+    # then dtc emits __fixups__ and the kernel resolves them at apply time from the base DTB __symbols__.
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
-    KERNEL_DTS_INCLUDE="${STAGING_KERNEL_DIR}/arch/arm/boot/dts"
-    KERNEL_DTS_INCLUDE_COMMON="${KERNEL_DTS_INCLUDE}/include"
-    
+
     for overlay in ${S}/devicetree-overlays/*-overlay.dts; do
         [ -f "$overlay" ] || bbfatal "No device tree overlay sources found in ${S}/devicetree-overlays"
         name=$(basename "$overlay" -overlay.dts)
-        
-        # Preprocess with cpp to handle #include directives
+
+        # Preprocess: kernel include only (dt-bindings), no base DTS
         ${CPP} -nostdinc \
             -I"${KERNEL_INCLUDE}" \
-            -I"${KERNEL_DTS_INCLUDE}" \
-            -I"${KERNEL_DTS_INCLUDE_COMMON}" \
             -undef -D__DTS__ -x assembler-with-cpp \
             "$overlay" > "${B}/${name}.pp.dts"
-        
-        # Compile preprocessed DTS to DTBO.
-        # -@ generates symbols; -L generates __fixups__ so the kernel can resolve
-        # fragment targets (e.g. &i2c2) from the base DTB __symbols__ at apply time.
+
+        # Compile to DTBO. -@ keeps symbols; -L generates __fixups__ so references
+        # like &i2c2 are resolved at load time from the base DTB __symbols__.
         dtc -@ -L -I dts -O dtb -o ${B}/${name}.dtbo "${B}/${name}.pp.dts"
     done
 }

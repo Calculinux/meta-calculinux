@@ -167,7 +167,8 @@ do_compile:append() {
     # Create __symbols__ node in the compact DTB
     fdtput -c "${DTB_FILE}" /__symbols__ 2>/dev/null || true
 
-    # Copy only whitelisted symbol entries from the full DTB
+    # Copy only whitelisted symbol entries from the full DTB, and inject phandles
+    # for each symbol's target node so the overlay resolver can resolve &label refs.
     SYMS_ADDED=0
     SYMS_MISSING=0
     for sym in ${SYMBOLS}; do
@@ -175,6 +176,15 @@ do_compile:append() {
         if [ -n "${path}" ]; then
             fdtput -ts "${DTB_FILE}" /__symbols__ "${sym}" "${path}"
             SYMS_ADDED=$(expr $SYMS_ADDED + 1)
+            # Ensure the target node has a phandle in the compact DTB so overlay
+            # resolver can patch fragment targets (otherwise refnode->phandle is 0).
+            phandle=$(fdtget -t x "${DTB_FULL}" "${path}" phandle 2>/dev/null) || true
+            if [ -n "${phandle}" ] && [ "${phandle}" != "0" ]; then
+                if fdtget "${DTB_FILE}" "${path}" status >/dev/null 2>&1 || \
+                   fdtget "${DTB_FILE}" "${path}" compatible >/dev/null 2>&1; then
+                    fdtput -t x "${DTB_FILE}" "${path}" phandle "${phandle}" 2>/dev/null || true
+                fi
+            fi
         else
             bbwarn "  Symbol '${sym}' not found in full DTB (may not exist in this SoC)"
             SYMS_MISSING=$(expr $SYMS_MISSING + 1)
