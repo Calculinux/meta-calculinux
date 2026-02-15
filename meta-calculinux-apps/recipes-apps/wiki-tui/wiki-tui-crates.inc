@@ -287,7 +287,7 @@ SRC_URI += " \
     crate://crates.io/tracing-subscriber/0.3.20 \
     crate://crates.io/try-lock/0.2.5 \
     crate://crates.io/tui-input/0.9.0 \
-    crate://crates.io/tui-logger/0.17.4 \
+    crate://crates.io/tui-logger/0.17.3 \
     crate://crates.io/unicode-ident/1.0.22 \
     crate://crates.io/unicode-linebreak/0.1.5 \
     crate://crates.io/unicode-segmentation/1.12.0 \
@@ -654,7 +654,8 @@ SRC_URI[tracing-log-0.2.0.sha256sum] = "ee855f1f400bd0e5c02d150ae5de3840039a3f54
 SRC_URI[tracing-subscriber-0.3.20.sha256sum] = "2054a14f5307d601f88daf0553e1cbf472acc4f2c51afab632431cdcd72124d5"
 SRC_URI[try-lock-0.2.5.sha256sum] = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 SRC_URI[tui-input-0.9.0.sha256sum] = "9b02e86628a225c39b2602863f244a01668184149928ceb410e47a8022d7597e"
-SRC_URI[tui-logger-0.17.4.sha256sum] = "382b7ea88082dbe2236ed1e942552b1bfc59e98fdc5d0599f11a627aae9ee2be"
+# Pinned to 0.17.3: 0.17.4 uses is_multiple_of which requires Rust 1.87+
+SRC_URI[tui-logger-0.17.3.sha256sum] = "57ea457a31a3fff1073f83e5c9e1c61a7805c435b2476b1df3a78f934adebabe"
 SRC_URI[unicode-ident-1.0.22.sha256sum] = "9312f7c4f6ff9069b165498234ce8be658059c6728633667c526e27dc2cf1df5"
 SRC_URI[unicode-linebreak-0.1.5.sha256sum] = "3b09c83c3c29d37506a3e260c08c03743a6bb66a9cd432c6934ab501a190571f"
 SRC_URI[unicode-segmentation-1.12.0.sha256sum] = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
