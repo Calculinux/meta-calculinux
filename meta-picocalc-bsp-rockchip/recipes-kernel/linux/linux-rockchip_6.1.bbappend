@@ -21,6 +21,7 @@ SRC_URI = " \
     file://audio-i2s.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
+    file://depmod-skip-when-echo.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \
@@ -139,12 +140,25 @@ do_compile:append() {
     # Save the compact (no-symbols) DTB
     cp "${DTB_FILE}" "${DTB_FILE}.compact"
 
-    # Recompile DTB with -@ to get full symbol table (temp file only)
+    # Rebuild DTB with -@ using dtc directly. The kernel make target for this DTB
+    # is not in dtb-y (Rockchip zboot flow builds it separately), so we preprocess
+    # the DTS with cpp and compile with dtc -@ to get __symbols__.
     bbnote "Recompiling DTB with -@ to extract symbol paths..."
-    oe_runmake DTC_FLAGS="-@" dtbs
-
+    DTS_SRC="${S}/arch/${ARCH}/boot/dts/${DTB_NAME}.dts"
+    DTS_PP="${DTB_FILE}.pp.dts"
     DTB_FULL="${DTB_FILE}.full-symbols"
-    cp "${DTB_FILE}" "${DTB_FULL}"
+
+    ${BUILD_CPP} -nostdinc \
+        -I"${S}/scripts/dtc/include-prefixes" \
+        -I"${S}/arch/${ARCH}/boot/dts" \
+        -I"${S}/include" \
+        -undef -D__DTS__ -x assembler-with-cpp \
+        "${DTS_SRC}" -o "${DTS_PP}"
+    dtc -@ -i "${S}/arch/${ARCH}/boot/dts" \
+        -i "${S}/scripts/dtc/include-prefixes" \
+        -I dts -O dtb -o "${DTB_FULL}" "${DTS_PP}"
+    rm -f "${DTS_PP}"
+
     bbnote "Full-symbols DTB size: $(stat -c %s ${DTB_FULL}) bytes"
 
     # Restore the compact DTB
@@ -157,13 +171,13 @@ do_compile:append() {
     SYMS_ADDED=0
     SYMS_MISSING=0
     for sym in ${SYMBOLS}; do
-        path=$(fdtget -ts "${DTB_FULL}" /__symbols__ "${sym}" 2>/dev/null)
+        path=$(fdtget -ts "${DTB_FULL}" /__symbols__ "${sym}" 2>/dev/null) || true
         if [ -n "${path}" ]; then
             fdtput -ts "${DTB_FILE}" /__symbols__ "${sym}" "${path}"
-            SYMS_ADDED=$((SYMS_ADDED + 1))
+            SYMS_ADDED=$(expr $SYMS_ADDED + 1)
         else
             bbwarn "  Symbol '${sym}' not found in full DTB (may not exist in this SoC)"
-            SYMS_MISSING=$((SYMS_MISSING + 1))
+            SYMS_MISSING=$(expr $SYMS_MISSING + 1)
         fi
     done
 
@@ -175,7 +189,7 @@ do_compile:append() {
 
     # Rebuild the Rockchip .img with the trimmed DTB
     bbnote "Repackaging kernel image with trimmed DTB..."
-    IMGTYPE="${@d.getVar('KERNEL_IMAGETYPE_FOR_MAKE') or 'zboot.img'}"
+    IMGTYPE="${@(d.getVar('KERNEL_IMAGETYPE_FOR_MAKE') or 'zboot.img').strip()}"
     oe_runmake ${IMGTYPE} ${KERNEL_EXTRA_ARGS}
     bbnote "=== Symbol injection complete ==="
 }
@@ -201,7 +215,7 @@ do_install:append() {
     rm -f ${D}/boot/Image
     rm -f ${D}/boot/Image-*
 
-    gzip -k "${B}/.config"
+    gzip -kf "${B}/.config"
     install -D -m 0644  "${B}/.config.gz" "${D}${datadir}/kernel/config.gz"
 }
 
