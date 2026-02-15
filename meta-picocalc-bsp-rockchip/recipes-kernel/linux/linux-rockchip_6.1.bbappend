@@ -46,17 +46,141 @@ ROCKCHIP_KERNEL_IMAGES = "0"
 ROCKCHIP_KERNEL_COMPRESSED = "1"
 KERNEL_IMAGETYPES = "zboot.img"
 
-# Ensure base DTB includes __symbols__ so runtime overlays can resolve labels.
-# KERNEL_DTC_FLAGS is used by kernel-devicetree.bbclass to rebuild DTBs, but the
-# Rockchip .img make target (which packages the DTB into resource.img/zboot.img)
-# runs BEFORE kernel-devicetree sets DTC_FLAGS. We must export DTC_FLAGS early
-# via do_compile:prepend so the DTB compiled during the .img target already
-# includes __symbols__.
-KERNEL_DTC_FLAGS += "-@"
+# --- Device Tree Overlay Symbol Support ---
+#
+# Runtime ConfigFS overlays need a __symbols__ node in the base DTB so the
+# kernel can resolve phandle label references (e.g. &i2c2, &pinctrl) at
+# overlay-apply time.
+#
+# However, compiling with DTC's -@ flag adds __symbols__ for EVERY labelled
+# node. On the RK3506, the RMIO pinctrl DTSI alone defines ~3,100 labels
+# (all marked /omit-if-no-ref/). With -@, DTC keeps every one of them,
+# inflating the DTB from ~75 KB to ~536 KB.  That DTB is too large for the
+# vendor U-Boot's FDT memory region and corrupts the devicetree at boot.
+#
+# Solution: two-pass build.
+#   Pass 1 – normal compile (no -@): produces a compact DTB where
+#            /omit-if-no-ref/ correctly strips unused RMIO nodes.
+#   Pass 2 – recompile the DTB only with -@ into a temp file, extract the
+#            paths for a curated set of symbols, and inject them into the
+#            compact DTB.  Then rebuild the Rockchip .img so the trimmed
+#            DTB is re-packaged into zboot.img.
+#
+# Symbol list: three sources merged together:
+#   1. overlay-symbols.txt – auto-generated from picocalc-drivers overlays
+#   2. DT_OVERLAY_SYMBOLS_BASE – common platform peripherals for end-user overlays
+#   3. DT_OVERLAY_SYMBOLS_EXTRA – manual additions for board-specific overlays
 
+DT_OVERLAY_SYMBOLS_BASE ?= "\
+    can0 can1 \
+    cru \
+    cpu0 \
+    dsi dsi_dphy dsi_in_vop \
+    fspi \
+    gmac0 gmac1 mdio0 mdio1 \
+    gpio0 gpio1 gpio2 gpio3 gpio4 \
+    i2c0 i2c1 i2c2 i2c3 \
+    mmc \
+    pcfg_pull_none pcfg_pull_up pcfg_pull_down \
+    pinctrl \
+    pwm0_4ch_0 pwm0_4ch_1 pwm0_4ch_2 pwm0_4ch_3 \
+    rga2 \
+    sai0 sai1 sai2 \
+    saradc \
+    spi0 spi1 \
+    tsadc \
+    uart0 uart1 uart2 uart3 uart4 uart5 \
+    uart0m0_xfer uart1m0_xfer uart2m0_xfer uart3m0_xfer uart4m0_xfer uart5m0_xfer \
+    usb20_otg0 usb20_otg1 usb2phy u2phy_otg0 u2phy_otg1 \
+    vcc_3v3 vcc_1v8 vcc_sys vdd_cpu \
+    vop vop_out \
+"
+
+DT_OVERLAY_SYMBOLS_EXTRA ?= ""
+
+# Pass 1 – build everything without -@ (compact DTB)
 do_compile:prepend() {
-    export DTC_FLAGS="${KERNEL_DTC_FLAGS}"
+    export DTC_FLAGS=""
 }
+
+# Pass 2 – selective symbol injection + repackage
+do_compile:append() {
+    DTB_NAME="${@d.getVar('KERNEL_DEVICETREE').replace('.dtb','')}"
+    DTB_FILE="${B}/arch/${ARCH}/boot/dts/${DTB_NAME}.dtb"
+
+    if [ ! -f "${DTB_FILE}" ]; then
+        bbwarn "DTB not found at ${DTB_FILE}, skipping symbol injection"
+        return
+    fi
+
+    # Build the combined symbol list: base platform + auto-generated + extras
+    OVERLAY_SYMS_FILE="${RECIPE_SYSROOT}${datadir}/picocalc/overlay-symbols.txt"
+    SYMBOLS="${DT_OVERLAY_SYMBOLS_BASE}"
+    if [ -f "${OVERLAY_SYMS_FILE}" ]; then
+        SYMBOLS="${SYMBOLS} $(cat "${OVERLAY_SYMS_FILE}" | tr '\n' ' ')"
+        bbnote "Loaded overlay symbols from ${OVERLAY_SYMS_FILE}"
+    else
+        bbwarn "overlay-symbols.txt not found in sysroot"
+    fi
+    SYMBOLS="${SYMBOLS} ${DT_OVERLAY_SYMBOLS_EXTRA}"
+
+    # De-duplicate
+    SYMBOLS=$(echo ${SYMBOLS} | tr ' ' '\n' | sort -u | tr '\n' ' ')
+
+    if [ -z "$(echo ${SYMBOLS} | tr -d ' ')" ]; then
+        bbnote "No overlay symbols to inject, skipping symbol pass"
+        return
+    fi
+
+    bbnote "=== Selective DT overlay symbol injection ==="
+    bbnote "Symbols to inject: ${SYMBOLS}"
+    bbnote "Original DTB size: $(stat -c %s ${DTB_FILE}) bytes"
+
+    # Save the compact (no-symbols) DTB
+    cp "${DTB_FILE}" "${DTB_FILE}.compact"
+
+    # Recompile DTB with -@ to get full symbol table (temp file only)
+    bbnote "Recompiling DTB with -@ to extract symbol paths..."
+    oe_runmake DTC_FLAGS="-@" dtbs
+
+    DTB_FULL="${DTB_FILE}.full-symbols"
+    cp "${DTB_FILE}" "${DTB_FULL}"
+    bbnote "Full-symbols DTB size: $(stat -c %s ${DTB_FULL}) bytes"
+
+    # Restore the compact DTB
+    cp "${DTB_FILE}.compact" "${DTB_FILE}"
+
+    # Create __symbols__ node in the compact DTB
+    fdtput -c "${DTB_FILE}" /__symbols__ 2>/dev/null || true
+
+    # Copy only whitelisted symbol entries from the full DTB
+    SYMS_ADDED=0
+    SYMS_MISSING=0
+    for sym in ${SYMBOLS}; do
+        path=$(fdtget -ts "${DTB_FULL}" /__symbols__ "${sym}" 2>/dev/null)
+        if [ -n "${path}" ]; then
+            fdtput -ts "${DTB_FILE}" /__symbols__ "${sym}" "${path}"
+            SYMS_ADDED=$((SYMS_ADDED + 1))
+        else
+            bbwarn "  Symbol '${sym}' not found in full DTB (may not exist in this SoC)"
+            SYMS_MISSING=$((SYMS_MISSING + 1))
+        fi
+    done
+
+    bbnote "Injected ${SYMS_ADDED} symbols (${SYMS_MISSING} not found)"
+    bbnote "Trimmed DTB size: $(stat -c %s ${DTB_FILE}) bytes"
+
+    # Clean up temp files
+    rm -f "${DTB_FILE}.compact" "${DTB_FULL}"
+
+    # Rebuild the Rockchip .img with the trimmed DTB
+    bbnote "Repackaging kernel image with trimmed DTB..."
+    IMGTYPE="${@d.getVar('KERNEL_IMAGETYPE_FOR_MAKE') or 'zboot.img'}"
+    oe_runmake ${IMGTYPE} ${KERNEL_EXTRA_ARGS}
+    bbnote "=== Symbol injection complete ==="
+}
+
+DEPENDS += "dtc-native"
 
 # Copy PicoCalc device tree from devicetree helper recipe
 do_prepare_kernel_picocalc() {
