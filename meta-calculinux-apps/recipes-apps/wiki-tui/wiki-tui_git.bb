@@ -17,5 +17,12 @@ PV = "0.9.2+git${SRCPV}"
 
 inherit cargo cargo-update-recipe-crates
 
+DEPENDS = "openssl"
+
+# Set up OpenSSL for Rust's openssl-sys crate (cross-compilation)
+export OPENSSL_DIR = "${STAGING_DIR_HOST}${prefix}"
+export OPENSSL_LIB_DIR = "${STAGING_DIR_HOST}${libdir}"
+export OPENSSL_INCLUDE_DIR = "${STAGING_DIR_HOST}${includedir}"
+
 # Include the auto-generated crates file (run 'bitbake -c update_crates wiki-tui' to regenerate)
 require ${BPN}-crates.inc
