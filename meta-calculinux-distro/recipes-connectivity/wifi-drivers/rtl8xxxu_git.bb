@@ -10,6 +10,7 @@ SRC_URI = "\
     git://github.com/aesteryck/rtl8xxxu.git;protocol=https;branch=main \
     file://rtl8188ftv-solution-d.patch \
     file://rtl8188ftv-block-size.patch \
+    file://rtl8188eus-cold-boot-reset.patch \
     "
 SRCREV = "7cb5b73796b19b460af835144e604595083ca60d"
 

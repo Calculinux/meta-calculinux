@@ -1,0 +1,59 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] rtl8xxxu: Add USB reset at probe for RTL8188EU cold boot
+
+RTL8188EUS/EU USB WiFi dongles often fail to work properly on cold boot
+even when firmware loads successfully. The interface appears (wlan0) but
+remains in NO-CARRIER/state DOWN and cannot connect. Rebooting or
+rmmod/insmod fixes it because the disconnect path calls usb_reset_device(),
+putting the device in a known good state before the next probe.
+
+The device needs a USB reset before driver initialization to clear its
+internal state from power-on. Add usb_reset_device() at the start of
+probe for RTL8188EU devices, causing a disconnect/reconnect cycle so
+the subsequent probe runs against a freshly reset device.
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+
+diff --git a/rtl8xxxu_core.c b/rtl8xxxu_core.c
+--- a/rtl8xxxu_core.c
++++ b/rtl8xxxu_core.c
+@@ -7940,6 +7940,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
+ 			  const struct usb_device_id *id)
+ {
+ 	struct rtl8xxxu_priv *priv;
++	static bool rtl8188eu_reset_pending;
+ 	struct ieee80211_hw *hw;
+ 	struct usb_device *udev;
+ 	struct ieee80211_supported_band *sband;
+@@ -7948,6 +7949,21 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
+ 
+ 	udev = usb_get_dev(interface_to_usbdev(interface));
+ 
++	/* RTL8188EU needs USB reset on cold boot - device state is inconsistent
++	 * until reset. rmmod/insmod works because disconnect does usb_reset_device.
++	 */
++	if (id->driver_info == (unsigned long)&rtl8188eu_fops) {
++		if (rtl8188eu_reset_pending) {
++			rtl8188eu_reset_pending = false;
++		} else {
++			dev_info(&udev->dev, "RTL8188EU: Resetting device for cold boot\n");
++			usb_reset_device(udev);
++			usb_put_dev(udev);
++			rtl8188eu_reset_pending = true;
++			return -EAGAIN;
++		}
++	}
++
+ 	switch (id->idVendor) {
+ 	case USB_VENDOR_ID_REALTEK:
+ 		switch(id->idProduct) {
+@@ -8167,6 +8183,9 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
+ 	struct ieee80211_hw *hw;
+ 
+ 	hw = usb_get_intfdata(interface);
++	if (!hw)
++		return;	/* Probe reset device before setup */
++
+ 	priv = hw->priv;
+ 
+ 	rtl8xxxu_deinit_led(priv);
