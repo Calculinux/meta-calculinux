@@ -80,6 +80,7 @@ IMAGE_INSTALL += " \
     systemd-analyze \
     systemd-load-dt-overlays \
     terminus-font \
+    tzdata \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
     usb-gadget-network \
