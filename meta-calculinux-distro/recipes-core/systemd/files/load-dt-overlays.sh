@@ -14,8 +14,6 @@
 #   ds3231-rtc
 #   /data/overlays/custom-sensor.dtbo
 
-set -e
-
 CONFIG_FILE="${1:-/etc/device-tree-overlays.conf}"
 
 trim() {
