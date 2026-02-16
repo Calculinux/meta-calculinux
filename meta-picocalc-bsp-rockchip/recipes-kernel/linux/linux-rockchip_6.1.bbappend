@@ -4,41 +4,49 @@ LICENSE = "GPL-2.0-only"
 
 SRCREV = "815d6a4af7589b0da6cc765658913d05fe550965"
 
+# Kernel config fragments: all .cfg files in files/ are auto-included.
+# Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).
+python __anonymous() {
+    import glob
+    import os
+    cfgs = []
+    seen = set()
+    # This layer's fragments first (override base)
+    for layer in (d.getVar('BBLAYERS') or '').split():
+        for candidate in ['meta-picocalc-bsp-rockchip', 'picocalc-bsp-rockchip']:
+            if candidate in layer:
+                candidate_dir = os.path.join(layer.strip(), 'recipes-kernel', 'linux', 'files')
+                if os.path.isdir(candidate_dir):
+                    for f in sorted(glob.glob(os.path.join(candidate_dir, '*.cfg'))):
+                        name = os.path.basename(f)
+                        if name not in seen:
+                            cfgs.append(f)
+                            seen.add(name)
+                    break
+        if seen:
+            break
+    # Base recipe fragments (cgroups, ext4, etc.) - only if not overridden
+    basedir = os.path.join(os.path.dirname(d.getVar('FILE') or ''), 'files')
+    for f in sorted(glob.glob(os.path.join(basedir, '*.cfg'))):
+        name = os.path.basename(f)
+        if name not in seen:
+            cfgs.append(f)
+            seen.add(name)
+    uris = ' '.join('file://' + os.path.basename(c) for c in cfgs)
+    frags = ' '.join(os.path.basename(c) for c in cfgs)
+    d.setVar('KERNEL_CFG_FRAGMENTS_SRC_URI', uris)
+    d.setVar('KERNEL_CFG_FRAGMENTS_LIST', frags)
+}
+
 SRC_URI = " \
     git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1 \
-    file://base-configs.cfg \
-    file://display.cfg \
-    file://wifi.cfg \
-    file://dto.cfg \
-    file://rauc.cfg \
-    file://cgroups.cfg \
-    file://fonts.cfg \
-    file://led.cfg \
-    file://removed.cfg \
-    file://utf8.cfg \
-    file://filesystems.cfg \
-    file://usb-gadget.cfg \
-    file://audio-i2s.cfg \
+    ${KERNEL_CFG_FRAGMENTS_SRC_URI} \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
     file://depmod-skip-when-echo.patch \
 "
 
-KERNEL_CONFIG_FRAGMENTS += " \
-    base-configs.cfg \
-    display.cfg \
-    wifi.cfg \
-    dto.cfg \
-    rauc.cfg \
-    cgroups.cfg \
-    fonts.cfg \
-    led.cfg \
-    removed.cfg \
-    utf8.cfg \
-    filesystems.cfg \
-    usb-gadget.cfg \
-    audio-i2s.cfg \
-"
+KERNEL_CONFIG_FRAGMENTS += "${KERNEL_CFG_FRAGMENTS_LIST}"
 
 DEPENDS += "gzip"
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
