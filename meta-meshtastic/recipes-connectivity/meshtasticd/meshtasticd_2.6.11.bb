@@ -21,10 +21,7 @@ SRC_URI = " \
     file://004-platformio-link-group.patch \
     file://meshtasticd.service \
     file://meshtasticd.avahi.xml \
-    file://config.d/luckfox_pico-lora-rfsw-tcxo.yaml \
-    file://config.d/luckfox_pico-lora-rfsw-no_tcxo.yaml \
-    file://config.d/luckfox_pico-lora-rfsw-ebyte_e22.yaml \
-    file://config.d/picocalc-sx1262-lora.yaml \
+    file://available.d/lora-lyra-picocalc-waveshare-sx1262.yaml \
 "
 
 S = "${WORKDIR}/git"
@@ -45,7 +42,6 @@ PACKAGECONFIG[web] = "",,"libulfius liborcania libyder openssl gnutls"
 
 DEPENDS += " \
     argp-standalone \
-    bluez5 \
     i2c-tools \
     libgpiod \
     libusb1 \
@@ -59,7 +55,6 @@ DEPENDS += " \
 "
 
 RDEPENDS:${PN} += " \
-    bluez5 \
     i2c-tools \
     libgpiod \
     libusb1 \
@@ -151,6 +146,8 @@ do_install() {
 FILES:${PN} += " \
     ${sysconfdir}/meshtasticd \
     ${systemd_system_unitdir}/meshtasticd.service \
+    ${sysconfdir}/meshtasticd/available.d \
+    ${sysconfdir}/meshtasticd/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml \
 "
 
 FILES:${PN}-dbg += "${sbindir}/.debug/meshtasticd"

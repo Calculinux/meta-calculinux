@@ -10,21 +10,26 @@
 
 Lora:
   Module: sx1262
-  gpiochip: 1  # Subtract 32 from the gpio numbers
   DIO2_AS_RF_SWITCH: true  # Automatic RF switching - DIO2 → TXEN
   DIO3_TCXO_VOLTAGE: true  # Enable TCXO via DIO3 output
   
   # SPI pins (bitbang - GPIO-based software SPI)
   # Pin selection preserves UART5_TX/RX for future GPS module
-  CLK: 74      # P7 GPIO3_B2 (106 - 32) - UART5_CTSN (CTS not needed for GPS)
-  MOSI: 77     # P10 GPIO3_B5 (109 - 32) - UART5_RTSN (RTS not needed for GPS)
-  MISO: 102    # P3 GPIO3_A6 (134 - 32) - SAI2_SDI_M0 (ALT: I2S Data In)
-  
-  # Status/Control pins
-  CS: -1       # Not used, grounded on board
-  IRQ: 78      # P11 GPIO3_B6 (110 - 32) - DIO1 interrupt (ALT: I2S MCLK)
-  Busy: 32     # P13 GPIO1_D0 (64 - 32) - BUSY status (ALT: VO_LCDC_D3)
+  # And preserves SAI2 for future audio output
+  # RK3506: gpiochip N = bank N; line = group*8+X (A=0, B=1, C=2, D=3; X=0..7)
+  # So GPIO3_B2 = chip 3 line 10, GPIO3_B5 = 13, GPIO3_A6 = 6, GPIO3_B6 = 14, GPIO1_D0 = chip 1 line 24
+  gpiochip: 3
+  CLK: 10   # GPIO3_B2 (RMII1 / UART5_CTSN)
+  MOSI: 13  # GPIO3_B5 (UART5_RTSN)
+  MISO: 6   # GPIO3_A6 (SAI2_SDI_M0)
+  IRQ: 14   # GPIO3_B6 (DIO1 interrupt)
+  Busy:     # GPIO1_D0 - different bank, use line on default chip or struct below
+    line: 24
+    gpiochip: 1
+
+
   Reset: -1    # Not used, tied HIGH permanently via 10kΩ pull-up
+  CS: -1
   
   # SPI configuration
   # Note: Using GPIO bitbang SPI instead of hardware SPI
