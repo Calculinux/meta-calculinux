@@ -15,11 +15,24 @@ SRC_URI = "git://github.com/benklop/glkcli.git;protocol=https;branch=main \
            file://0001-Remove-panic-abort-for-cross-compilation-compatibility.patch"
 SRCREV = "${AUTOREV}"
 
-# Version (git live version) - matches upstream Cargo.toml version
-PV = "1.2.0+git${SRCPV}"
-
 # Working directory
 S = "${WORKDIR}/git"
+
+# Extract version from Cargo.toml dynamically
+python do_get_cargo_version() {
+    import re
+    cargo_toml = os.path.join(d.getVar('S'), 'Cargo.toml')
+    if os.path.exists(cargo_toml):
+        with open(cargo_toml, 'r') as f:
+            for line in f:
+                match = re.match(r'^version\s*=\s*"([^"]+)"', line.strip())
+                if match:
+                    version = match.group(1)
+                    d.setVar('PV', version + '+git${SRCPV}')
+                    bb.plain("Extracted version from Cargo.toml: %s" % version)
+                    break
+}
+addtask do_get_cargo_version after do_unpack before do_patch
 
 # Rust build system - use cargo-update-recipe-crates for proper dependency management
 inherit cargo cargo-update-recipe-crates
