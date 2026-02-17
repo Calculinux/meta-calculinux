@@ -11,6 +11,11 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 
 DEPENDS = "dtc-native virtual/kernel"
 
+# Skip default do_configure (oe_runmake clean) - we use custom do_compile with dtc
+# only. The shared source has a Makefile for kernel modules that would run
+# against the host kernel path by default.
+do_configure[noexec] = "1"
+
 # Ensure kernel shared workdir is available with headers
 do_compile[depends] += "virtual/kernel:do_shared_workdir"
 
