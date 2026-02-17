@@ -15,8 +15,8 @@ SRC_URI = "git://github.com/benklop/glkcli.git;protocol=https;branch=main \
            file://0001-Remove-panic-abort-for-cross-compilation-compatibility.patch"
 SRCREV = "${AUTOREV}"
 
-# Version (git live version) - bumped to 1.1 for glkterm path configuration
-PV = "1.2+git${SRCPV}"
+# Version (git live version) - matches upstream Cargo.toml version
+PV = "1.2.0+git${SRCPV}"
 
 # Working directory
 S = "${WORKDIR}/git"
