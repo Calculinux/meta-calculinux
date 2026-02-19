@@ -1,0 +1,27 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] librsvg: fix native configure finding cairo (pkgconfig)
+
+librsvg-native do_configure fails with "Run-time dependency cairo found: NO"
+because the recipe exports EXTRA_NATIVE_PKGCONFIG_PATH with only
+${B}/meson-uninstalled, so pkg-config never searches the native sysroot
+where cairo-native is staged. Prepend the native sysroot pkgconfig path.
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+---
+ recipes-gnome/librsvg/librsvg_2.61.3.bb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/recipes-gnome/librsvg/librsvg_2.61.3.bb b/recipes-gnome/librsvg/librsvg_2.61.3.bb
+--- a/recipes-gnome/librsvg/librsvg_2.61.3.bb
++++ b/recipes-gnome/librsvg/librsvg_2.61.3.bb
+@@ -38,7 +38,7 @@ BASEDEPENDS:append = " cargo-native"
+ # for cargo to be happy
+ BASEDEPENDS:append = " cargo-native"
+ 
+-export EXTRA_NATIVE_PKGCONFIG_PATH = "${B}/meson-uninstalled:"
++export EXTRA_NATIVE_PKGCONFIG_PATH = "${STAGING_LIBDIR_NATIVE}/pkgconfig:${B}/meson-uninstalled:"
+ export RUST_BACKTRACE = "full"
+ export RUSTFLAGS
+ 
+-- 
+2.43.0

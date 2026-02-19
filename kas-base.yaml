@@ -35,6 +35,9 @@ repos:
       0002-meta-lts-mixins-cargo-unpackdir.patch:
         repo: meta-calculinux
         path: patches/meta-lts-mixins-cargo-unpackdir.patch
+      0003-meta-lts-mixins-librsvg-native-pkgconfig.patch:
+        repo: meta-calculinux
+        path: patches/meta-lts-mixins-librsvg-native-pkgconfig.patch
     layers:
       .:
   meta-retro:
