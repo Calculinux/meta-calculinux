@@ -24,6 +24,12 @@ S = "${WORKDIR}/git"
 # Rust build system - use cargo-update-recipe-crates for proper dependency management
 inherit cargo cargo-update-recipe-crates
 
+# Use --offline instead of --frozen so cargo uses the bitbake-vendored crates
+# without strict lockfile checks that can fail when directory source resolution
+# differs slightly from the registry (e.g. after crate/rust updates).
+CARGO_BUILD_FLAGS:remove = "--frozen"
+CARGO_BUILD_FLAGS += "--offline"
+
 # Build dependencies
 DEPENDS = "glkterm openssl criu"
 

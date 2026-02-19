@@ -32,6 +32,9 @@ repos:
       0001-meta-lts-mixins-walnascar-compat.patch:
         repo: meta-calculinux
         path: patches/meta-lts-mixins-walnascar-compat.patch
+      0002-meta-lts-mixins-cargo-unpackdir.patch:
+        repo: meta-calculinux
+        path: patches/meta-lts-mixins-cargo-unpackdir.patch
     layers:
       .:
   meta-retro:
