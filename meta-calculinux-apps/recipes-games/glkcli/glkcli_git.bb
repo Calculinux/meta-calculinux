@@ -16,7 +16,7 @@ SRC_URI = "git://github.com/benklop/glkcli.git;protocol=https;branch=main \
 SRCREV = "${AUTOREV}"
 
 # Version (git live version) - bumped to 1.1 for glkterm path configuration
-PV = "1.2+git${SRCPV}"
+PV = "1.2.1+git${SRCPV}"
 
 # Working directory
 S = "${WORKDIR}/git"
