@@ -1,0 +1,31 @@
+From 816cad363c3c17636d8c6424578c3c70f0e87624 Mon Sep 17 00:00:00 2001
+From: Bruce Ashfield <bruce.ashfield@gmail.com>
+Date: Thu, 3 Apr 2025 17:48:44 +0000
+Subject: [PATCH] plugins/cuda: pass DEBUG_PREFIX_MAP
+
+If we don't explicitly pass the debug prefix map to the build
+QA errors result in the debug package (host path).
+
+Upstream-Status: Inappropriate [OE-Specific]
+
+Signed-off-by: Bruce Ashfield <bruce.ashfield@gmail.com>
+---
+ plugins/cuda/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/plugins/cuda/Makefile b/plugins/cuda/Makefile
+index cc3d98ac9..aac9027a7 100644
+--- a/plugins/cuda/Makefile
++++ b/plugins/cuda/Makefile
+@@ -19,7 +19,7 @@ all: $(DEPS_CUDA)
+ 
+ cuda_plugin.so: cuda_plugin.c
+ 	$(call msg-gen, $@)
+-	$(Q) $(CC) $(PLUGIN_CFLAGS) $(shell $(COMPEL) includes) $^ -o $@ $(PLUGIN_INCLUDE) $(PLUGIN_LDFLAGS)
++	$(Q) $(CC) $(PLUGIN_CFLAGS) $(DEBUG_PREFIX_MAP) $(shell $(COMPEL) includes) $^ -o $@ $(PLUGIN_INCLUDE) $(PLUGIN_LDFLAGS)
+ 
+ clean:
+ 	$(call msg-clean, $@)
+-- 
+2.43.0
+
