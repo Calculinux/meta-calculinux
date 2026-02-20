@@ -16,7 +16,7 @@ SRC_URI = "git://github.com/benklop/glkcli.git;protocol=https;branch=main \
 SRCREV = "${AUTOREV}"
 
 # Version (git live version) - bumped to 1.1 for glkterm path configuration
-PV = "1.1+git${SRCPV}"
+PV = "1.2.1+git${SRCPV}"
 
 # Working directory
 S = "${WORKDIR}/git"
@@ -24,8 +24,14 @@ S = "${WORKDIR}/git"
 # Rust build system - use cargo-update-recipe-crates for proper dependency management
 inherit cargo cargo-update-recipe-crates
 
+# Use --offline instead of --frozen so cargo uses the bitbake-vendored crates
+# without strict lockfile checks that can fail when directory source resolution
+# differs slightly from the registry (e.g. after crate/rust updates).
+CARGO_BUILD_FLAGS:remove = "--frozen"
+CARGO_BUILD_FLAGS += "--offline"
+
 # Build dependencies
-DEPENDS = "glkterm openssl"
+DEPENDS = "glkterm openssl criu"
 
 # Runtime dependencies
 RDEPENDS:${PN} = "glkterm"

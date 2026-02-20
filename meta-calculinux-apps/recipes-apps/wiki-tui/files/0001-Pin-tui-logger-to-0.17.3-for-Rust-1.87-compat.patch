@@ -1,0 +1,20 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] Pin tui-logger to 0.17.3 for Rust <1.87 compat
+
+tui-logger 0.17.4 uses is_multiple_of which requires Rust 1.87+.
+Pin to 0.17.3 to build with older Rust toolchains.
+
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2856,8 +2856,8 @@
+ 
+ [[package]]
+ name = "tui-logger"
+-version = "0.17.4"
++version = "0.17.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "382b7ea88082dbe2236ed1e942552b1bfc59e98fdc5d0599f11a627aae9ee2be"
++checksum = "57ea457a31a3fff1073f83e5c9e1c61a7805c435b2476b1df3a78f934adebabe"
+ dependencies = [
+  "chrono",
+  "env_filter",

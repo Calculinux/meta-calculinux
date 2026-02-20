@@ -1,0 +1,44 @@
+From b462d15429f601497383886bb53e091630b2e7c0 Mon Sep 17 00:00:00 2001
+From: Calculinux <noreply@calculinux.org>
+Date: Thu, 19 Feb 2026 17:20:45 -0500
+Subject: [PATCH] librsvg: fix librsvg-native configure not finding cairo
+
+librsvg-native do_configure fails with:
+  Run-time dependency cairo found: NO (tried pkgconfig and cmake)
+
+The pkg-config-native wrapper sets PKG_CONFIG_PATH by directly
+concatenating @PATH_NATIVE@ (baked-in, no trailing colon) with
+$EXTRA_NATIVE_PKGCONFIG_PATH. Without a leading colon, the last
+baked-in path element and the first element of EXTRA_NATIVE_PKGCONFIG_PATH
+are merged into one invalid path, so the recipe's native sysroot
+(which has cairo.pc) is never actually searched.
+
+Fix by prepending a leading colon to EXTRA_NATIVE_PKGCONFIG_PATH so the
+paths are always correctly separated, regardless of whether @PATH_NATIVE@
+ends with a colon.
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+Co-authored-by: Cursor <cursoragent@cursor.com>
+---
+ recipes-gnome/librsvg/librsvg_2.61.3.bb | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/recipes-gnome/librsvg/librsvg_2.61.3.bb b/recipes-gnome/librsvg/librsvg_2.61.3.bb
+index a12ffc3..b345a94 100644
+--- a/recipes-gnome/librsvg/librsvg_2.61.3.bb
++++ b/recipes-gnome/librsvg/librsvg_2.61.3.bb
+@@ -36,7 +36,10 @@ UPSTREAM_CHECK_REGEX = "librsvg-(?P<pver>\d+\.\d+\.(?!9\d+)\d+)"
+ # for cargo to be happy
+ BASEDEPENDS:append = " cargo-native"
+ 
+-export EXTRA_NATIVE_PKGCONFIG_PATH = "${B}/meson-uninstalled:"
++# Prepend with a leading colon so the baked-in @PATH_NATIVE@ in the
++# pkg-config-native wrapper (which has no trailing colon) does not
++# merge with our first path and corrupt the PKG_CONFIG_PATH value.
++export EXTRA_NATIVE_PKGCONFIG_PATH = ":${STAGING_LIBDIR_NATIVE}/pkgconfig:${B}/meson-uninstalled:"
+ export RUST_BACKTRACE = "full"
+ export RUSTFLAGS
+ 
+-- 
+2.53.0
+

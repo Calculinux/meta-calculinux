@@ -38,6 +38,7 @@ IMAGE_INSTALL += " \
     dosfstools \
     e2fsprogs \
     e2fsprogs-resize2fs \
+    ffmpeg \
     file \
     gcompat \
     gdb \
@@ -70,6 +71,7 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
+    picocalc-kbd-test \
     rauc \
     sdl2-test \
     shadow \
