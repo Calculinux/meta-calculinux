@@ -1,0 +1,30 @@
+From 2ec745ac11357e3243ef1f23f817c276518ce7cb Mon Sep 17 00:00:00 2001
+From: Tim Orling <tim.orling@konsulko.com>
+Date: Sat, 2 Mar 2024 13:48:54 -0800
+Subject: [PATCH] pycriu: --skip-dependency-check during build
+
+It complains about needing protobuf<4, python3-protobuf is 4.25 in meta-python
+
+Upstream-Status: Inappropriate [oe specific]
+
+Signed-off-by: Tim Orling <tim.orling@konsulko.com>
+---
+ lib/Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+Index: git/lib/Makefile
+===================================================================
+--- git.orig/lib/Makefile
++++ git/lib/Makefile
+@@ -59,9 +59,9 @@
+ 	$(Q) install -m 644 lib/c/criu.pc $(DESTDIR)$(LIBDIR)/pkgconfig
+ ifeq ($(SKIP_PIP_INSTALL),0)
+ 	$(E) "  BUILD " pycriu
+-	$(Q) $(PYTHON) -m build --no-isolation --wheel --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
++	$(Q) $(PYTHON) -m build --no-isolation --wheel --skip-dependency-check --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
+ 	$(E) "  INSTALL " pycriu
+-	$(Q) $(PYTHON) -m build --no-isolation --wheel --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
++	$(Q) $(PYTHON) -m build --no-isolation --wheel --skip-dependency-check --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
+ else
+ 	$(E) " SKIP INSTALL pycriu"
+ endif
