@@ -1,0 +1,16 @@
+[Unit]
+Description=Load Device Tree Overlays
+Documentation=man:device-tree-overlays(7)
+After=local-fs.target
+Before=multi-user.target
+ConditionPathExists=/etc/device-tree-overlays.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/systemd/load-dt-overlays.sh /etc/device-tree-overlays.conf
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
