@@ -25,9 +25,19 @@ repos:
       meta-networking:
       meta-filesystems:
       meta-multimedia:
-  meta-virtualization:
-    url: https://git.yoctoproject.org/meta-virtualization.git
-    branch: walnascar
+  meta-lts-mixins:
+    url: https://git.yoctoproject.org/meta-lts-mixins
+    commit: c19b6da5a3afd3c892b3b1b44983e993ac6d5308
+    patches:
+      0001-meta-lts-mixins-walnascar-compat.patch:
+        repo: meta-calculinux
+        path: patches/meta-lts-mixins-walnascar-compat.patch
+      0002-meta-lts-mixins-cargo-unpackdir.patch:
+        repo: meta-calculinux
+        path: patches/meta-lts-mixins-cargo-unpackdir.patch
+      0003-meta-lts-mixins-librsvg-native-pkgconfig.patch:
+        repo: meta-calculinux
+        path: patches/meta-lts-mixins-librsvg-native-pkgconfig.patch
     layers:
       .:
   meta-retro:
@@ -59,6 +69,13 @@ local_conf_header:
     # Skip problematic recipes from meta-retro that use AUTOREV or have missing dependencies
     BBMASK += "meta-retro/recipes-extended/slipr"
     BBMASK += "meta-retro/recipes-graphics/mesa"
+  rust-version: |
+    # Use meta-lts-mixins' Scarthgap Rust mixin toolchain
+    PREFERRED_VERSION_rust = "1.92%"
+    PREFERRED_VERSION_rust-native = "1.92%"
+    PREFERRED_VERSION_cargo = "1.92%"
+    PREFERRED_VERSION_cargo-native = "1.92%"
+    PREFERRED_VERSION_libstd-rs = "1.92%"
   diskmon: |
     BB_DISKMON_DIRS ??= "\
         STOPTASKS,${TMPDIR},1G,100K \

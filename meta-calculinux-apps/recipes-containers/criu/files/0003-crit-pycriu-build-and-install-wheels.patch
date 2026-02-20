@@ -1,0 +1,59 @@
+From 40d2f0735d668dca893a5f0e787f1f11af74cf25 Mon Sep 17 00:00:00 2001
+From: Tim Orling <tim.orling@konsulko.com>
+Date: Fri, 1 Mar 2024 22:22:37 -0800
+Subject: [PATCH] crit/pycriu: build and install wheels
+
+Rather than using heavy handed pip (which requires network access to
+fetch the index), mimic what we do in python_pep517.bbclass do_compile
+and do_install for both crit/ and lib/pycriu
+
+Upstream-Status: Inappropriate [oe specific]
+
+Signed-off-by: Tim Orling <tim.orling@konsulko.com>
+---
+ crit/Makefile |  8 ++++++--
+ lib/Makefile  | 11 +++++++++--
+ 2 files changed, 15 insertions(+), 4 deletions(-)
+
+Index: git/crit/Makefile
+===================================================================
+--- git.orig/crit/Makefile
++++ git/crit/Makefile
+@@ -8,8 +8,10 @@
+ 
+ install: ${VERSION_FILE}
+ ifeq ($(SKIP_PIP_INSTALL),0)
++	$(E) "  BUILD " crit
++	$(Q) $(PYTHON) -m build --no-isolation --wheel --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
+ 	$(E) "  INSTALL " crit
+-	$(Q) $(PYTHON) -m pip install $(PIPFLAGS) --prefix=$(DESTDIR)$(PREFIX) ./crit
++	$(Q) $(PYTHON) -m installer $(INSTALL_WHEEL_COMPILE_BYTECODE) --interpreter "$(USRBINPATH)/env $(PEP517_INSTALL_PYTHON)" --destdir=$(DESTDIR) $(PEP517_WHEEL_PATH)/crit-*.whl
+ else
+ 	$(E) " SKIP INSTALL crit"
+ endif
+Index: git/lib/Makefile
+===================================================================
+--- git.orig/lib/Makefile
++++ git/lib/Makefile
+@@ -1,6 +1,9 @@
+ CRIU_SO			:= libcriu.so
+ CRIU_A			:= libcriu.a
+ UAPI_HEADERS		:= lib/c/criu.h images/rpc.proto images/rpc.pb-c.h criu/include/version.h
++PEP517_SOURCE_PATH := ./lib
++PEP517_BUILD_OPTS :=
++INSTALL_WHEEL_COMPILE_BYTECODE ?= "--compile-bytecode=0"
+ 
+ all-y	+= lib-c lib-a lib-py
+ 
+@@ -55,8 +58,10 @@
+ 	$(Q) sed -e 's,@version@,$(CRIU_VERSION),' -e 's,@libdir@,$(LIBDIR),' -e 's,@includedir@,$(dir $(INCLUDEDIR)/criu/),' lib/c/criu.pc.in > lib/c/criu.pc
+ 	$(Q) install -m 644 lib/c/criu.pc $(DESTDIR)$(LIBDIR)/pkgconfig
+ ifeq ($(SKIP_PIP_INSTALL),0)
++	$(E) "  BUILD " pycriu
++	$(Q) $(PYTHON) -m build --no-isolation --wheel --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
+ 	$(E) "  INSTALL " pycriu
+-	$(Q) $(PYTHON) -m pip install $(PIPFLAGS) --prefix=$(DESTDIR)$(PREFIX) ./lib
++	$(Q) $(PYTHON) -m build --no-isolation --wheel --outdir $(PEP517_WHEEL_PATH) $(PEP517_SOURCE_PATH) $(PEP517_BUILD_OPTS)
+ else
+ 	$(E) " SKIP INSTALL pycriu"
+ endif
