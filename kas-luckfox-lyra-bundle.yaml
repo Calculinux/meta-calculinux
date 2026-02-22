@@ -82,3 +82,6 @@ local_conf_header:
     "
 
     CORE_IMAGE_EXTRA_INSTALL += " ${WIFI_FIRMWARE} ${EXTRA_WIFI_DRIVERS} ${PICOCALC_DRIVERS} "
+
+  wks: |
+    do_fixup_wks[noexec] = "1"
