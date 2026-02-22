@@ -3,7 +3,7 @@ require recipes-bsp/u-boot/u-boot.inc
 
 DEPENDS += "bc-native dtc-native gnutls-native python3-pyelftools-native "
 
-SRCREV = "0b8e25bd9e16e8043b600e8f49b926b95572dc47"
+SRCREV = "a72ec1294fc6ba6b0bfd5ebc912a7bed2dc2513d"
 SRCREV_rkbin = "74213af1e952c4683d2e35952507133b61394862"
 
 SRC_URI = " \
