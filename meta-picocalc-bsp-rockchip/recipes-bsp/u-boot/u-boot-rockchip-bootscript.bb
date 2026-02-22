@@ -2,8 +2,7 @@ SUMMARY = "Provide bootchooser script for U-Boot"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-
+DEPENDS += "u-boot-mkimage-native"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 SRC_URI = " \
@@ -40,15 +39,16 @@ python do_create_boot_scr_sh() {
 
 # we cannot depend on the normal mkimage since rockchip uses special patches
 # for their version.
-do_compile[depends] += "u-boot-rockchip:do_prepare_host_tools"
+# do_compile[depends] += "u-boot-rockchip:do_prepare_host_tools"
 
-python do_configure() {
-    mkimage = d.getVar("DEPLOY_DIR_IMAGE") + "/rockchip-mkimage-2017.09"
-    d.setVarFlag("do_configure", "file-checksums", mkimage)
-}
+# python do_configure() {
+#     mkimage = d.getVar("DEPLOY_DIR_IMAGE") + "/rockchip-mkimage-2017.09"
+#     d.setVarFlag("do_configure", "file-checksums", mkimage)
+# }
 
 do_compile() {
-    MKIMAGE="${DEPLOY_DIR_IMAGE}/rockchip-mkimage-2017.09"
+    # MKIMAGE="${DEPLOY_DIR_IMAGE}/rockchip-mkimage-2017.09"
+    MKIMAGE="mkimage"
     ${MKIMAGE} -C none -A ${UBOOT_ARCH} -T script -d ${UBOOT_BOOTSCR} ${UBOOT_BOOTSCR_IMG}
 }
 
