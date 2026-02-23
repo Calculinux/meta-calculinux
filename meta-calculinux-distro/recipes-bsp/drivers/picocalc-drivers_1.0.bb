@@ -24,7 +24,7 @@ INSANE_SKIP:${PN} += "buildpaths debug-files"
 INSANE_SKIP:${PN}-dbg += "buildpaths"
 
 # Define logical package groups - custom packages first, then standard packages
-PACKAGES = "${PN}-mfd ${PN}-kbd ${PN}-lcd-fb ${PN}-lcd-drm ${PN}-snd-pwm ${PN}-snd-softpwm ${PN}-rproc ${PN}-snd-m0pwm ${PN}-dbg ${PN}-src ${PN}-staticdev ${PN}-dev ${PN}-doc ${PN}-locale ${PN}"
+PACKAGES = "${PN}-mfd ${PN}-kbd ${PN}-lcd-fb ${PN}-lcd-drm ${PN}-snd-pwm ${PN}-snd-softpwm ${PN}-rproc ${PN}-snd-m0 ${PN}-dbg ${PN}-src ${PN}-staticdev ${PN}-dev ${PN}-doc ${PN}-locale ${PN}"
 
 # Package descriptions
 SUMMARY:${PN}-mfd = "PicoCalc MFD drivers (core, BMS, backlight, keyboard, LED)"
@@ -48,8 +48,8 @@ DESCRIPTION:${PN}-snd-softpwm = "Software PWM-based sound driver for PicoCalc"
 SUMMARY:${PN}-rproc = "RK3506 Cortex-M0 remoteproc driver"
 DESCRIPTION:${PN}-rproc = "Remoteproc driver for RK3506 M0 core (required for M0 audio)"
 
-SUMMARY:${PN}-snd-m0pwm = "PicoCalc M0 delta-sigma audio driver"
-DESCRIPTION:${PN}-snd-m0pwm = "ALSA driver for M0-driven audio on GPIO4_B2/B3 (default sound)"
+SUMMARY:${PN}-snd-m0 = "PicoCalc M0 delta-sigma audio driver"
+DESCRIPTION:${PN}-snd-m0 = "ALSA driver for M0-driven audio on GPIO4_B2/B3 (default sound)"
 
 # Package file assignments - group MFD drivers together
 FILES:${PN}-mfd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_mfd.ko \
@@ -64,7 +64,7 @@ FILES:${PN}-lcd-drm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/il
 FILES:${PN}-snd-pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_pwm.ko"
 FILES:${PN}-snd-softpwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_softpwm.ko"
 FILES:${PN}-rproc = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/rk3506_rproc.ko"
-FILES:${PN}-snd-m0pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_m0pwm.ko"
+FILES:${PN}-snd-m0 = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_m0.ko"
 
 # Runtime dependencies - MFD sub-drivers are always loaded together as a unit via the core module
 # No inter-package dependencies needed since they're all in one package
@@ -77,13 +77,13 @@ FILES:${PN}-snd-m0pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 RDEPENDS:${PN} = " \
     ${PN}-lcd-fb \
     ${PN}-lcd-drm \
-    ${PN}-snd-m0pwm \
+    ${PN}-snd-m0 \
     ${PN}-rproc \
     ${PN}-snd-pwm \
     ${PN}-snd-softpwm \
     ${PN}-mfd \
 "
-RDEPENDS:${PN}-snd-m0pwm = "${PN}-rproc picocalc-m0-firmware"
+RDEPENDS:${PN}-snd-m0 = "${PN}-rproc picocalc-m0-firmware"
 
 # Main package itself is empty - all content is in sub-packages
 FILES:${PN} = ""
@@ -115,7 +115,7 @@ do_install() {
     install -m 0644 ${S}/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/picocalc_rk3506_rproc/rk3506_rproc.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_snd-m0pwm/picocalc_snd_m0pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/picocalc_snd-m0/picocalc_snd_m0.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
 
 SYSROOT_DIRS += "${datadir}/picocalc"

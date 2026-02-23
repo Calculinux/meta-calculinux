@@ -17,7 +17,7 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 # ARM bare-metal toolchain (arm-none-eabi-gcc).
 CROSS_COMPILE_M0 ?= "arm-none-eabi-"
 
-FIRMWARE_DIR = "picocalc_m0_fw_pwm"
+FIRMWARE_DIR = "picocalc_m0_fw"
 
 do_compile() {
 	cd ${S}/${FIRMWARE_DIR}
