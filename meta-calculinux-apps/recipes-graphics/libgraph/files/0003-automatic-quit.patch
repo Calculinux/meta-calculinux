@@ -1,0 +1,31 @@
+--- libgraph-1.0.2/libgraph.c	2005-02-23 10:32:18.000000000 +0530
++++ libgraph-1.0.2-test1/libgraph.c	2012-05-16 19:06:54.000000000 +0530
+@@ -95,14 +95,14 @@
+   atexit(closegraph);  /* Register closegraph() as the default 
+ 			  exit function in case user forgets to call it. */			
+     
+-  _pid = fork();	// Don't bother with this. 
+-  if 			//The process forks a child to check for Ctrl-C.
+-    (!_pid) ctrlbreak();
+-  else
+-    {
++  //_pid = fork();	// Don't bother with this. 
++  //if 			//The process forks a child to check for Ctrl-C.
++    //(!_pid) ctrlbreak();
++  //else
++    //{
+       signal(SIGUSR1, inthandler);
+       signal (SIGUSR2, refresh_interrupt);
+-    }
++    //}
+    
+   if (*graphdriver == DETECT) 
+     *graphmode = VGAHI;    	//Default mode 640*480*8
+@@ -167,6 +167,7 @@
+ 
+ void closegraph(void)
+ {
++  _pid = fork();                //added 
+   kill(_pid, SIGKILL);		//Kill child if it is alive.
+   SDL_Quit();
+   unsetenv("LIBGRAPHICS_ACTIVE");     //Unset the env variable

@@ -1,0 +1,152 @@
+From e14f3dc392daed10ab3186957ffe000a4463167d Mon Sep 17 00:00:00 2001
+From: calculinux team <team@calculinux.org>
+Date: Sat, 21 Feb 2026 00:00:00 +0000
+Subject: [PATCH] fix: add include guards and fix GCC 14 hard errors
+
+The sub-headers grtext.h, shapes.h, and polygon.h lacked include guards.
+Add standard #ifndef/#define/#endif guards to all three so that including
+both a sub-header and graphics.h (which re-includes all three) within the
+same translation unit does not produce duplicate type/declaration errors.
+
+Add #include "graphics.h" to shapes.c, polygon.c, and text.c. Each file
+previously only included its own sub-header, leaving the CHECK_INITIALIZATION
+macro and many cross-module function prototypes undeclared. GCC 14 promotes
+-Wimplicit-function-declaration to a hard error, so these missing declarations
+must now be made explicit.
+
+Remove the 'extern struct {int x;int y;}CP' declarations from text.c and
+shapes.c. With graphics.h now included in those files, CP is already
+declared there. GCC 14 treats two anonymous struct types as distinct even
+when their members are identical, so keeping the extern declarations alongside
+the graphics.h definition caused a hard "conflicting types" compile error.
+
+Forward-declare the internal refresh_interrupt() in text.c (it is defined
+in libgraph.c and called from text.c without any prior declaration).
+
+Fix two vsscanf(&array, ...) calls to vsscanf(array, ...). Passing the
+address of an array yields a pointer-to-array rather than a pointer-to-char,
+which is a type mismatch that GCC 14 makes a hard error under
+-Wincompatible-pointer-types.
+
+Note: these changes cause the same global variables (screen, CP, InternalFont,
+etc.) to be defined in multiple translation units. The resulting linker errors
+are resolved separately by adding -fcommon to TARGET_CFLAGS in the recipe,
+which restores the pre-GCC-10 behaviour of merging uninitialized common
+symbols at link time.
+---
+--- a/grtext.h	2026-02-21 21:40:44.673719139 -0500
++++ b/grtext.h	2026-02-21 21:40:44.934451624 -0500
+@@ -21,6 +21,10 @@
+  * Author:  Faraz Shahbazker <faraz_ms@rediffmail.com>
+  */
+ 
++#ifndef GRTEXT_H
++#define GRTEXT_H
++
++
+ 
+ #include <SDL/SDL.h>
+ #include <SDL/SDL_image.h>
+@@ -123,3 +127,5 @@
+ 		fprintf(stderr, "*** Call initgraph() before trying to use graphics functions.\n"); \
+ 		exit(-1); \
+ 	}
++
++#endif /* GRTEXT_H */
+--- a/shapes.h	2026-02-21 21:40:44.740719236 -0500
++++ b/shapes.h	2026-02-21 21:40:44.934522577 -0500
+@@ -21,6 +21,10 @@
+  * Author:  Faraz Shahbazker <faraz_ms@rediffmail.com>
+  */
+ 
++#ifndef SHAPES_H
++#define SHAPES_H
++
++
+  
+ /*Standard geometric shapes */
+ #include <SDL/SDL.h>
+@@ -128,3 +132,5 @@
+ 		fprintf(stderr, "*** Call initgraph() before trying to use graphics functions.\n"); \
+ 		exit(-1); \
+ 	}
++
++#endif /* SHAPES_H */
+--- a/polygon.h	2026-02-21 21:40:44.807719334 -0500
++++ b/polygon.h	2026-02-21 21:40:44.934570187 -0500
+@@ -21,6 +21,10 @@
+  * Author:  Faraz Shahbazker <faraz_ms@rediffmail.com>
+  */
+ 
++#ifndef POLYGON_H
++#define POLYGON_H
++
++
+ 
+ 
+ #include <SDL/SDL.h>
+@@ -70,3 +74,5 @@
+ 		fprintf(stderr, "*** Call initgraph() before trying to use graphics functions.\n"); \
+ 		exit(-1); \
+ 	}
++
++#endif /* POLYGON_H */
+--- a/shapes.c	2026-02-21 21:31:52.782943905 -0500
++++ b/shapes.c	2026-02-21 21:45:11.562677772 -0500
+@@ -22,11 +22,9 @@
+  */
+ 
+ #include "shapes.h"
++#include "graphics.h"
+ 
+ 
+-extern struct {int x; int y;}CP;  
+-/* Screen position pointer defined in graphics.h*/
+-
+ 
+ void cleardevice(void)
+ {
+--- a/polygon.c	2026-02-21 21:31:52.914944098 -0500
++++ b/polygon.c	2026-02-21 21:31:52.948653299 -0500
+@@ -23,6 +23,7 @@
+ 
+ 
+ #include "polygon.h"
++#include "graphics.h"
+ 
+ 
+ void drawpoly(int numpoints, int *polypoints)
+--- a/text.c	2026-02-21 21:31:52.846943999 -0500
++++ b/text.c	2026-02-21 21:45:11.562595257 -0500
+@@ -22,11 +22,9 @@
+  */
+ 
+ #include "grtext.h"
++#include "graphics.h"
++void refresh_interrupt(int x);
+ 
+-extern struct {int x;int y;}CP;	 /*Screen position pointer
+-				  *defined in graphics.h
+-				  *used for outtextxy()*/
+-				
+ 
+ Uint32 GetPixel(SDL_Surface *Surface, Sint32 X, Sint32 Y)
+ {
+@@ -398,7 +396,7 @@
+       int ch = 0,i=0;
+       int quit=0;
+       char *current=input;  
+-      num = vsscanf(&template,text,ap);    // Guessing no of arguments
++      num = vsscanf(template,text,ap);    // Guessing no of arguments
+       SDL_EnableKeyRepeat( SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+       SDL_EnableUNICODE(1);
+       while( !quit )
+@@ -444,7 +442,7 @@
+ 		  else input[i]='\0'; //Buffer overflow or empty!! Terminate forcefully.
+ 		  TP.x = 0;		// Reset X position.
+ 		  TP.y += InternalFont.Surface->h;  //inc y position.
+-		  if (vsscanf(&input,text,ap) < num) break;
++		  if (vsscanf(input,text,ap) < num) break;
+ 		  //check number of inputs
+ 		  //if they match, we fall throught to quit.
+ 		} 
