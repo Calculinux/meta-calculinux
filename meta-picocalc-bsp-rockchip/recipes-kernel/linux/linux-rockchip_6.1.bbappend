@@ -59,6 +59,13 @@ do_prepare_kernel_picocalc() {
 addtask prepare_kernel_picocalc after do_kernel_checkout before do_kernel_configme
 do_prepare_kernel_picocalc[depends] += "picocalc-devicetree:do_populate_sysroot"
 
+# Kernel scripts/depmod.sh creates a "99.98.$KERNELRELEASE" symlink when using older
+# depmod; it uses INSTALL_MOD_PATH which Yocto does not set, causing ln to fail on
+# /lib/modules/ on the host. Set it so the symlink is created inside the image.
+do_install:prepend() {
+    export INSTALL_MOD_PATH="${D}/usr"
+}
+
 do_install:append() {
     # Remove kernel image formats that are not needed in the device image
     rm -f ${D}/boot/Image
