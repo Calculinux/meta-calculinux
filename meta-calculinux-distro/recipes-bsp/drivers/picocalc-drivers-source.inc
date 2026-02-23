@@ -1,4 +1,4 @@
 PV = "1.0+git${SRCPV}"
 SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobranch=1"
-SRCREV = "67c9332b844b92a32eb5dfba6bbfd6b25a60b68a"
+SRCREV = "668d200c040ff8cb44b1b057cfec39375ef95fbd"
 S = "${WORKDIR}/git"
