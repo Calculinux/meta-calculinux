@@ -1,0 +1,29 @@
+# PicoCalc + Waveshare SX1262HF LoRA Configuration
+# Load the sx1262-lora DT overlay (spi-gpio) so /dev/spidevX.Y exists; verify with ls /dev/spidev*
+#
+# SPI data: kernel spi-gpio (overlay) → spidev below. CS tied GND, RESET tied HIGH.
+# Control: IRQ (DIO1) and Busy are GPIO; meshtasticd uses gpiochip/line below.
+# On the SX1262 module: connect DIO2 output → TXEN input for RF switching.
+
+Lora:
+  Module: sx1262
+  DIO2_AS_RF_SWITCH: true
+  DIO3_TCXO_VOLTAGE: true
+
+  # SPI bus from sx1262-lora overlay (spi-gpio); adjust if your system shows a different number
+  spidev: spidev2.0
+  spiSpeed: 2000000
+
+  # GPIOs: RK3506 gpiochip N = bank N; line = group*8+X (A=0,B=1,C=2,D=3; X=0..7)
+  gpiochip: 3
+  # If using spi-gpio overlay, same pins as overlay CLK/MOSI/MISO; used here for CS if needed
+  CLK: 10   # GPIO3_B2
+  MOSI: 13  # GPIO3_B5
+  MISO: 6   # GPIO3_A6
+  IRQ: 14   # GPIO3_B6 (DIO1)
+  Busy:
+    line: 24
+    gpiochip: 1   # GPIO1_D0
+
+  Reset: -1   # Tied HIGH via 10kΩ
+  CS: -1      # Tied GND

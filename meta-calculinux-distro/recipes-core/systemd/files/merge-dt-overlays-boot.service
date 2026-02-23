@@ -1,0 +1,11 @@
+[Unit]
+Description=Merge DT overlays into zboot for next boot
+After=local-fs.target
+# Run after overlayfs has mounted /etc (preinit mounts OVERLAY_DATA and overlayfs)
+ConditionPathExists=/etc/device-tree-overlays.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/systemd/merge-dt-overlays-boot.sh
+# Write to /data/overlay/etc/upper (OVERLAY_DATA); /data must be mounted
+ConditionPathIsMountPoint=/data

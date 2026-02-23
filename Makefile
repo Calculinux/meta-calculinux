@@ -42,6 +42,9 @@ help:
 	@echo "  make clean-recipe RECIPE=<name> - Clean specific recipe"
 	@echo "  make devshell RECIPE=<name>     - Open devshell for recipe"
 	@echo ""
+	@echo "  make kernel-config FRAGMENT=<name> - Kernel config workflow"
+	@echo "    Opens menuconfig, generates fragment, copies to layer"
+	@echo ""
 	@echo "  make release TAG=v1.0.0 - Create and push release tag"
 	@echo "    GitHub Actions will automatically build and create the release"
 	@echo "    Requires: On main branch, GitHub CLI (gh) installed"
@@ -115,6 +118,28 @@ ifndef RECIPE
 	@exit 1
 endif
 	cd $(BUILD_ROOT) && $(KAS_CONTAINER) shell $(KAS_CONFIG) -c "bitbake $(RECIPE) -c devshell"
+
+# Kernel configuration fragment workflow
+.PHONY: kernel-config
+kernel-config: setup
+ifndef FRAGMENT
+	@echo "Error: FRAGMENT not specified. Usage: make kernel-config FRAGMENT=<name>"
+	@echo ""
+	@echo "Workflow:"
+	@echo "  1. Opens menuconfig to configure kernel options"
+	@echo "  2. Generates a config fragment via diffconfig"
+	@echo "  3. Copies to meta-picocalc-bsp-rockchip/recipes-kernel/linux/files/<name>.cfg"
+	@echo ""
+	@echo "Example: make kernel-config FRAGMENT=rtc"
+	@exit 1
+endif
+	@echo "Starting kernel configuration workflow..."
+	@echo ""
+	@echo "Opening menuconfig and generating fragment..."
+	cd $(BUILD_ROOT) && $(KAS_CONTAINER) shell $(KAS_CONFIG) -c "bitbake virtual/kernel -c menuconfig && bitbake virtual/kernel -c diffconfig"
+	@echo ""
+	@echo "Fragment has been copied to:"
+	@echo "  $(META_CALCULINUX_DIR)/meta-picocalc-bsp-rockchip/recipes-kernel/linux/files/$(FRAGMENT).cfg"
 
 # Information targets
 .PHONY: list-images

@@ -1,0 +1,244 @@
+pinctrl: rockchip: re-parse pin groups when a DT overlay is applied
+
+When a device tree overlay is loaded at runtime (e.g. via ConfigFS), it can
+add new pinctrl child nodes (function/group) under the pinctrl controller.
+The driver only parses children at probe time, so those new groups are never
+registered and consumers get "unable to find group for node".
+
+Register an OF_OVERLAY_POST_APPLY notifier. When the overlay target is this
+pinctrl node, re-count children, reallocate functions/groups, re-parse the
+DT, unregister the pinctrl device, and re-register with the extended set so
+new pin groups from the overlay take effect before any new devices probe.
+
+- Use kcalloc (not devm) for info->functions and info->groups so they can
+  be freed and reallocated when re-parsing; kfree in remove and in the
+  notifier before re-parse.
+- Use kcalloc for func->groups in rockchip_pinctrl_parse_functions; free
+  them in remove and when re-parsing.
+- Use pinctrl_register (not devm) so we can pinctrl_unregister and
+  pinctrl_register again in the notifier; pinctrl_unregister in remove.
+- Reset grp_index at the start of rockchip_pinctrl_parse_dt so re-parse
+  produces correct group indices (use file-level static for grp_index).
+
+Signed-off-by: Calculinux <meta-calculinux>
+
+--- a/drivers/pinctrl/pinctrl-rockchip.c
++++ b/drivers/pinctrl/pinctrl-rockchip.c
+@@ -35,6 +35,7 @@
+ #include <linux/regmap.h>
+ #include <linux/mfd/syscon.h>
+ #include <linux/string_helpers.h>
++#include <linux/of_platform.h>
+ #include <linux/rockchip/cpu.h>
+ 
+ #include <dt-bindings/pinctrl/rockchip.h>
+@@ -4520,6 +4521,9 @@ static const struct of_device_id rockchip_bank_match[] = {
+ 	{},
+ };
+ 
++/* Used by parse_functions; reset at start of parse_dt for overlay re-parse */
++static u32 rockchip_grp_index;
++
+ static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
+ 					struct device_node *np)
+ {
+@@ -4597,7 +4601,7 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
+ 	struct device_node *child;
+ 	struct rockchip_pmx_func *func;
+ 	struct rockchip_pin_group *grp;
+ 	int ret;
+-	static u32 grp_index;
+ 	u32 i = 0;
+ 
+ 	dev_dbg(dev, "parse function(%d): %pOFn\n", index, np);
+@@ -4608,14 +4612,14 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
+ 	if (func->ngroups <= 0)
+ 		return 0;
+ 
+-	func->groups = devm_kcalloc(dev, func->ngroups, sizeof(*func->groups), GFP_KERNEL);
++	func->groups = kcalloc(func->ngroups, sizeof(*func->groups), GFP_KERNEL);
+ 	if (!func->groups)
+ 		return -ENOMEM;
+ 
+ 	for_each_child_of_node(np, child) {
+ 		func->groups[i] = child->name;
+-		grp = &info->groups[grp_index++];
++		grp = &info->groups[rockchip_grp_index++];
+ 		ret = rockchip_pinctrl_parse_groups(child, grp, info, i++);
+ 		if (ret) {
+ 			of_node_put(child);
+@@ -4628,6 +4632,7 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 	struct device_node *child;
+ 	int ret;
+ 	int i;
+ 
++	rockchip_grp_index = 0;
+ 	rockchip_pinctrl_child_count(info, np);
+ 
+ 	dev_dbg(dev, "nfunctions = %d\n", info->nfunctions);
+@@ -4635,11 +4640,11 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 
+-	info->functions = devm_kcalloc(dev, info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
++	info->functions = kcalloc(info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
+ 	if (!info->functions)
+ 		return -ENOMEM;
+ 
++	info->groups = kcalloc(info->ngroups, sizeof(*info->groups), GFP_KERNEL);
++	if (!info->groups)
++		goto err_free_functions;
+ 
+ 	i = 0;
+ 
+@@ -4643,6 +4648,8 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 		ret = rockchip_pinctrl_parse_functions(child, info, i++);
+ 		if (ret) {
+ 			dev_err(dev, "failed to parse function\n");
+ 			of_node_put(child);
+-			return ret;
++			goto err_free_parse_dt;
+ 		}
+ 	}
+ 
+@@ -4650,6 +4657,16 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 	return 0;
+ }
+ 
++err_free_parse_dt:
++	for (i = 0; i < info->nfunctions && info->functions[i].groups; i++)
++		kfree(info->functions[i].groups);
++	kfree(info->groups);
++err_free_functions:
++	kfree(info->functions);
++	return ret;
++}
++
+ static int rockchip_pinctrl_register(struct platform_device *pdev,
+ 					struct rockchip_pinctrl *info)
+@@ -4667,7 +4674,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
+ 	ret = rockchip_pinctrl_parse_dt(pdev, info);
+ 	if (ret)
+ 		return ret;
+ 
+-	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
++	info->pctl_dev = pinctrl_register(&info->pctl, dev, info);
+ 	if (IS_ERR(info->pctl_dev))
+ 		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
+ 
+@@ -4674,6 +4681,90 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_OF_OVERLAY
++static int rockchip_pinctrl_overlay_notifier(struct notifier_block *nb,
++					     unsigned long action, void *data)
++{
++	struct of_overlay_notify_data *nd = data;
++	struct platform_device *pdev;
++	struct rockchip_pinctrl *info;
++	struct device *dev;
++	int nfunctions, ngroups;
++	int i, ret;
++
++	if (action != OF_OVERLAY_POST_APPLY)
++		return NOTIFY_OK;
++
++	pdev = of_find_device_by_node(nd->target);
++	if (!pdev)
++		return NOTIFY_OK;
++
++	info = platform_get_drvdata(pdev);
++	if (!info)
++		goto put_pdev;
++
++	dev = &pdev->dev;
++	if (nd->target != dev->of_node)
++		goto put_pdev;
++
++	/* Save current counts; re-count will overwrite info */
++	nfunctions = info->nfunctions;
++	ngroups = info->ngroups;
++	rockchip_pinctrl_child_count(info, dev->of_node);
++	if (info->nfunctions == 0)
++		goto put_pdev;
++	if (nfunctions == info->nfunctions && ngroups == info->ngroups)
++		goto put_pdev;
++	nfunctions = info->nfunctions;
++	ngroups = info->ngroups;
++
++	/* Free existing and re-parse */
++	for (i = 0; i < info->nfunctions; i++)
++		kfree(info->functions[i].groups);
++	kfree(info->functions);
++	kfree(info->groups);
++
++	info->nfunctions = nfunctions;
++	info->ngroups = ngroups;
++	info->functions = kcalloc(info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
++	info->groups = kcalloc(info->ngroups, sizeof(*info->groups), GFP_KERNEL);
++	if (!info->functions || !info->groups) {
++		kfree(info->functions);
++		kfree(info->groups);
++		dev_err(dev, "failed to reallocate for overlay pinctrl\n");
++		goto put_pdev;
++	}
++
++	ret = rockchip_pinctrl_parse_dt(pdev, info);
++	if (ret) {
++		for (i = 0; i < info->nfunctions; i++)
++			kfree(info->functions[i].groups);
++		kfree(info->functions);
++		kfree(info->groups);
++		dev_err(dev, "failed to re-parse pinctrl after overlay: %d\n", ret);
++		goto put_pdev;
++	}
++
++	pinctrl_unregister(info->pctl_dev);
++	info->pctl_dev = pinctrl_register(&info->pctl, dev, info);
++	if (IS_ERR(info->pctl_dev)) {
++		dev_err(dev, "failed to re-register pinctrl after overlay\n");
++		info->pctl_dev = NULL;
++	}
++put_pdev:
++	put_device(&pdev->dev);
++	return NOTIFY_OK;
++}
++
++static struct notifier_block rockchip_pinctrl_overlay_nb = {
++	.notifier_call = rockchip_pinctrl_overlay_notifier,
++};
++#endif
++
+ static const struct of_device_id rockchip_pinctrl_dt_match[];
+ static struct rockchip_pin_bank rk3308bs_pin_banks[];
+ static struct rockchip_pin_bank px30s_pin_banks[];
+@@ -4714,6 +4809,11 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		return ret;
+ 
++#ifdef CONFIG_OF_OVERLAY
++	of_overlay_notifier_register(&rockchip_pinctrl_overlay_nb);
++#endif
++
+ 	platform_set_drvdata(pdev, info);
+ 	g_pctldev = info->pctl_dev;
+ 
+@@ -4728,6 +4828,18 @@ static int rockchip_pinctrl_remove(struct platform_device *pdev)
+ {
+ 	struct rockchip_pinctrl *info = platform_get_drvdata(pdev);
+ 	struct rockchip_pin_bank *bank;
+ 	struct rockchip_pin_deferred *cfg;
+ 	int i;
+ 
++#ifdef CONFIG_OF_OVERLAY
++	of_overlay_notifier_unregister(&rockchip_pinctrl_overlay_nb);
++#endif
++
++	pinctrl_unregister(info->pctl_dev);
++
++	for (i = 0; i < info->nfunctions; i++)
++		kfree(info->functions[i].groups);
++	kfree(info->functions);
++	kfree(info->groups);
++
+ 	g_pctldev = NULL;
+ 	of_platform_depopulate(&pdev->dev);
