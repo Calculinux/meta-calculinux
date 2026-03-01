@@ -9,7 +9,11 @@ ARTIFACTS_DIR="${1:?Usage: $0 <artifacts_dir>}"
 echo "Collecting IPK packages..."
 
 # Find build directory
-BUILD_DIR=$(find build -name "tmp" -type d | head -1)
+BUILD_DIR=$(bash "$(dirname "$0")/build-dir.sh" --optional)
+if [ -z "$BUILD_DIR" ]; then
+    echo "Warning: No build directory found"
+    exit 0
+fi
 DEPLOY_IPK_DIR="${BUILD_DIR}/deploy/ipk"
 
 if [ ! -d "$DEPLOY_IPK_DIR" ]; then
