@@ -65,6 +65,13 @@ FILES:${PN}-lcd-drm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/il
 # Satisfy kernel-module-* dependency: we ship these out-of-tree; nothing in kernel provides them.
 RPROVIDES:${PN}-lcd-fb = "kernel-module-ili9488-fb-${KERNEL_VERSION}"
 RPROVIDES:${PN}-lcd-drm = "kernel-module-ili9488-drm-${KERNEL_VERSION}"
+PROVIDES:${PN}-lcd-fb = "kernel-module-ili9488-fb-${KERNEL_VERSION}"
+PROVIDES:${PN}-lcd-drm = "kernel-module-ili9488-drm-${KERNEL_VERSION}"
+
+# module.bbclass can add RDEPENDS on kernel-module-* to the main package for each .ko;
+# the main package is empty and we already RDEPEND on ${PN}-lcd-fb / ${PN}-lcd-drm which
+# provide these. Remove the virtual deps so the solver uses our split packages.
+RDEPENDS:${PN}:remove = "kernel-module-ili9488-fb-${KERNEL_VERSION} kernel-module-ili9488-drm-${KERNEL_VERSION}"
 FILES:${PN}-snd-pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_pwm.ko"
 FILES:${PN}-snd-softpwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_softpwm.ko"
 FILES:${PN}-rproc = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/rk3506_rproc.ko"
