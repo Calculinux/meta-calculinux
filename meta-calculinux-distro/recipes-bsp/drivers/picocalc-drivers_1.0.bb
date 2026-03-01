@@ -61,6 +61,10 @@ FILES:${PN}-mfd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picoca
 FILES:${PN}-kbd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_kbd.ko"
 FILES:${PN}-lcd-fb = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/ili9488_fb.ko"
 FILES:${PN}-lcd-drm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/ili9488_drm.ko"
+
+# Satisfy kernel-module-* dependency: we ship these out-of-tree; nothing in kernel provides them.
+RPROVIDES:${PN}-lcd-fb = "kernel-module-ili9488-fb-${KERNEL_VERSION}"
+RPROVIDES:${PN}-lcd-drm = "kernel-module-ili9488-drm-${KERNEL_VERSION}"
 FILES:${PN}-snd-pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_pwm.ko"
 FILES:${PN}-snd-softpwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_softpwm.ko"
 FILES:${PN}-rproc = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/rk3506_rproc.ko"
