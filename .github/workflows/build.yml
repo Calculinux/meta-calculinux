@@ -28,41 +28,6 @@ permissions:
   contents: write      # Needed for creating releases
   pull-requests: write # Needed for commenting on PRs
 
-# Shared definitions (YAML anchors) - add new machines here and in matrix below
-x-matrix: &build-matrix
-  machine: [luckfox-lyra]
-  include:
-    - machine: luckfox-lyra
-      name: "Luckfox Lyra Bundle"
-      kas_file: "kas-luckfox-lyra-bundle.yaml"
-      target: "calculinux-bundle"
-      dockerfile: "Dockerfile.aarch64"
-
-x-artifact-paths: &artifact-paths |
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
-  ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
-  ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
-
-x-artifact-paths-upload: &artifact-paths-upload |
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-  ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
-  ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
-  ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
-  ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
-  ${{ env.SHARED_ARTIFACTS_DIR }}/workflow-metadata.env
-
 # To add a new machine configuration, do something similar to the following:
 #
 # matrix:
@@ -86,7 +51,14 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix: *build-matrix
+      matrix:
+        machine: [luckfox-lyra]
+        include:
+          - machine: luckfox-lyra
+            name: "Luckfox Lyra Bundle"
+            kas_file: "kas-luckfox-lyra-bundle.yaml"
+            target: "calculinux-bundle"
+            dockerfile: "Dockerfile.aarch64"
 
     steps:
     - name: Checkout repository
@@ -191,7 +163,18 @@ jobs:
       if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
       with:
         name: calculinux-${{ matrix.machine }}-${{ github.run_number }}
-        path: *artifact-paths-upload
+        path: |
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
+          ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/workflow-metadata.env
         retention-days: 30
 
     - name: Show disk space after build
@@ -227,7 +210,14 @@ jobs:
       pull-requests: write
     strategy:
       fail-fast: false
-      matrix: *build-matrix
+      matrix:
+        machine: [luckfox-lyra]
+        include:
+          - machine: luckfox-lyra
+            name: "Luckfox Lyra Bundle"
+            kas_file: "kas-luckfox-lyra-bundle.yaml"
+            target: "calculinux-bundle"
+            dockerfile: "Dockerfile.aarch64"
 
     steps:
     - name: Checkout repository
@@ -315,7 +305,17 @@ jobs:
       if: env.IS_TAGGED_RELEASE == 'true'
       uses: softprops/action-gh-release@v1
       with:
-        files: *artifact-paths
+        files: |
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
+          ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
         generate_release_notes: true
         draft: false
         prerelease: ${{ env.IS_PRERELEASE == 'true' }}
