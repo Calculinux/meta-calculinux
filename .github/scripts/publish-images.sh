@@ -4,19 +4,10 @@
 
 set -euo pipefail
 
-OPKG_REPO_DIR="${1:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-FEED_NAME="${2:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-SUBFOLDER="${3:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-MACHINE="${4:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-ARTIFACTS_DIR="${5:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-IS_TAGGED_RELEASE="${6:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-IS_PRERELEASE="${7:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-TAG_NAME="${8:-}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/publish-common.sh" "$@"
 
 echo "Publishing images to webserver..."
-
-UPDATE_DIR="$OPKG_REPO_DIR/update/$FEED_NAME/$SUBFOLDER"
-IMAGE_DIR="$OPKG_REPO_DIR/image/$FEED_NAME/$SUBFOLDER"
 
 # Create target directories
 mkdir -p "$UPDATE_DIR" "$IMAGE_DIR"
@@ -31,15 +22,13 @@ if [ "$IS_TAGGED_RELEASE" = "true" ]; then
     if [ -n "$RAUCB_FILE" ]; then
         # Copy RAUC bundle with versioned name
         VERSIONED_BUNDLE="$UPDATE_DIR/calculinux-bundle-${MACHINE}-${TAG_NAME}.raucb"
-        cp "$RAUCB_FILE" "$VERSIONED_BUNDLE"
-        sha256sum "$VERSIONED_BUNDLE" > "${VERSIONED_BUNDLE}.sha256"
+        copy_with_checksum "$RAUCB_FILE" "$VERSIONED_BUNDLE"
         echo "Published RAUC bundle: calculinux-bundle-${MACHINE}-${TAG_NAME}.raucb"
         
         # If not a prerelease, also copy with original name for latest release
         if [ "$IS_PRERELEASE" = "false" ]; then
             LATEST_BUNDLE="$UPDATE_DIR/calculinux-bundle-${MACHINE}.raucb"
-            cp "$RAUCB_FILE" "$LATEST_BUNDLE"
-            sha256sum "$LATEST_BUNDLE" > "${LATEST_BUNDLE}.sha256"
+            copy_with_checksum "$RAUCB_FILE" "$LATEST_BUNDLE"
             echo "Published RAUC bundle: calculinux-bundle-${MACHINE}.raucb (latest)"
         fi
     else
@@ -49,15 +38,13 @@ if [ "$IS_TAGGED_RELEASE" = "true" ]; then
     if [ -n "$WIC_FILE" ]; then
         # Copy WIC image with versioned name
         VERSIONED_WIC="$IMAGE_DIR/calculinux-image-${MACHINE}.rootfs-${TAG_NAME}.wic.gz"
-        cp "$WIC_FILE" "$VERSIONED_WIC"
-        sha256sum "$VERSIONED_WIC" > "${VERSIONED_WIC}.sha256"
+        copy_with_checksum "$WIC_FILE" "$VERSIONED_WIC"
         echo "Published WIC image: calculinux-image-${MACHINE}.rootfs-${TAG_NAME}.wic.gz"
         
         # If not a prerelease, also copy with original name for latest release
         if [ "$IS_PRERELEASE" = "false" ]; then
             LATEST_WIC="$IMAGE_DIR/calculinux-image-${MACHINE}.rootfs.wic.gz"
-            cp "$WIC_FILE" "$LATEST_WIC"
-            sha256sum "$LATEST_WIC" > "${LATEST_WIC}.sha256"
+            copy_with_checksum "$WIC_FILE" "$LATEST_WIC"
             echo "Published WIC image: calculinux-image-${MACHINE}.rootfs.wic.gz (latest)"
         fi
     else

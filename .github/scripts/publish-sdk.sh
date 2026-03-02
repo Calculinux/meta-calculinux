@@ -4,18 +4,10 @@
 
 set -euo pipefail
 
-OPKG_REPO_DIR="${1:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-FEED_NAME="${2:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-SUBFOLDER="${3:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-MACHINE="${4:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-ARTIFACTS_DIR="${5:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-IS_TAGGED_RELEASE="${6:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-IS_PRERELEASE="${7:?Usage: $0 <opkg_repo_dir> <feed_name> <subfolder> <machine> <artifacts_dir> <is_tagged_release> <is_prerelease> <tag_name>}"
-TAG_NAME="${8:-}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/publish-common.sh" "$@"
 
 echo "Publishing SDK to webserver..."
-
-SDK_DIR="$OPKG_REPO_DIR/sdk/$FEED_NAME/$SUBFOLDER"
 
 # Create target directory
 mkdir -p "$SDK_DIR"

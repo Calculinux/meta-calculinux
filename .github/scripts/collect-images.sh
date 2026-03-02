@@ -10,8 +10,8 @@ ARTIFACTS_DIR="${2:?Usage: $0 <machine> <artifacts_dir>}"
 echo "Collecting build artifacts for machine: $MACHINE"
 
 # Find the build directory
-BUILD_DIR=$(find build -name "tmp" -type d | head -1 | sed 's|/tmp||')
-DEPLOY_DIR="${BUILD_DIR}/tmp/deploy/images/${MACHINE}"
+BUILD_DIR=$(bash "$(dirname "$0")/build-dir.sh")
+DEPLOY_DIR="${BUILD_DIR}/deploy/images/${MACHINE}"
 
 echo "Deploy directory: $DEPLOY_DIR"
 

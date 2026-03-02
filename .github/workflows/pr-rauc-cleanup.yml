@@ -35,42 +35,17 @@ jobs:
         set -euo pipefail
         # For PR cleanup, we need to determine the feed name from the base branch
         # PRs target main, so we check what feed main would use
-        TMP_FILE=$(mktemp)
-        bash .github/scripts/determine-feed-config.sh \
+        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh \
           "${{ matrix.kas_file }}" \
           "main" \
-          "branch" \
-          > "$TMP_FILE"
-        cat "$TMP_FILE"
-        while IFS='=' read -r key value; do
-          [ -z "$key" ] && continue
-          echo "$key=$value" >> "$GITHUB_OUTPUT"
-        done < "$TMP_FILE"
-        rm -f "$TMP_FILE"
+          "branch"
 
     - name: Remove PR bundle and refresh index
-      env:
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-        MACHINE: ${{ matrix.machine }}
-        FEED_NAME: ${{ steps.feed-config.outputs.feed_name }}
       run: |
         set -euo pipefail
-        PR_DIR="$OPKG_REPO_DIR/update/${FEED_NAME}/pr"
-        TARGET="$PR_DIR/${MACHINE}-pr${PR_NUMBER}.raucb"
-        if [ -f "$TARGET" ]; then
-          echo "Removing $TARGET"
-          rm -f "$TARGET"
-        else
-          echo "No RAUC bundle found for PR ${PR_NUMBER}"
-        fi
-        if [ -f "${TARGET}.sha256" ]; then
-          rm -f "${TARGET}.sha256"
-        fi
-
-        python3 .github/scripts/refresh_pr_channel_index.py \
-          --root "$PR_DIR" \
-          --base-url "$UPDATE_BASE_URL" \
-          --channel-path "/update/${FEED_NAME}/pr" \
-          --machine "$MACHINE" \
-          --feed "$FEED_NAME" \
-          --subfolder "pr"
+        bash .github/scripts/cleanup-pr-bundle.sh \
+          "${{ matrix.machine }}" \
+          "${{ github.event.pull_request.number }}" \
+          "$OPKG_REPO_DIR" \
+          "${{ steps.feed-config.outputs.feed_name }}" \
+          "$UPDATE_BASE_URL"
