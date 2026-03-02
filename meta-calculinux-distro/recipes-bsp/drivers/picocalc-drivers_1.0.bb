@@ -11,6 +11,7 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 
 # Single source of truth: package suffix -> kernel module virtual base names (hyphenated).
 # Used to generate RPROVIDES/PROVIDES and RDEPENDS:remove for out-of-tree modules.
+# Functions in python() are not available to ${@...}; set variables instead.
 python() {
     pkg_modules = {
         'mfd': ['picocalc-mfd', 'picocalc-mfd-bms', 'picocalc-mfd-bkl', 'picocalc-mfd-kbd', 'picocalc-mfd-led'],
@@ -22,18 +23,14 @@ python() {
         'rproc': ['rk3506-rproc'],
         'snd-m0': ['picocalc-snd-m0'],
     }
-
-    def picocalc_module_virtuals(d, pkg_suffix):
-        kv = d.getVar('KERNEL_VERSION')
-        mods = pkg_modules.get(pkg_suffix, [])
-        return ' '.join('kernel-module-%s-%s' % (m, kv) for m in mods)
-
-    def picocalc_all_module_virtuals(d):
-        kv = d.getVar('KERNEL_VERSION')
-        all_mods = []
-        for mods in pkg_modules.values():
-            all_mods.extend(mods)
-        return ' '.join('kernel-module-%s-%s' % (m, kv) for m in all_mods)
+    kv = d.getVar('KERNEL_VERSION')
+    for pkg_suffix, mods in pkg_modules.items():
+        virtuals = ' '.join('kernel-module-%s-%s' % (m, kv) for m in mods)
+        d.setVar('PICOCALC_MODULE_VIRTUALS_' + pkg_suffix.replace('-', '_').upper(), virtuals)
+    all_mods = []
+    for mods in pkg_modules.values():
+        all_mods.extend(mods)
+    d.setVar('PICOCALC_ALL_MODULE_VIRTUALS', ' '.join('kernel-module-%s-%s' % (m, kv) for m in all_mods))
 }
 
 ####### Build with local checkout for development
@@ -97,25 +94,25 @@ FILES:${PN}-snd-m0 = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/pic
 # Module class adds RDEPENDS on kernel-module-<name>-${KERNEL_VERSION} per .ko; our split
 # packages provide those. Declare PROVIDES/RPROVIDES so the solver can resolve them, and
 # remove the virtual deps from the main package so it uses our split packages only.
-RPROVIDES:${PN}-mfd = "${@picocalc_module_virtuals(d, 'mfd')}"
-RPROVIDES:${PN}-kbd = "${@picocalc_module_virtuals(d, 'kbd')}"
-RPROVIDES:${PN}-lcd-fb = "${@picocalc_module_virtuals(d, 'lcd-fb')}"
-RPROVIDES:${PN}-lcd-drm = "${@picocalc_module_virtuals(d, 'lcd-drm')}"
-RPROVIDES:${PN}-snd-pwm = "${@picocalc_module_virtuals(d, 'snd-pwm')}"
-RPROVIDES:${PN}-snd-softpwm = "${@picocalc_module_virtuals(d, 'snd-softpwm')}"
-RPROVIDES:${PN}-rproc = "${@picocalc_module_virtuals(d, 'rproc')}"
-RPROVIDES:${PN}-snd-m0 = "${@picocalc_module_virtuals(d, 'snd-m0')}"
-PROVIDES:${PN}-mfd = "${@picocalc_module_virtuals(d, 'mfd')}"
-PROVIDES:${PN}-kbd = "${@picocalc_module_virtuals(d, 'kbd')}"
-PROVIDES:${PN}-lcd-fb = "${@picocalc_module_virtuals(d, 'lcd-fb')}"
-PROVIDES:${PN}-lcd-drm = "${@picocalc_module_virtuals(d, 'lcd-drm')}"
-PROVIDES:${PN}-snd-pwm = "${@picocalc_module_virtuals(d, 'snd-pwm')}"
-PROVIDES:${PN}-snd-softpwm = "${@picocalc_module_virtuals(d, 'snd-softpwm')}"
-PROVIDES:${PN}-rproc = "${@picocalc_module_virtuals(d, 'rproc')}"
-PROVIDES:${PN}-snd-m0 = "${@picocalc_module_virtuals(d, 'snd-m0')}"
+RPROVIDES:${PN}-mfd = "${PICOCALC_MODULE_VIRTUALS_MFD}"
+RPROVIDES:${PN}-kbd = "${PICOCALC_MODULE_VIRTUALS_KBD}"
+RPROVIDES:${PN}-lcd-fb = "${PICOCALC_MODULE_VIRTUALS_LCD_FB}"
+RPROVIDES:${PN}-lcd-drm = "${PICOCALC_MODULE_VIRTUALS_LCD_DRM}"
+RPROVIDES:${PN}-snd-pwm = "${PICOCALC_MODULE_VIRTUALS_SND_PWM}"
+RPROVIDES:${PN}-snd-softpwm = "${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM}"
+RPROVIDES:${PN}-rproc = "${PICOCALC_MODULE_VIRTUALS_RPROC}"
+RPROVIDES:${PN}-snd-m0 = "${PICOCALC_MODULE_VIRTUALS_SND_M0}"
+PROVIDES:${PN}-mfd = "${PICOCALC_MODULE_VIRTUALS_MFD}"
+PROVIDES:${PN}-kbd = "${PICOCALC_MODULE_VIRTUALS_KBD}"
+PROVIDES:${PN}-lcd-fb = "${PICOCALC_MODULE_VIRTUALS_LCD_FB}"
+PROVIDES:${PN}-lcd-drm = "${PICOCALC_MODULE_VIRTUALS_LCD_DRM}"
+PROVIDES:${PN}-snd-pwm = "${PICOCALC_MODULE_VIRTUALS_SND_PWM}"
+PROVIDES:${PN}-snd-softpwm = "${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM}"
+PROVIDES:${PN}-rproc = "${PICOCALC_MODULE_VIRTUALS_RPROC}"
+PROVIDES:${PN}-snd-m0 = "${PICOCALC_MODULE_VIRTUALS_SND_M0}"
 
 # Remove auto-added kernel-module-* RDEPENDS from main package; we already RDEPEND on split packages.
-RDEPENDS:${PN}:remove = "${@picocalc_all_module_virtuals(d)}"
+RDEPENDS:${PN}:remove = "${PICOCALC_ALL_MODULE_VIRTUALS}"
 
 # Runtime dependencies - MFD sub-drivers are always loaded together as a unit via the core module
 # No inter-package dependencies needed since they're all in one package

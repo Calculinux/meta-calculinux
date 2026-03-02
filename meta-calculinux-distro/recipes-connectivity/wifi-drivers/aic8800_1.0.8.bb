@@ -96,8 +96,7 @@ python do_unpack:append() {
     else:
         bb.warn('aic.rules not found at %s' % rules_path)
     
-    # Convert all source files from CRLF to LF line endings
-    # This allows patches to apply cleanly despite upstream using Windows line endings
+    # Convert source from CRLF to LF so patches apply cleanly
     src_dir = os.path.join(workdir, 'aic8800-%s' % pv)
     if os.path.exists(src_dir):
         for root, dirs, files in os.walk(src_dir):
@@ -107,7 +106,6 @@ python do_unpack:append() {
                     try:
                         with open(filepath, 'rb') as f:
                             content = f.read()
-                        # Replace CRLF with LF
                         content = content.replace(b'\r\n', b'\n')
                         with open(filepath, 'wb') as f:
                             f.write(content)
