@@ -9,29 +9,18 @@ require picocalc-drivers-source.inc
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
-# Single source of truth: package suffix -> kernel module virtual base names (hyphenated).
-# Used to generate RPROVIDES/PROVIDES and RDEPENDS:remove for out-of-tree modules.
-# Functions in python() are not available to ${@...}; set variables instead.
-python() {
-    pkg_modules = {
-        'mfd': ['picocalc-mfd', 'picocalc-mfd-bms', 'picocalc-mfd-bkl', 'picocalc-mfd-kbd', 'picocalc-mfd-led'],
-        'kbd': ['picocalc-kbd'],
-        'lcd-fb': ['ili9488-fb'],
-        'lcd-drm': ['ili9488-drm'],
-        'snd-pwm': ['picocalc-snd-pwm'],
-        'snd-softpwm': ['picocalc-snd-softpwm'],
-        'rproc': ['rk3506-rproc'],
-        'snd-m0': ['picocalc-snd-m0'],
-    }
-    kv = d.getVar('KERNEL_VERSION')
-    for pkg_suffix, mods in pkg_modules.items():
-        virtuals = ' '.join('kernel-module-%s-%s' % (m, kv) for m in mods)
-        d.setVar('PICOCALC_MODULE_VIRTUALS_' + pkg_suffix.replace('-', '_').upper(), virtuals)
-    all_mods = []
-    for mods in pkg_modules.values():
-        all_mods.extend(mods)
-    d.setVar('PICOCALC_ALL_MODULE_VIRTUALS', ' '.join('kernel-module-%s-%s' % (m, kv) for m in all_mods))
-}
+# Kernel module virtual names for RPROVIDES/PROVIDES and RDEPENDS:remove.
+# Use explicit vars with ${KERNEL_VERSION} so expansion is deferred and deterministic
+# (python() + d.getVar at parse time caused basehash to change between parses).
+PICOCALC_MODULE_VIRTUALS_MFD = "kernel-module-picocalc-mfd-${KERNEL_VERSION} kernel-module-picocalc-mfd-bms-${KERNEL_VERSION} kernel-module-picocalc-mfd-bkl-${KERNEL_VERSION} kernel-module-picocalc-mfd-kbd-${KERNEL_VERSION} kernel-module-picocalc-mfd-led-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_KBD = "kernel-module-picocalc-kbd-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_LCD_FB = "kernel-module-ili9488-fb-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_LCD_DRM = "kernel-module-ili9488-drm-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_SND_PWM = "kernel-module-picocalc-snd-pwm-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM = "kernel-module-picocalc-snd-softpwm-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_RPROC = "kernel-module-rk3506-rproc-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_SND_M0 = "kernel-module-picocalc-snd-m0-${KERNEL_VERSION}"
+PICOCALC_ALL_MODULE_VIRTUALS = "${PICOCALC_MODULE_VIRTUALS_MFD} ${PICOCALC_MODULE_VIRTUALS_KBD} ${PICOCALC_MODULE_VIRTUALS_LCD_FB} ${PICOCALC_MODULE_VIRTUALS_LCD_DRM} ${PICOCALC_MODULE_VIRTUALS_SND_PWM} ${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM} ${PICOCALC_MODULE_VIRTUALS_RPROC} ${PICOCALC_MODULE_VIRTUALS_SND_M0}"
 
 ####### Build with local checkout for development
 #inherit module externalsrc
