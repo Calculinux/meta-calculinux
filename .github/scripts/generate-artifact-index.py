@@ -2,6 +2,7 @@
 """
 Generate artifact index JSON for published images and update bundles.
 This provides a machine-readable catalog of available artifacts.
+Used for both PR channels (RAUC bundles only) and release channels (RAUC + images).
 """
 
 import argparse
@@ -58,32 +59,38 @@ def collect_entries(root: Path, pattern: str, url_prefix: str, machine: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate artifact index JSON")
-    parser.add_argument("--base-url", required=True, help="Base URL for artifacts")
+    parser.add_argument("--base-url", required=True, help="Base URL for artifacts (e.g. https://opkg.calculinux.org)")
     parser.add_argument("--update-dir", required=True, type=Path, help="Directory containing RAUC bundles")
-    parser.add_argument("--image-dir", required=True, type=Path, help="Directory containing WIC images")
+    parser.add_argument("--image-dir", type=Path, default=None, help="Directory containing WIC images (optional, PR channels have none)")
     parser.add_argument("--output", required=True, type=Path, help="Output JSON file path")
     parser.add_argument("--feed-name", required=True, help="Feed name")
-    parser.add_argument("--subfolder", required=True, help="Subfolder (continuous/release)")
+    parser.add_argument("--subfolder", required=True, help="Subfolder (pr/continuous/release)")
     parser.add_argument("--machine", required=True, help="Machine name")
-    parser.add_argument("--distro-version", required=True, help="Distro version")
-    parser.add_argument("--git-sha", required=True, help="Git commit SHA")
+    parser.add_argument("--distro-version", default=None, help="Distro version (optional for PR channels)")
+    parser.add_argument("--git-sha", default=None, help="Git commit SHA (optional for PR channels)")
+    parser.add_argument("--is-pr-channel", action="store_true", help="Mark as PR channel in index metadata")
     
     args = parser.parse_args()
     
-    # Collect artifacts
+    # Normalize base URL (no trailing slash) for consistent URL construction
+    base_url = args.base_url.rstrip("/")
+    
+    # Collect artifacts (use full absolute URLs)
     rauc_bundles = collect_entries(
         args.update_dir,
         "*.raucb",
-        f"/update/{args.feed_name}/{args.subfolder}",
+        f"{base_url}/update/{args.feed_name}/{args.subfolder}",
         args.machine,
     )
     
-    wic_images = collect_entries(
-        args.image_dir,
-        "*.wic*",
-        f"/image/{args.feed_name}/{args.subfolder}",
-        args.machine,
-    )
+    wic_images = []
+    if args.image_dir is not None:
+        wic_images = collect_entries(
+            args.image_dir,
+            "*.wic*",
+            f"{base_url}/image/{args.feed_name}/{args.subfolder}",
+            args.machine,
+        )
     
     # Build index structure
     index = {
@@ -91,13 +98,17 @@ def main():
         "machine": args.machine,
         "feed": args.feed_name,
         "subfolder": args.subfolder,
-        "distro_version": args.distro_version,
-        "git_sha": args.git_sha,
         "artifacts": {
             "rauc": rauc_bundles,
             "images": wic_images,
         },
     }
+    if args.distro_version is not None:
+        index["distro_version"] = args.distro_version
+    if args.git_sha is not None:
+        index["git_sha"] = args.git_sha
+    if args.is_pr_channel:
+        index["is_pr_channel"] = True
     
     # Write output
     args.output.parent.mkdir(parents=True, exist_ok=True)
