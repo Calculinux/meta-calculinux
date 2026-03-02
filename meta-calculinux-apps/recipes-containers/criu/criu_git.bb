@@ -31,7 +31,7 @@ COMPATIBLE_HOST = "(x86_64|arm|aarch64).*-linux"
 DEPENDS += "libnl libcap protobuf-c-native protobuf-c util-linux-native libbsd libnet python3-protobuf-native"
 RDEPENDS:${PN} = "bash cgroup-lite python3-ctypes python3-fcntl python3-protobuf"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 #
 # CRIU just can be built on ARMv7 and ARMv6, so the Makefile check

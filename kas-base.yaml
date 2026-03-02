@@ -4,56 +4,55 @@ header:
 
 distro: calculinux-distro
 
-# scarthgap checkout
+# whinlatter checkout (split Poky: bitbake + openembedded-core + meta-yocto)
+# bitbake must be sibling to openembedded-core (oe-init-build-env looks for ../bitbake)
 repos:
-  poky:
-    url: https://git.yoctoproject.org/poky.git
-    commit: db04028d9070f05c3b5dee728473fb234bd24f05
+  bitbake:
+    url: https://git.openembedded.org/bitbake
+    tag: yocto-5.3.1
+    layers:
+      .: disabled
+  openembedded-core:
+    url: https://git.openembedded.org/openembedded-core
+    branch: whinlatter
     patches:
       0001-compress-doc.patch:
         repo: meta-calculinux
         path: patches/compress_doc.patch
     layers:
       meta:
+  meta-yocto:
+    url: https://git.yoctoproject.org/meta-yocto
+    branch: whinlatter
+    layers:
       meta-poky:
   meta-openembedded:
-    url: https://github.com/openembedded/meta-openembedded.git
-    commit: dca497d728792e3cb655c78455c2d649af312ce8
+    url: https://git.openembedded.org/meta-openembedded
+    branch: whinlatter
     layers:
       meta-oe:
       meta-python:
       meta-networking:
       meta-filesystems:
       meta-multimedia:
-  meta-lts-mixins:
-    url: https://git.yoctoproject.org/meta-lts-mixins
-    commit: c19b6da5a3afd3c892b3b1b44983e993ac6d5308
-    patches:
-      0001-meta-lts-mixins-walnascar-compat.patch:
-        repo: meta-calculinux
-        path: patches/meta-lts-mixins-walnascar-compat.patch
-      0002-meta-lts-mixins-cargo-unpackdir.patch:
-        repo: meta-calculinux
-        path: patches/meta-lts-mixins-cargo-unpackdir.patch
-      0003-meta-lts-mixins-librsvg-native-pkgconfig.patch:
-        repo: meta-calculinux
-        path: patches/meta-lts-mixins-librsvg-native-pkgconfig.patch
-    layers:
-      .:
   meta-retro:
     url: https://github.com/dev-0x7C6/meta-retro.git
-    commit: 4d8736a2037fcc901d1a79a45c0e61538554245e
+    branch: master
     layers:
       .:
     patches:
-      0001-meta-retro-walnascar-compat.patch:
+      0001-meta-retro-whinlatter-compat.patch:
         repo: meta-calculinux
-        path: patches/meta-retro-walnascar-compat.patch
+        path: patches/meta-retro-whinlatter-compat.patch
   meta-wayland:
     url: https://codeberg.org/flk/meta-wayland.git
-    commit: 4e47cb0a14ec168a814e95ef2cfa2fc8618fc689
+    branch: walnascar
     layers:
       .:
+    patches:
+      0001-meta-wayland-whinlatter-compat.patch:
+        repo: meta-calculinux
+        path: patches/meta-wayland-whinlatter-compat.patch
   meta-calculinux:
     layers:
       meta-calculinux-distro:
@@ -64,18 +63,10 @@ local_conf_header:
     PACKAGE_CLASSES = "package_ipk"
     RM_OLD_IMAGE = "1"
     INHERIT += "rm_work"
-    KERNEL_CLASSES += "kernel-fitimage"
   meta-retro-fixes: |
     # Skip problematic recipes from meta-retro that use AUTOREV or have missing dependencies
     BBMASK += "meta-retro/recipes-extended/slipr"
     BBMASK += "meta-retro/recipes-graphics/mesa"
-  rust-version: |
-    # Use meta-lts-mixins' Scarthgap Rust mixin toolchain
-    PREFERRED_VERSION_rust = "1.92%"
-    PREFERRED_VERSION_rust-native = "1.92%"
-    PREFERRED_VERSION_cargo = "1.92%"
-    PREFERRED_VERSION_cargo-native = "1.92%"
-    PREFERRED_VERSION_libstd-rs = "1.92%"
   diskmon: |
     BB_DISKMON_DIRS ??= "\
         STOPTASKS,${TMPDIR},1G,100K \

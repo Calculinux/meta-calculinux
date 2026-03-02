@@ -9,7 +9,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171d
 SRC_URI = "git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1"
 SRCREV = "7e3209499d520d8960fd0a37e0dc34bf88252b04"
 
-S = "${WORKDIR}/git/tools/ovl-restore"
+S = "${UNPACKDIR}/${BP}/tools/ovl-restore"
 
 # Use SRCPV for automatic git-based versioning
 PV = "1.0.0+git${SRCPV}"

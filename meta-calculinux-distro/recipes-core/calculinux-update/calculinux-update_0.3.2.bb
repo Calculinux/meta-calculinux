@@ -9,7 +9,6 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
 SRCREV = "6432684ec80c06d93c9dba58902c4feef889bbda"
 
-S = "${WORKDIR}/git"
 
 inherit python3-dir python3native
 

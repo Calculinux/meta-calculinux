@@ -30,7 +30,7 @@ SRC_URI = "\
 
 SRC_URI[sha256sum] = "74689eaf472763aa7f842eb277cb62fbe08ebcabc7687f4546cec2383838435e"
 
-S = "${WORKDIR}/${MY_P_DECODED}"
+S = "${UNPACKDIR}/${MY_P_DECODED}"
 
 DEPENDS = "openssl"
 
@@ -74,9 +74,9 @@ python apply_debian_patches() {
 }
 
 do_install:append() {
-    # Install systemd service file
+    # Install systemd service file (file:// items unpack to UNPACKDIR in Whinlatter)
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/sources-unpack/adbd.service ${D}${systemd_system_unitdir}/adbd.service
+    install -m 0644 ${UNPACKDIR}/adbd.service ${D}${systemd_system_unitdir}/adbd.service
     
     # Install shell profile script
     install -d ${D}${sysconfdir}/profile.d
@@ -87,9 +87,9 @@ do_install:append() {
 
     # Install auth helper and defaults
     install -d ${D}${bindir}
-    install -m 0755 ${WORKDIR}/sources-unpack/adbd-auth ${D}${bindir}/adbd-auth.sh
+    install -m 0755 ${UNPACKDIR}/adbd-auth ${D}${bindir}/adbd-auth.sh
     install -d ${D}${sysconfdir}/default
-    install -m 0644 ${WORKDIR}/sources-unpack/adbd.default ${D}${sysconfdir}/default/adbd
+    install -m 0644 ${UNPACKDIR}/adbd.default ${D}${sysconfdir}/default/adbd
 }
 
 SYSTEMD_SERVICE:${PN} = "adbd.service"

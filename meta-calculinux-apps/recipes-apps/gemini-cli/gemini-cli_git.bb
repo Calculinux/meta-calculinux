@@ -16,7 +16,7 @@ SRC_URI = "\
 
 SRCREV = "721548207f979c4ddcd016c7c8b6021970946b7c"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 GO_IMPORT = "github.com/reugn/gemini-cli"
 

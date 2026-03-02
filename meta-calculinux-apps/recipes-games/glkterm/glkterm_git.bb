@@ -16,7 +16,7 @@ SRCREV = "${AUTOREV}"
 PV = "1.1+git${SRCPV}"
 
 # Working directory
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 # Build system
 inherit cmake pkgconfig

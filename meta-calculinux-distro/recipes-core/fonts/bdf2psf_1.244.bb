@@ -12,7 +12,6 @@ LIC_FILES_CHKSUM = "file://debian/copyright;md5=6fdba635ca4be614fab872320fcb2220
 
 SRC_URI = "git://salsa.debian.org/installer-team/console-setup;protocol=https;branch=master;tag=${PV}"
 
-S = "${WORKDIR}/git"
 
 inherit allarch
 

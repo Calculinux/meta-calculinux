@@ -11,7 +11,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=0a421caab6054dca789a07a50d1a162f"
 SRC_URI = "git://github.com/yashsinghcodes/wik.git;protocol=https;nobranch=1"
 SRCREV = "900079af2a29332c2c965d7c50f59dec201d7cbc"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 PV = "2.0.1+git${SRCPV}"
 

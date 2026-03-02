@@ -1,0 +1,18 @@
+From: Calculinux <calculinux@example.com>
+Subject: [PATCH] Add whinlatter compatibility to meta-wayland
+
+Add whinlatter (Yocto Project 5.3) to the layer series compatibility list.
+
+diff --git a/conf/layer.conf b/conf/layer.conf
+index a6a34eb..5536dfd 100644
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -8,7 +8,7 @@ BBFILE_COLLECTIONS += "wayland"
+ BBFILE_PATTERN_wayland = "^${LAYERDIR}/"
+ BBFILE_PRIORITY_wayland = "5"
+ 
+-LAYERSERIES_COMPAT_wayland = "walnascar"
++LAYERSERIES_COMPAT_wayland = "walnascar whinlatter"
+ 
+ LAYERDEPENDS_wayland = " \
+ 	core \

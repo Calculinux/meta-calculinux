@@ -17,7 +17,7 @@ SRCREV = "${AUTOREV}"
 # Pin to specific commit for reproducibility in production:
 # SRCREV = "<commit-hash>"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 DEPENDS = " \
     libsdl2 \

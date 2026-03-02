@@ -8,8 +8,8 @@ DEPENDS = "libsdl2 libsdl2-ttf"
 SRC_URI = "file://picocalc-kbd-test.c \
            file://Makefile"
 
-S = "${WORKDIR}/sources"
-UNPACKDIR = "${S}"
+UNPACKDIR = "${WORKDIR}/sources"
+S = "${UNPACKDIR}"
 
 inherit pkgconfig
 

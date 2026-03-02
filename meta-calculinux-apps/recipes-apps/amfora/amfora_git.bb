@@ -17,7 +17,7 @@ SRC_URI = "\
 
 SRCREV = "4d9a5c56c88f7bec2938968182c88130b923fbba"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 # go.mod declares module github.com/makeworld-the-better-one/amfora
 GO_IMPORT = "github.com/makeworld-the-better-one/amfora"
