@@ -1,0 +1,10 @@
+[Unit]
+Description=Re-merge zboot when DT overlay config or overlays change
+After=local-fs.target
+
+[Path]
+PathModified=/etc/device-tree-overlays.conf
+PathModified=/etc/devicetree
+
+[Install]
+WantedBy=multi-user.target
