@@ -33,17 +33,15 @@ PR_DIR="$OPKG_REPO_DIR/update/${PR_FEED}/pr"
 mkdir -p "$PR_DIR"
 
 TARGET_BUNDLE="$PR_DIR/${MACHINE}-pr${PR_NUMBER}.raucb"
-cp "$BUNDLE_PATH" "$TARGET_BUNDLE"
-sha256sum "$TARGET_BUNDLE" > "${TARGET_BUNDLE}.sha256"
+bash "$(dirname "$0")/lib/copy-with-checksum.sh" "$BUNDLE_PATH" "$TARGET_BUNDLE"
 
 echo "Published PR bundle to ${TARGET_BUNDLE}"
 
-CHANNEL_PATH="/update/${PR_FEED}/pr"
-
-python3 .github/scripts/refresh_pr_channel_index.py \
-  --root "$PR_DIR" \
+python3 .github/scripts/generate-artifact-index.py \
   --base-url "$UPDATE_BASE_URL" \
-  --channel-path "$CHANNEL_PATH" \
+  --update-dir "$PR_DIR" \
+  --output "$PR_DIR/index.json" \
+  --feed-name "$PR_FEED" \
+  --subfolder "pr" \
   --machine "$MACHINE" \
-  --feed "$PR_FEED" \
-  --subfolder "pr"
+  --is-pr-channel
