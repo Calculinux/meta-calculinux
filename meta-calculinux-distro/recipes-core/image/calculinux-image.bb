@@ -35,11 +35,13 @@ IMAGE_INSTALL += " \
     calculinux-update \
     cloud-utils-growpart \
     curl \
+    diffutils \
     dosfstools \
     e2fsprogs \
     e2fsprogs-resize2fs \
     ffmpeg \
     file \
+    findutils \
     gcompat \
     gdb \
     git \
@@ -54,6 +56,7 @@ IMAGE_INSTALL += " \
     kbd-consolefonts \
     kbd-keymaps \
     kernel-modules \
+    less \
     libdrm-tests \
     libsdl \
     libsdl2 \
@@ -62,6 +65,7 @@ IMAGE_INSTALL += " \
     man-db \
     mtd-utils \
     musl-locales \
+    nano \
     notcurses \
     notcurses-tools \
     ntp \
@@ -80,12 +84,17 @@ IMAGE_INSTALL += " \
     sudo \
     systemd-analyze \
     terminus-font \
+    tmux \
+    tree \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
+    unzip \
     usb-gadget-network \
     usbutils \
     util-linux \
     wget \
+    which \
+    zip \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
