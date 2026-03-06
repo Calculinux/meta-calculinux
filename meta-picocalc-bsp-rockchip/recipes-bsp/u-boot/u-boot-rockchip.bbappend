@@ -18,11 +18,21 @@ SRC_URI = " \
     file://disable-display.cfg \
     file://partition-labels.cfg \
     file://rk3506_common.h;subdir=git/include/configs/ \
-    file://rk3506-luckfox.dts;subdir=git/arch/arm/dts/ \
-    file://rk3506-luckfox.dtsi;subdir=git/arch/arm/dts/ \
     file://rk3506_luckfox_defconfig;subdir=git/configs/ \
     file://rk3506b_luckfox.config;subdir=git/configs/ \
 "
+
+# Copy PicoCalc U-Boot device tree from devicetree helper recipe
+do_prepare_uboot_picocalc() {
+    PICOCALC_UBOOT_DTS_SOURCE="${RECIPE_SYSROOT}/usr/share/picocalc/rk3506-luckfox.dts"
+    PICOCALC_UBOOT_DTSI_SOURCE="${RECIPE_SYSROOT}/usr/share/picocalc/rk3506-luckfox.dtsi"
+    install -d ${S}/arch/arm/dts
+    cp "${PICOCALC_UBOOT_DTS_SOURCE}" "${S}/arch/arm/dts/rk3506-luckfox.dts"
+    cp "${PICOCALC_UBOOT_DTSI_SOURCE}" "${S}/arch/arm/dts/rk3506-luckfox.dtsi"
+}
+
+addtask do_prepare_uboot_picocalc after do_unpack before do_configure
+do_prepare_uboot_picocalc[depends] += "picocalc-devicetree:do_populate_sysroot"
 
 # Rockchip u-boot uses some special patches. Therefore we export mkimage into the deploy
 # dir to have them available for other recipes.

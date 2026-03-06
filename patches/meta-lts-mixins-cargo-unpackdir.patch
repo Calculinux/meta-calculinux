@@ -1,0 +1,30 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] cargo_common: use UNPACKDIR for CARGO_HOME so vendored crates are found
+
+When a recipe has multiple SRC_URI entries (e.g. git + many crate://),
+BitBake sets UNPACKDIR to ${WORKDIR}/sources-unpack and the crate
+fetcher unpacks all crates to ${UNPACKDIR}/cargo_home/bitbake.
+Using WORKDIR for CARGO_HOME leaves that directory empty and causes
+"no matching package named ... found" at compile. Match Poky's
+cargo_common and use UNPACKDIR so all Rust recipes find the crates.
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+---
+ classes-recipe/cargo_common.bbclass | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/classes-recipe/cargo_common.bbclass b/classes-recipe/cargo_common.bbclass
+--- a/classes-recipe/cargo_common.bbclass
++++ b/classes-recipe/cargo_common.bbclass
+@@ -19,7 +19,7 @@
+ inherit rust-common
+ 
+ # Where we download our registry and dependencies to
+-export CARGO_HOME = "${WORKDIR}/cargo_home"
++export CARGO_HOME = "${UNPACKDIR}/cargo_home"
+ 
+ # The pkg-config-rs library used by cargo build scripts disables itself when
+ # cross compiling unless this is defined. We set up pkg-config appropriately
+
+-- 
+2.43.0

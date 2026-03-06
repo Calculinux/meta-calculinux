@@ -9,14 +9,9 @@ ARTIFACTS_DIR="${1:?Usage: $0 <artifacts_dir>}"
 echo "Collecting SDK artifacts..."
 
 # Find build directory
-BUILD_DIR=$(find build -name "tmp" -type d | head -1)
-DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
-
-# Always create SDK directory structure, even if empty
-mkdir -p "$ARTIFACTS_DIR/sdk/x86_64" "$ARTIFACTS_DIR/sdk/aarch64"
-
-if [ ! -d "$DEPLOY_SDK_DIR" ]; then
-    echo "No SDK directory found at $DEPLOY_SDK_DIR"
+BUILD_DIR=$(bash "$(dirname "$0")/build-dir.sh" --optional)
+if [ -z "$BUILD_DIR" ] || [ ! -d "${BUILD_DIR}/deploy/sdk" ]; then
+    echo "No SDK directory found at ${BUILD_DIR:+$BUILD_DIR/}deploy/sdk"
     echo "This is expected when SDK build was skipped"
     echo ""
     echo "SDK Summary:"
@@ -26,7 +21,11 @@ if [ ! -d "$DEPLOY_SDK_DIR" ]; then
     exit 0
 fi
 
+DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
 echo "Found SDK directory: $DEPLOY_SDK_DIR"
+
+# Ensure target directories exist (cp does not create them)
+mkdir -p "$ARTIFACTS_DIR/sdk/x86_64" "$ARTIFACTS_DIR/sdk/aarch64"
 
 # Process each SDK file to determine its architecture and organize accordingly
 find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do

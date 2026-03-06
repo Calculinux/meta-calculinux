@@ -235,6 +235,22 @@ docker rmi ghcr.io/siemens/kas/kas:4.7
 
 ---
 
+## Creating Releases
+
+To create an official Calculinux release with builds, see [Release Process](docs/RELEASE-PROCESS.md).
+
+Quick summary:
+```bash
+# Create and push a git tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# Create release with automated builds
+make release TAG=v1.0.0
+```
+
+This creates a GitHub release with images, bundles, and SDKs automatically attached.
+
 ## References
 - [Yocto Project Documentation](https://docs.yoctoproject.org/)
 - [KAS Documentation](https://kas.readthedocs.io/)

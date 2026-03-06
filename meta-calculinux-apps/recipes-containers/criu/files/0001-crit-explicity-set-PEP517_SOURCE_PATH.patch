@@ -1,0 +1,32 @@
+From 0af358f8ae5e671d78e3de32a2d26bb3cf2c23f8 Mon Sep 17 00:00:00 2001
+From: Bruce Ashfield <bruce.ashfield@gmail.com>
+Date: Thu, 3 Apr 2025 17:08:01 +0000
+Subject: [PATCH] crit: explicity set PEP517_SOURCE_PATH
+
+Similarly to the ./lib build, we need to explicitly set
+this to avoid pyproject.toml errors during the build (the
+project file cannot be found)
+
+Upstream-Status: Inappropriate [oe specific]
+
+Signed-off-by: Bruce Ashfield <bruce.ashfield@gmail.com>
+---
+ crit/Makefile | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/crit/Makefile b/crit/Makefile
+index 90f0ee635..329c7e85c 100644
+--- a/crit/Makefile
++++ b/crit/Makefile
+@@ -1,5 +1,8 @@
+ VERSION_FILE := $(if $(obj),$(addprefix $(obj)/,crit/version.py),crit/version.py)
+ 
++PEP517_SOURCE_PATH := ./crit
++PEP517_BUILD_OPTS :=
++
+ all-y	+= ${VERSION_FILE}
+ cleanup-y	+= ${VERSION_FILE}
+ 
+-- 
+2.43.0
+

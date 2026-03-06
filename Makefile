@@ -42,6 +42,10 @@ help:
 	@echo "  make clean-recipe RECIPE=<name> - Clean specific recipe"
 	@echo "  make devshell RECIPE=<name>     - Open devshell for recipe"
 	@echo ""
+	@echo "  make release TAG=v1.0.0 - Create and push release tag"
+	@echo "    GitHub Actions will automatically build and create the release"
+	@echo "    Requires: On main branch, GitHub CLI (gh) installed"
+	@echo ""
 	@echo "All targets depend on setup"
 
 .PHONY: image
@@ -144,4 +148,66 @@ status:
 		fi; \
 	else \
 		echo "Build directory does not exist - run 'make image' first"; \
+	fi
+
+# Release management targets
+.PHONY: release
+release: release-verify
+	@echo ""
+	@echo "✓ Tag $(TAG) created and pushed to GitHub"
+	@echo ""
+	@echo "GitHub Actions will now:"
+	@echo "  1. Build images and packages (~1-2 hours)"
+	@echo "  2. Build SDKs for x86_64 and aarch64"
+	@echo "  3. Create GitHub release with all artifacts"
+	@echo "  4. Send Discord notification"
+	@echo ""
+	@echo "Monitor progress at:"
+	@echo "  https://github.com/$$(gh repo view --json owner,name -q '{{.owner.login}}/{{.name}}')/actions"
+	@echo ""
+	@echo "When complete, release will be available at:"
+	@echo "  https://github.com/$$(gh repo view --json owner,name -q '{{.owner.login}}/{{.name}}')/releases/tag/$(TAG)"
+
+.PHONY: release-verify
+release-verify:
+	@echo "Preparing release $(TAG)..."
+	@if ! command -v gh &> /dev/null; then \
+		echo "ERROR: GitHub CLI (gh) not found. Install from https://cli.github.com/"; \
+		exit 1; \
+	fi
+	@if [ -z "$(TAG)" ]; then \
+		echo "ERROR: TAG not specified. Usage: make release TAG=v1.0.0"; \
+		exit 1; \
+	fi
+	@echo "Checking current branch..."
+	@set -e; \
+	REPO_ROOT=$$(cd $(BUILD_ROOT) && git -C meta-calculinux rev-parse --show-toplevel 2>/dev/null || echo "$(BUILD_ROOT)"); \
+	CURRENT_BRANCH=$$(git -C $$REPO_ROOT rev-parse --abbrev-ref HEAD); \
+	if [ "$$CURRENT_BRANCH" != "main" ]; then \
+		echo "ERROR: Not on main branch (currently on: $$CURRENT_BRANCH)"; \
+		echo "Switch to main with: git checkout main"; \
+		exit 1; \
+	fi
+	@echo "✓ On main branch"
+	@echo "Syncing with origin..."
+	@set -e; \
+	REPO_ROOT=$$(cd $(BUILD_ROOT) && git -C meta-calculinux rev-parse --show-toplevel 2>/dev/null || echo "$(BUILD_ROOT)"); \
+	git -C $$REPO_ROOT pull origin main
+	@echo "✓ Synced with origin/main"
+	@echo "Creating and pushing tag $(TAG)..."
+	@set -e; \
+	REPO_ROOT=$$(cd $(BUILD_ROOT) && git -C meta-calculinux rev-parse --show-toplevel 2>/dev/null || echo "$(BUILD_ROOT)"); \
+	if git -C $$REPO_ROOT rev-parse "$(TAG)" > /dev/null 2>&1; then \
+		echo "WARNING: Tag $(TAG) already exists locally."; \
+		if git -C $$REPO_ROOT ls-remote --tags origin | grep -q "refs/tags/$(TAG)"; then \
+			echo "Tag $(TAG) already pushed to origin. GitHub Actions may have already started."; \
+		else \
+			echo "Pushing existing tag to origin..."; \
+			git -C $$REPO_ROOT push origin $(TAG); \
+			echo "✓ Tag $(TAG) pushed"; \
+		fi \
+	else \
+		git -C $$REPO_ROOT tag $(TAG); \
+		git -C $$REPO_ROOT push origin $(TAG); \
+		echo "✓ Tag $(TAG) created and pushed"; \
 	fi
