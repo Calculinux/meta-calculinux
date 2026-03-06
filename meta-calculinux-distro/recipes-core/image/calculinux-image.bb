@@ -76,6 +76,8 @@ IMAGE_INSTALL += " \
     ovl-restore \
     packagegroup-core-buildessential \
     picocalc-dt-overlays \
+    picocalc-drivers \
+    picocalc-m0-firmware \
     picocalc-kbd-test \
     rauc \
     sdl2-test \
