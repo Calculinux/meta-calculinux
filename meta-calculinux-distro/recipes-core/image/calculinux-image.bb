@@ -90,6 +90,7 @@ IMAGE_INSTALL += " \
     tzdata \
     tmux \
     tree \
+    tzdata \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
     unzip \
