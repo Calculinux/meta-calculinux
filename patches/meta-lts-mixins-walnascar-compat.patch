@@ -1,0 +1,28 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] conf/layer.conf: add walnascar to LAYERSERIES_COMPAT
+
+Allow using the Scarthgap Rust mixin with Yocto walnascar (Scarthgap
+successor) so we can use the LTS mixin Rust toolchain on walnascar-based
+checkouts.
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+---
+ conf/layer.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/conf/layer.conf b/conf/layer.conf
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -9,7 +9,7 @@ BBFILES += "${LAYERDIR}/recipes*/*/*.bb ${LAYERDIR}/recipes*/*/*.bbappend"
+ BBFILE_COLLECTIONS += "scarthgap-rust-mixin"
+ BBFILE_PATTERN_scarthgap-rust-mixin := "^${LAYERDIR}/"
+ BBFILE_PRIORITY_scarthgap-rust-mixin = "6"
+ 
+-LAYERSERIES_COMPAT_scarthgap-rust-mixin = "scarthgap"
++LAYERSERIES_COMPAT_scarthgap-rust-mixin = "scarthgap walnascar"
+ 
+ LAYERDEPENDS_scarthgap-rust-mixin = "core"
+ 
+
+-- 
+2.43.0

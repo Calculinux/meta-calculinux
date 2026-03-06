@@ -14,13 +14,19 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
 │   ├── sync-packages/       # Sync packages to repository
 │   └── discord-notify/      # Send Discord notifications
 └── scripts/            # Standalone bash/python scripts
-    ├── determine-feed-config.sh     # Determine feed configuration
-    ├── collect-images.sh            # Collect image artifacts
+    ├── lib/                        # Shared helpers (sourced by other scripts)
+    │   ├── publish-common.sh       # Arg parsing + paths for publish-images, publish-sdk
+    │   └── copy-with-checksum.sh   # cp + sha256sum helper
+    ├── build-dir.sh                # Find Yocto build directory (used by collect-*)
+    ├── determine-feed-config.sh    # Determine feed configuration
+    ├── load-script-output.sh       # Run script and load key=value output to GITHUB_OUTPUT
+    ├── cleanup-pr-bundle.sh        # Remove PR RAUC bundle and refresh channel index
+    ├── collect-images.sh           # Collect image artifacts
     ├── collect-packages.sh          # Collect package artifacts
-    ├── collect-sdk.sh               # Collect SDK artifacts
-    ├── publish-images.sh            # Publish images to webserver
-    ├── publish-sdk.sh               # Publish SDKs to webserver
-    └── generate-artifact-index.py   # Generate artifact index JSON
+    ├── collect-sdk.sh              # Collect SDK artifacts
+    ├── publish-images.sh          # Publish images to webserver
+    ├── publish-sdk.sh             # Publish SDKs to webserver
+    └── generate-artifact-index.py  # Generate artifact index JSON
 ```
 
 ## Workflows
@@ -174,20 +180,32 @@ Publishes SDK artifacts to webserver organized by architecture.
 ```
 
 ### generate-artifact-index.py
-Generates a JSON index of published artifacts for machine-readable access.
+Generates a JSON index of published artifacts for machine-readable access. Used for both PR channels (RAUC bundles only) and release channels (RAUC bundles + WIC images).
 
-**Usage:**
+**Release channel usage:**
 ```bash
-./. github/scripts/generate-artifact-index.py \
+./.github/scripts/generate-artifact-index.py \
   --base-url https://opkg.calculinux.org \
   --update-dir /path/to/update/dir \
   --image-dir /path/to/image/dir \
   --output /path/to/index.json \
   --feed-name walnascar \
-  --subfolder continuous \
+  --subfolder release \
   --machine luckfox-lyra \
   --distro-version 1.0.0 \
   --git-sha abc123
+```
+
+**PR channel usage** (omit --image-dir, --distro-version, --git-sha; add --is-pr-channel):
+```bash
+./.github/scripts/generate-artifact-index.py \
+  --base-url https://opkg.calculinux.org \
+  --update-dir /path/to/pr/dir \
+  --output /path/to/pr/dir/index.json \
+  --feed-name walnascar \
+  --subfolder pr \
+  --machine luckfox-lyra \
+  --is-pr-channel
 ```
 
 ## Adding a New Machine Configuration
