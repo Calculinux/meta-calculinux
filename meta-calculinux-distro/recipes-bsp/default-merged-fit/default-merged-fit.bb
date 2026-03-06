@@ -38,7 +38,13 @@ do_install() {
 
     dumpimage -l "$ZBOOT" > "$WORKDIR_MERGE/list.txt" 2>/dev/null || true
     dumpimage -i "$ZBOOT" -p 0 -o "$WORKDIR_MERGE/kernel" 2>/dev/null || bbfatal "dumpimage: failed to extract kernel"
-    dumpimage -i "$ZBOOT" -p 1 -o "$WORKDIR_MERGE/fdt.dtb" 2>/dev/null || bbfatal "dumpimage: failed to extract fdt"
+    # Prefer kernel-deployed FDT (has __symbols__ for fdtoverlay); else extract from FIT
+    FDT_DEPLOY="${DEPLOY_DIR_IMAGE}/fit_fdt.dtb"
+    if [ -f "$FDT_DEPLOY" ]; then
+        cp "$FDT_DEPLOY" "$WORKDIR_MERGE/fdt.dtb"
+    else
+        dumpimage -i "$ZBOOT" -p 1 -o "$WORKDIR_MERGE/fdt.dtb" 2>/dev/null || bbfatal "dumpimage: failed to extract fdt"
+    fi
 
     OVERLAY_FILES=""
     for name in ${DEFAULT_DT_OVERLAYS}; do
@@ -48,8 +54,13 @@ do_install() {
         fi
     done
 
-    if [ -n "$OVERLAY_FILES" ] && command -v fdtoverlay >/dev/null 2>&1; then
-        fdtoverlay -i "$WORKDIR_MERGE/fdt.dtb" -o "$WORKDIR_MERGE/merged.dtb" $OVERLAY_FILES || bbfatal "fdtoverlay failed"
+    if [ -n "$OVERLAY_FILES" ]; then
+        if ! command -v fdtoverlay >/dev/null 2>&1; then
+            bbfatal "fdtoverlay not found (need dtc-native with fdtoverlay)"
+        fi
+        if ! fdtoverlay -i "$WORKDIR_MERGE/fdt.dtb" -o "$WORKDIR_MERGE/merged.dtb" $OVERLAY_FILES 2>"$WORKDIR_MERGE/fdtoverlay.stderr"; then
+            bbfatal "fdtoverlay failed: $(cat "$WORKDIR_MERGE/fdtoverlay.stderr" 2>/dev/null || echo 'no stderr')"
+        fi
     else
         cp "$WORKDIR_MERGE/fdt.dtb" "$WORKDIR_MERGE/merged.dtb"
     fi

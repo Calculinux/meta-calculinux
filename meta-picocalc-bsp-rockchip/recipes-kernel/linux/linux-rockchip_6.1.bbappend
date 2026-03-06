@@ -245,4 +245,11 @@ do_install:append() {
     install -D -m 0644  "${B}/.config.gz" "${D}${datadir}/kernel/config.gz"
 }
 
+# Deploy the FDT that is inside zboot.img (with __symbols__) so default-merged-fit
+# can use it for fdtoverlay instead of extracting from the FIT (extracted DTB may
+# lack __symbols__ when kernel deploy is restored from sstate).
+do_deploy:append() {
+    install -m 0644 "${B}/arch/${ARCH}/boot/dts/${KERNEL_DEVICETREE}" "${DEPLOY_DIR_IMAGE}/fit_fdt.dtb"
+}
+
 FILES:${KERNEL_PACKAGE_NAME}-base += "${datadir}/kernel"
