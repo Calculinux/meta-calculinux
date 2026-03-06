@@ -87,6 +87,7 @@ RDEPENDS:${PN} = " \
     m4 \
     mame2003-plus-libretro \
     mc \
+    meshtastic-cli \
     meshtasticd \
     nano \
     nmap \
