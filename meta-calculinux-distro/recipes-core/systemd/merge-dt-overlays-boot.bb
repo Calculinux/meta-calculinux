@@ -22,7 +22,7 @@ inherit systemd
 SYSTEMD_SERVICE:${PN} = "merge-dt-overlays-boot.path clear-fit-rewritten.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
-RDEPENDS:${PN} += "bash u-boot-tools dtc dtc-tools u-boot-fw-config"
+RDEPENDS:${PN} += "bash u-boot-tools dtc u-boot-fw-config"
 
 do_install() {
     install -D -m 0755 ${S}/merge-dt-overlays-boot.sh ${D}${libdir}/systemd/merge-dt-overlays-boot.sh

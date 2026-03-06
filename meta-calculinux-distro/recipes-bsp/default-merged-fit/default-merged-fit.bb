@@ -1,6 +1,8 @@
-# Build a single default merged FIT (zboot + DT overlays) at image build time.
-# Installed as /boot/zboot_merged.img on the read-only root. U-Boot uses it only
-# when both /data/fit/zboot_merged_a.img and _b.img have failed to boot.
+# Build a single default merged FIT (kernel + DT overlays) at image build time.
+# Uses the kernel and FDT deployed by the kernel recipe (fit_kernel, fit_fdt.dtb);
+# no extraction from zboot.img. Installed as /boot/zboot_merged.img on the
+# read-only root. U-Boot uses it only when both /data/fit/zboot_merged_a.img
+# and _b.img have failed to boot.
 
 SUMMARY = "Default merged zboot FIT (read-only fallback)"
 DESCRIPTION = "Builds zboot_merged.img with default device tree overlays; \
@@ -13,9 +15,8 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 # Overlay names (without .dtbo) to apply by default. Empty = no overlays.
 DEFAULT_DT_OVERLAYS ?= "sx1262-lora"
 
-DEPENDS = "virtual/kernel picocalc-dt-overlays u-boot-tools-native"
+DEPENDS = "virtual/kernel picocalc-dt-overlays u-boot-tools-native dtc-native"
 do_install[depends] += "virtual/kernel:do_deploy"
-DEPENDS += "dtc-native"
 
 # S = ${WORKDIR} is not allowed since Yocto 5.1 (insane.bbclass). Use UNPACKDIR + placeholder.
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
@@ -23,28 +24,25 @@ SRC_URI = "file://dummy"
 S = "${UNPACKDIR}"
 
 do_install() {
-    ZBOOT="${DEPLOY_DIR_IMAGE}/zboot.img"
+    DEPLOY="${DEPLOY_DIR_IMAGE}"
+    KERNEL_SRC="${DEPLOY}/fit_kernel"
+    FDT_SRC="${DEPLOY}/fit_fdt.dtb"
+    COMPRESS_FILE="${DEPLOY}/fit_compression.txt"
     OVERLAY_SRCDIR="${STAGING_DIR_TARGET}/boot/devicetree"
     OUTDIR="${D}/boot"
     install -d "$OUTDIR"
 
-    if [ ! -f "$ZBOOT" ]; then
-        bbfatal "default-merged-fit: $ZBOOT not found (kernel deploy missing?)"
-    fi
+    [ -f "$KERNEL_SRC" ] || bbfatal "default-merged-fit: $KERNEL_SRC not found (kernel must deploy fit_kernel)"
+    [ -f "$FDT_SRC" ] || bbfatal "default-merged-fit: $FDT_SRC not found (kernel must deploy fit_fdt.dtb)"
 
     WORKDIR_MERGE="${WORKDIR}/merge"
     rm -rf "$WORKDIR_MERGE"
     mkdir -p "$WORKDIR_MERGE"
+    cp "$KERNEL_SRC" "$WORKDIR_MERGE/kernel"
+    cp "$FDT_SRC" "$WORKDIR_MERGE/fdt.dtb"
 
-    dumpimage -l "$ZBOOT" > "$WORKDIR_MERGE/list.txt" 2>/dev/null || true
-    dumpimage -i "$ZBOOT" -p 0 -o "$WORKDIR_MERGE/kernel" 2>/dev/null || bbfatal "dumpimage: failed to extract kernel"
-    # Prefer kernel-deployed FDT (has __symbols__ for fdtoverlay); else extract from FIT
-    FDT_DEPLOY="${DEPLOY_DIR_IMAGE}/fit_fdt.dtb"
-    if [ -f "$FDT_DEPLOY" ]; then
-        cp "$FDT_DEPLOY" "$WORKDIR_MERGE/fdt.dtb"
-    else
-        dumpimage -i "$ZBOOT" -p 1 -o "$WORKDIR_MERGE/fdt.dtb" 2>/dev/null || bbfatal "dumpimage: failed to extract fdt"
-    fi
+    COMPRESS="none"
+    [ -f "$COMPRESS_FILE" ] && COMPRESS=$(cat "$COMPRESS_FILE") || true
 
     OVERLAY_FILES=""
     for name in ${DEFAULT_DT_OVERLAYS}; do
@@ -55,9 +53,7 @@ do_install() {
     done
 
     if [ -n "$OVERLAY_FILES" ]; then
-        if ! command -v fdtoverlay >/dev/null 2>&1; then
-            bbfatal "fdtoverlay not found (need dtc-native with fdtoverlay)"
-        fi
+        command -v fdtoverlay >/dev/null 2>&1 || bbfatal "fdtoverlay not found (need dtc-native with fdtoverlay)"
         if ! fdtoverlay -i "$WORKDIR_MERGE/fdt.dtb" -o "$WORKDIR_MERGE/merged.dtb" $OVERLAY_FILES 2>"$WORKDIR_MERGE/fdtoverlay.stderr"; then
             bbfatal "fdtoverlay failed: $(cat "$WORKDIR_MERGE/fdtoverlay.stderr" 2>/dev/null || echo 'no stderr')"
         fi
@@ -65,8 +61,6 @@ do_install() {
         cp "$WORKDIR_MERGE/fdt.dtb" "$WORKDIR_MERGE/merged.dtb"
     fi
 
-    COMPRESS="none"
-    grep -q "gzip" "$WORKDIR_MERGE/list.txt" 2>/dev/null && COMPRESS="gzip"
     cat > "$WORKDIR_MERGE/image.its" << EOF
 /dts-v1/;
 / {
@@ -74,14 +68,14 @@ do_install() {
     \#address-cells = <1>;
     images {
         kernel {
-            data = /incbin/("kernel");
+            data = /incbin/("$WORKDIR_MERGE/kernel");
             type = "kernel";
             arch = "arm";
             os = "linux";
             compression = "$COMPRESS";
         };
         fdt {
-            data = /incbin/("merged.dtb");
+            data = /incbin/("$WORKDIR_MERGE/merged.dtb");
             type = "flat_dt";
             arch = "arm";
             compression = "none";
@@ -96,7 +90,9 @@ do_install() {
     };
 };
 EOF
-    mkimage -f "$WORKDIR_MERGE/image.its" -A arm "$WORKDIR_MERGE/zboot_merged.img" -r 2>/dev/null || bbfatal "mkimage: failed to repack FIT"
+    if ! mkimage -f "$WORKDIR_MERGE/image.its" -A arm "$WORKDIR_MERGE/zboot_merged.img" -r 2>"$WORKDIR_MERGE/mkimage.stderr"; then
+        bbfatal "mkimage: failed to repack FIT: $(cat "$WORKDIR_MERGE/mkimage.stderr" 2>/dev/null || echo 'no stderr')"
+    fi
 
     install -m 0644 "$WORKDIR_MERGE/zboot_merged.img" "$OUTDIR/zboot_merged.img"
 }

@@ -53,7 +53,7 @@ if [ -n "$DATA_MOUNTED" ]; then
     FIT_A="{OVERLAYFS_ETC_MOUNT_POINT}/fit/zboot_merged_a.img"
     FIT_B="{OVERLAYFS_ETC_MOUNT_POINT}/fit/zboot_merged_b.img"
     DEFAULT_FIT="/boot/zboot_merged.img"
-    if [ -f "$DEFAULT_FIT" ] && { [ ! -f "$FIT_A" ] || [ ! -f "$FIT_B" ]; }; then
+    if [ -f "$DEFAULT_FIT" ] && {{ [ ! -f "$FIT_A" ] || [ ! -f "$FIT_B" ]; }}; then
         echo "PREINIT: Seeding /data/fit/ with default merged FIT and rebooting..."
         mkdir -p "{OVERLAYFS_ETC_MOUNT_POINT}/fit"
         cp "$DEFAULT_FIT" "$FIT_A"
