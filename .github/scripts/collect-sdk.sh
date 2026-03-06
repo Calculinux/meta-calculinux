@@ -24,6 +24,9 @@ fi
 DEPLOY_SDK_DIR="${BUILD_DIR}/deploy/sdk"
 echo "Found SDK directory: $DEPLOY_SDK_DIR"
 
+# Ensure target directories exist (cp does not create them)
+mkdir -p "$ARTIFACTS_DIR/sdk/x86_64" "$ARTIFACTS_DIR/sdk/aarch64"
+
 # Process each SDK file to determine its architecture and organize accordingly
 find "$DEPLOY_SDK_DIR" -name "*.sh" -type f | while read sdk_file; do
     if [ -f "$sdk_file" ]; then
