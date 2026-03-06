@@ -36,11 +36,17 @@ if [[ -z "$SLOT" ]] && [[ -r /proc/cmdline ]]; then
     done
 fi
 OUTPUT_DIR="$DATA_MP/fit"
-if [[ -n "$SLOT" ]]; then
-    SLOT_LOWER="$(echo "$SLOT" | tr 'A-Z' 'a-z')"
-    OUT_BASENAME="zboot_merged_${SLOT_LOWER}.img"
+# Write to the FIT slot we are NOT currently booting from; next boot will use this one
+FIT_SLOT="$(fw_printenv -n FIT_SLOT 2>/dev/null || echo A)"
+if [[ "$FIT_SLOT" == "A" ]]; then
+    OUT_BASENAME="zboot_merged_b.img"
+    NEXT_FIT_SLOT="B"
+elif [[ "$FIT_SLOT" == "B" ]]; then
+    OUT_BASENAME="zboot_merged_a.img"
+    NEXT_FIT_SLOT="A"
 else
-    OUT_BASENAME="zboot_merged.img"
+    OUT_BASENAME="zboot_merged_a.img"
+    NEXT_FIT_SLOT="A"
 fi
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
@@ -136,4 +142,5 @@ mkimage -f "$WORKDIR/image.its" -A arm "$WORKDIR/zboot_merged.img" -r 2>/dev/nul
 
 mkdir -p "$OUTPUT_DIR"
 install -m 0644 "$WORKDIR/zboot_merged.img" "$OUTPUT_DIR/$OUT_BASENAME"
-echo "merge-dt-overlays-boot: wrote $OUT_BASENAME (${#OVERLAY_FILES[@]} overlays) to $OUTPUT_DIR"
+fw_setenv FIT_SLOT "$NEXT_FIT_SLOT" 2>/dev/null || true
+echo "merge-dt-overlays-boot: wrote $OUT_BASENAME (${#OVERLAY_FILES[@]} overlays); set FIT_SLOT=$NEXT_FIT_SLOT for next boot"

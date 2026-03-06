@@ -1,0 +1,15 @@
+[Unit]
+Description=Clear U-Boot FIT state after successful boot; repopulate current FIT slot if both A and B failed
+After=local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Clear FIT_LAST_TRIED so next boot tries current FIT_SLOT again
+ExecStart=/usr/sbin/fw_setenv FIT_LAST_TRIED 0
+# If we booted from /boot/zboot_merged.img (both A and B failed), copy it into current FIT slot
+ExecStart=/bin/sh -c 'both=$(fw_printenv -n FIT_BOTH_FAILED 2>/dev/null); if [ "$both" = "1" ]; then slot=$(fw_printenv -n FIT_SLOT 2>/dev/null || echo A); slot_lower=$(echo "$slot" | tr "A-Z" "a-z"); cp /boot/zboot_merged.img /data/fit/zboot_merged_${slot_lower}.img; fw_setenv FIT_BOTH_FAILED 0; fi'
+
+[Install]
+WantedBy=multi-user.target

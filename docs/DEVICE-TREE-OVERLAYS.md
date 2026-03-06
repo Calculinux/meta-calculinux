@@ -1,12 +1,15 @@
 # Device Tree Overlays for Calculinux
 
-Calculinux currently supports runtime loading of device tree overlays via ConfigFS.
+Calculinux supports device tree overlays in two ways:
+
+- **Default (persistent)**: merge overlays into the boot DTB/FIT for the **next boot**
+- **Developer option (non-persistent)**: apply overlays at runtime via ConfigFS
 
 ## Available Overlays
 
 ### DS3231 I2C RTC Module
 
-**File**: `/lib/firmware/overlays/ds3231-rtc.dtbo`  
+**File**: `/boot/devicetree/ds3231-rtc.dtbo`  
 **Recipe**: `picocalc-dt-overlays`  
 **Documentation**: [DS3231-RTC.md](DS3231-RTC.md)
 
@@ -14,14 +17,14 @@ Enables the Maxim DS3231 Real-Time Clock module on I2C bus 2.
 
 ### I2C Bus 2 @ 100 kHz
 
-**File**: `/lib/firmware/overlays/100khz-i2c.dtbo`  
+**File**: `/boot/devicetree/100khz-i2c.dtbo`  
 **Recipe**: `picocalc-dt-overlays`
 
 Reduces the I2C2 bus clock from 400 kHz to 100 kHz.
 
 ### PCM5102A I2S DAC Module
 
-**File**: `/lib/firmware/overlays/pcm5102a-i2s.dtbo`  
+**File**: `/boot/devicetree/pcm5102a-i2s.dtbo`  
 **Recipe**: `picocalc-dt-overlays`  
 **Documentation**: [PCM5102A-I2S-DAC.md](PCM5102A-I2S-DAC.md)
 
@@ -29,7 +32,7 @@ Enables I2S audio output via the PCM5102A DAC module on RMII1 test pads. Provide
 
 ### SX1262 LoRA Module (Meshtastic)
 
-**File**: `/lib/firmware/overlays/sx1262-lora.dtbo`  
+**File**: `/boot/devicetree/sx1262-lora.dtbo`  
 **Recipe**: `picocalc-dt-overlays`  
 **Documentation**: [SX1262-LORA-MESHTASTIC.md](SX1262-LORA-MESHTASTIC.md)
 
@@ -37,13 +40,23 @@ Configures GPIO pins for software SPI communication with the Waveshare SX1262 Lo
 
 ### u-blox NEO-M8N GPS Module
 
-**File**: `/lib/firmware/overlays/neo-m8n-gps.dtbo`  
+**File**: `/boot/devicetree/neo-m8n-gps.dtbo`  
 **Recipe**: `picocalc-dt-overlays`  
 **Documentation**: [NEO-M8N-GPS.md](NEO-M8N-GPS.md)
 
 Enables UART5 for communication with the u-blox NEO-M8N GPS module on RMII1 test pads. Compatible with gpsd and standard NMEA applications. Can be used alongside the SX1262 LoRA module for GPS-equipped Meshtastic nodes.
 
-## Runtime Overlay Loading (ConfigFS)
+## Default (Persistent) Behavior: Merge for Next Boot
+
+List overlays in `/etc/device-tree-overlays.conf`. On boot (and whenever the config or overlays change),
+Calculinux will build a merged FIT image (kernel + DTB with overlays applied) for the **next boot**.
+
+Notes:
+
+- **Changes require a reboot** to take effect.
+- Overlays are resolved from `/etc/devicetree/` first (user overrides), then `/boot/devicetree/` (image-provided).
+
+## Runtime Overlay Loading (ConfigFS) (Developer Option)
 
 Device tree overlays can also be loaded after boot using the kernel's ConfigFS interface, providing flexibility for development and testing.
 
@@ -58,7 +71,7 @@ Device tree overlays use the upstream kernel ConfigFS interface (`drivers/of/con
 mkdir -p /sys/kernel/config/device-tree/overlays/<overlay-name>
 
 # 2. Load the compiled overlay
-cat /lib/firmware/overlays/<overlay-name>.dtbo > /sys/kernel/config/device-tree/overlays/<overlay-name>/dtbo
+cat /boot/devicetree/<overlay-name>.dtbo > /sys/kernel/config/device-tree/overlays/<overlay-name>/dtbo
 
 # 3. Activate the overlay
 echo 1 > /sys/kernel/config/device-tree/overlays/<overlay-name>/status
@@ -76,7 +89,8 @@ rmdir /sys/kernel/config/device-tree/overlays/<overlay-name>
 
 ### Making Overlays Persistent
 
-Overlays loaded via ConfigFS don't persist across reboots. To load them automatically, create a systemd service (see [DS3231-RTC.md](DS3231-RTC.md) for an example).
+Overlays loaded via ConfigFS don't persist across reboots. For persistent behavior, use `/etc/device-tree-overlays.conf`
+and reboot (merged-boot behavior).
 
 ## Creating New Overlays
 
@@ -117,7 +131,7 @@ For one-off overlays not in the main build, you can manually compile:
 ```bash
 # On device or build host with dtc installed
 dtc -@ -I dts -O dtb -o my-overlay.dtbo my-overlay-overlay.dts
-cp my-overlay.dtbo /lib/firmware/overlays/
+cp my-overlay.dtbo /etc/devicetree/
 ```
 
 ### 3. Testing Your Overlay
@@ -125,7 +139,7 @@ cp my-overlay.dtbo /lib/firmware/overlays/
 **Option A: Boot-Time Loading (Easier)**
 
 Add the overlay name (or absolute path) to `/etc/device-tree-overlays.conf`,
-copy the `.dtbo` to `/lib/firmware/overlays/`, reboot, and check boot logs:
+copy the `.dtbo` to `/etc/devicetree/` (or `/boot/devicetree/`), reboot, and check boot logs:
 
 ```bash
 ssh pico@192.168.7.2 dmesg | grep -i overlay
@@ -137,7 +151,7 @@ Test with ConfigFS before committing to the image:
 
 ```bash
 mkdir -p /sys/kernel/config/device-tree/overlays/my-overlay
-cat /lib/firmware/overlays/my-overlay.dtbo > /sys/kernel/config/device-tree/overlays/my-overlay/dtbo
+cat /etc/devicetree/my-overlay.dtbo > /sys/kernel/config/device-tree/overlays/my-overlay/dtbo
 echo 1 > /sys/kernel/config/device-tree/overlays/my-overlay/status
 ```
 

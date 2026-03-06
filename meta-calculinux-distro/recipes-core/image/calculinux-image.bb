@@ -82,7 +82,8 @@ IMAGE_INSTALL += " \
     shadow \
     sudo \
     systemd-analyze \
-    systemd-load-dt-overlays \
+    default-merged-fit \
+    merge-dt-overlays-boot \
     terminus-font \
     tzdata \
     tmux \

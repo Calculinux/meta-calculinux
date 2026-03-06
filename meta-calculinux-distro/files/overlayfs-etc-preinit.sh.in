@@ -33,10 +33,40 @@ if [ "{OVERLAYFS_ETC_FSTYPE}" = "ext4" ]; then
 fi
 
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
+DATA_MOUNTED=
 if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
     -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \
     "/dev/$PARTITION_NAME" {OVERLAYFS_ETC_MOUNT_POINT}
 then
+    DATA_MOUNTED=1
+fi
+if [ -z "$DATA_MOUNTED" ]; then
+    echo "PREINIT: </data> mount failed, attempting format..."
+    mkfs.ext4 -F -O ext_attr "/dev/$PARTITION_NAME" 2>/dev/null && \
+    mount -n -t {OVERLAYFS_ETC_FSTYPE} \
+        -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \
+        "/dev/$PARTITION_NAME" {OVERLAYFS_ETC_MOUNT_POINT} && \
+    DATA_MOUNTED=1
+fi
+if [ -n "$DATA_MOUNTED" ]; then
+    # Seed /data/fit/ with both A and B from read-only /boot/zboot_merged.img when either is missing
+    FIT_A="{OVERLAYFS_ETC_MOUNT_POINT}/fit/zboot_merged_a.img"
+    FIT_B="{OVERLAYFS_ETC_MOUNT_POINT}/fit/zboot_merged_b.img"
+    DEFAULT_FIT="/boot/zboot_merged.img"
+    if [ -f "$DEFAULT_FIT" ] && { [ ! -f "$FIT_A" ] || [ ! -f "$FIT_B" ]; }; then
+        echo "PREINIT: Seeding /data/fit/ with default merged FIT and rebooting..."
+        mkdir -p "{OVERLAYFS_ETC_MOUNT_POINT}/fit"
+        cp "$DEFAULT_FIT" "$FIT_A"
+        cp "$DEFAULT_FIT" "$FIT_B"
+        fw_setenv DEFAULT_FIT_JUST_INSTALLED 1 2>/dev/null || true
+        fw_setenv FIT_SLOT A 2>/dev/null || true
+        fw_setenv BOOT_A_LEFT 3 2>/dev/null || true
+        fw_setenv BOOT_B_LEFT 3 2>/dev/null || true
+        sync
+        reboot -f
+    fi
+fi
+if [ -n "$DATA_MOUNTED" ]; then
     for overlay in $OVERLAYS; do
         echo ">> Mounting overlay for: $overlay"
 

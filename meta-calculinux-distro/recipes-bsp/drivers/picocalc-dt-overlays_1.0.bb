@@ -51,3 +51,6 @@ do_install() {
 
 FILES:${PN} = "/boot/devicetree/*.dtbo"
 PACKAGES = "${PN}"
+
+# So default-merged-fit can build a merged FIT at image build time
+SYSROOT_DIRS += "/boot"

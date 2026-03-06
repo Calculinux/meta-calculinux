@@ -151,18 +151,26 @@ cd calculinux-build
 
 The overlay should be compiled and installed in the image:
 ```
-/lib/firmware/overlays/sx1262-lora.dtbo
+/boot/devicetree/sx1262-lora.dtbo
 ```
 
-### 3. Apply Overlay at Runtime (optional)
+### 3. Enable Overlay (default: merged for next boot)
+
+Add `sx1262-lora` to `/etc/device-tree-overlays.conf`, then reboot. Calculinux will merge overlays
+into the boot DTB/FIT for the **next boot**.
+
+### 4. Apply Overlay at Runtime (developer option)
 
 ```bash
 ssh pico@192.168.7.2
 mkdir -p /sys/kernel/config/device-tree/overlays/sx1262
-cat /lib/firmware/overlays/sx1262-lora.dtbo > \
+cat /boot/devicetree/sx1262-lora.dtbo > \
     /sys/kernel/config/device-tree/overlays/sx1262/dtbo
 echo 1 > /sys/kernel/config/device-tree/overlays/sx1262/status
 ```
+
+If you see `rockchip-pinctrl ... unable to find group for node sx1262-pins`, use the merged-boot workflow
+and reboot, or use the runtime-friendly overlay `sx1262-lora-runtime.dtbo`.
 
 ### 4. Verify Meshtastic Operation
 
