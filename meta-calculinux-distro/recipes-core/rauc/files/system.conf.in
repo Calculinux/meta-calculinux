@@ -15,3 +15,6 @@ bootname=A
 device={RAUC_SLOT_B_DEVICE}
 type=ext4
 bootname=B
+
+[handlers]
+post-install=/usr/lib/rauc/post-install-handler.sh

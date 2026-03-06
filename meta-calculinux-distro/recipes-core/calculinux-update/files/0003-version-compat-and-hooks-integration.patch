@@ -1,0 +1,167 @@
+From: meta-calculinux <noreply@calculinux.org>
+Subject: [PATCH] Add version_compat module and load version manifest in slot-post-install
+
+- Add version_compat.py: load_version_manifest, check_compatibility,
+  UpgradeType, CompatLevel, CompatibilityReport (minimal implementation).
+- In hooks.run_slot_hook load current and bundle version manifests when
+  present and log compatibility report for major upgrades.
+
+Signed-off-by: meta-calculinux <noreply@calculinux.org>
+
+--- /dev/null
++++ b/src/calculinux_update/version_compat.py
+@@ -0,0 +1,98 @@
++"""Version compatibility checking for major/minor upgrades."""
++
++from __future__ import annotations
++
++import re
++from dataclasses import dataclass
++from enum import Enum
++from pathlib import Path
++from typing import Dict, List
++
++
++class UpgradeType(Enum):
++    PATCH = "patch"
++    MINOR = "minor"
++    MAJOR = "major"
++    DOWNGRADE = "downgrade"
++
++
++class CompatLevel(Enum):
++    COMPATIBLE = "compatible"
++    MINOR_ISSUES = "minor_issues"
++    MAJOR_ISSUES = "major_issues"
++    INCOMPATIBLE = "incompatible"
++
++
++@dataclass
++class CompatibilityIssue:
++    level: CompatLevel
++    category: str
++    message: str
++    recommendation: str | None = None
++
++
++@dataclass
++class CompatibilityReport:
++    upgrade_type: UpgradeType
++    overall_level: CompatLevel
++    issues: List[CompatibilityIssue]
++
++    def any_blockers(self) -> bool:
++        return self.overall_level == CompatLevel.INCOMPATIBLE
++
++
++def _parse_version(ver: str) -> tuple:
++    parts = re.sub(r"[^0-9.]", "", ver).split(".") or ["0"]
++    padded = (parts + ["0", "0", "0"])[:3]
++    return tuple(int(x) if x.isdigit() else 0 for x in padded)
++
++
++def load_version_manifest(path: Path) -> Dict[str, str]:
++    out = {}
++    if not path.exists():
++        return out
++    try:
++        raw = path.read_text()
++        for line in raw.splitlines():
++            line = line.strip()
++            if not line or line.startswith("#"):
++                continue
++            if "=" in line and not line.startswith("="):
++                k, v = line.split("=", 1)
++                out[k.strip()] = v.strip().strip('"').strip("'")
++    except (OSError, IOError):
++        pass
++    return out
++
++
++def get_upgrade_type(old_ver: str, new_ver: str) -> UpgradeType:
++    old_p = _parse_version(old_ver)
++    new_p = _parse_version(new_ver)
++    if new_p > old_p:
++        if old_p[0] != new_p[0]:
++            return UpgradeType.MAJOR
++        if len(old_p) > 1 and len(new_p) > 1 and new_p[1] != old_p[1]:
++            return UpgradeType.MINOR
++        return UpgradeType.PATCH
++    if new_p < old_p:
++        return UpgradeType.DOWNGRADE
++    return UpgradeType.PATCH
++
++
++def check_compatibility(old: Dict[str, str], new: Dict[str, str]) -> CompatibilityReport:
++    issues: List[CompatibilityIssue] = []
++    old_ver = old.get("CALCULINUX_VERSION", "0.0.0")
++    new_ver = new.get("CALCULINUX_VERSION", "0.0.0")
++    upgrade_type = get_upgrade_type(old_ver, new_ver)
++
++    if old.get("KERNEL_VERSION") and new.get("KERNEL_VERSION"):
++        old_k = _parse_version(old["KERNEL_VERSION"])
++        new_k = _parse_version(new["KERNEL_VERSION"])
++        if old_k[0] != new_k[0]:
++            issues.append(CompatibilityIssue(
++                level=CompatLevel.MAJOR_ISSUES, category="kernel",
++                message=f"Kernel major: {old['KERNEL_VERSION']} -> {new['KERNEL_VERSION']}",
++                recommendation="Out-of-tree kernel modules may need rebuild",
++            ))
++    if old.get("PYTHON_VERSION") != new.get("PYTHON_VERSION"):
++        issues.append(CompatibilityIssue(
++            level=CompatLevel.MAJOR_ISSUES, category="python",
++            message=f"Python: {old.get('PYTHON_VERSION')} -> {new.get('PYTHON_VERSION')}",
++            recommendation="Python packages may need reinstall",
++        ))
++    if old.get("YOCTO_VERSION") != new.get("YOCTO_VERSION"):
++        issues.append(CompatibilityIssue(
++            level=CompatLevel.MAJOR_ISSUES, category="abi",
++            message=f"Yocto release: {old.get('YOCTO_VERSION')} -> {new.get('YOCTO_VERSION')}",
++            recommendation="Overlay packages may need upgrade/reinstall",
++        ))
++    if old.get("CALCULINUX_CODENAME") != new.get("CALCULINUX_CODENAME"):
++        issues.append(CompatibilityIssue(
++            level=CompatLevel.MINOR_ISSUES, category="feeds",
++            message=f"Codename: {old.get('CALCULINUX_CODENAME')} -> {new.get('CALCULINUX_CODENAME')}",
++            recommendation="Package feeds will be updated",
++        ))
++
++    overall = max((i.level for i in issues), default=CompatLevel.COMPATIBLE)
++    return CompatibilityReport(upgrade_type=upgrade_type, overall_level=overall, issues=issues)
++
+--- a/src/calculinux_update/hooks.py
++++ b/src/calculinux_update/hooks.py
+@@ -18,6 +18,7 @@ from .opkg.reconcile import (
+ from .opkg.status import load_package_names, load_status_entries, write_status_entries
+ from .opkg.conffiles import detect_modified_conffiles, create_dpkg_new_files
++from .version_compat import load_version_manifest, check_compatibility
+ 
+ LOG = logging.getLogger("calculinux_update.hooks")
+ LOG.setLevel(logging.INFO)
+@@ -298,6 +299,28 @@ def run_slot_hook(hook: str, slot: str) -> None:
+     if not WRITABLE_STATUS.exists():
+         LOG.warning("writable status %s missing", WRITABLE_STATUS)
+         return
++
++    # Load version manifests when present (for major-version upgrade reporting)
++    bundle_mount = os.environ.get("RAUC_BUNDLE_MOUNT_POINT")
++    current_manifest = Path("/var/lib/calculinux/version-manifest.env")
++    bundle_manifest = Path(bundle_mount) / "extras/version-manifest.env" if bundle_mount else None
++    if current_manifest.exists() and bundle_manifest and bundle_manifest.exists():
++        old_manifest = load_version_manifest(current_manifest)
++        new_manifest = load_version_manifest(bundle_manifest)
++        if old_manifest and new_manifest:
++            report = check_compatibility(old_manifest, new_manifest)
++            LOG.info(
++                "Version upgrade: %s -> %s (%s)",
++                old_manifest.get("CALCULINUX_VERSION", "unknown"),
++                new_manifest.get("CALCULINUX_VERSION", "unknown"),
++                report.upgrade_type.value,
++            )
++            for issue in report.issues:
++                LOG.info("[%s] %s: %s", issue.level.name, issue.category, issue.message)
++                if issue.recommendation:
++                    LOG.info("  -> %s", issue.recommendation)
+ 
+     # Save pre-update state for rollback detection
+     _save_pre_update_state(slot)
