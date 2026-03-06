@@ -4,7 +4,7 @@ header:
 
 distro: calculinux-distro
 
-# scarthgap checkout
+# walnascar (5.2) checkout
 repos:
   poky:
     url: https://git.yoctoproject.org/poky.git

@@ -17,7 +17,10 @@ DEPENDS = "virtual/kernel picocalc-dt-overlays u-boot-tools-native"
 do_install[depends] += "virtual/kernel:do_deploy"
 DEPENDS += "dtc-native"
 
-S = "${WORKDIR}"
+# S = ${WORKDIR} is not allowed since Yocto 5.1 (insane.bbclass). Use UNPACKDIR + placeholder.
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+SRC_URI = "file://dummy"
+S = "${UNPACKDIR}"
 
 do_install() {
     ZBOOT="${DEPLOY_DIR_IMAGE}/zboot.img"
