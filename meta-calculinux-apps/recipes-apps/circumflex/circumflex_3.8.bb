@@ -15,6 +15,6 @@ SRC_URI = "\
 
 SRCREV = "d3718631d4dad87c239d2d7b0209773dfdb40ea6"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 GO_IMPORT = "github.com/bensadeh/circumflex"

@@ -10,7 +10,6 @@ DEPENDS = "ncurses zlib libdeflate libunistring"
 
 SRC_URI = "git://github.com/dankamongmen/notcurses.git;protocol=https;branch=master;tag=v3.0.17"
 
-S = "${WORKDIR}/git"
 
 inherit cmake pkgconfig
 

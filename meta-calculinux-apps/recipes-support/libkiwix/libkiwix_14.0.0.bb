@@ -16,7 +16,6 @@ SRCREV = "20abebd6237fe5879bf79950a0e620edd620f33a"
 
 SRC_URI[mustache.sha256sum] = "6a07bd8c31be6bb3eae6df98b12f89df8931604bd890e8bba59298a68b89ff29"
 
-S = "${WORKDIR}/git"
 
 DEPENDS = "\
     libzim \

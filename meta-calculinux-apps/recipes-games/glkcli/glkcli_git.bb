@@ -19,7 +19,7 @@ SRCREV = "${AUTOREV}"
 PV = "1.2.1+git${SRCPV}"
 
 # Working directory
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 # Rust build system - use cargo-update-recipe-crates for proper dependency management
 inherit cargo cargo-update-recipe-crates

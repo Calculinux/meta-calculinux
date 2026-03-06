@@ -9,7 +9,7 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=f27defe1e96c2e1ecd4e0c9be8967949"
 SRC_URI = "git://github.com/kiwix/kiwix-tools;protocol=https;branch=main"
 SRCREV = "acad8a85ab4706ff527cabdaac4635a930f3bdd4"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 DEPENDS = "\
     libzim \

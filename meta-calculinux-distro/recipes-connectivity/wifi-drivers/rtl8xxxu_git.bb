@@ -13,12 +13,12 @@ SRC_URI = "\
     "
 SRCREV = "7cb5b73796b19b460af835144e604595083ca60d"
 
-S = "${UNPACKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 DEPENDS += "virtual/kernel"
 
 inherit module
 
-MODULE_DIR="${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"
+MODULE_DIR = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"
 
 EXTRA_OEMAKE += "\
     MODULE_NAME=rtl8xxxu \

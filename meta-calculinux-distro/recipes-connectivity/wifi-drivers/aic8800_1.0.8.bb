@@ -5,7 +5,7 @@ LICENSE = "GPL-2.0-only"
 PV = "1.0.8"
 
 # License file is extracted from deb package (usr/share/doc/aic8800-dkms/copyright)
-LIC_FILES_CHKSUM = "file://${WORKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=dda5bafa8afaed74f884152b2b3efd00"
+LIC_FILES_CHKSUM = "file://${UNPACKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=dda5bafa8afaed74f884152b2b3efd00"
 
 # Download the prebuilt DKMS deb package
 # Patches:
@@ -17,7 +17,8 @@ SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0 \
 "
 SRC_URI[sha256sum] = "952152f3add4ec24fee4af5a677b40135eec7759945268c8539bcc8b8da655eb"
 
-S = "${WORKDIR}/aic8800-${PV}"
+# Custom do_unpack extracts deb into UNPACKDIR so S is valid for Whinlatter
+S = "${UNPACKDIR}/aic8800-${PV}"
 B = "${S}"
 
 DEPENDS = "virtual/kernel"
@@ -60,7 +61,7 @@ python do_unpack:append() {
     import os
     import shutil
     
-    workdir = d.getVar('WORKDIR')
+    unpackdir = d.getVar('UNPACKDIR')
     dl_dir = d.getVar('DL_DIR')
     pv = d.getVar('PV')
     
@@ -70,35 +71,32 @@ python do_unpack:append() {
     if not os.path.exists(deb_file):
         bb.fatal('DEB file not found in DL_DIR: %s' % deb_file)
     
-    # Copy deb to workdir for extraction
-    workdir_deb = os.path.join(workdir, 'aic8800-dkms.deb')
-    shutil.copy(deb_file, workdir_deb)
+    # Extract deb into UNPACKDIR so S = ${UNPACKDIR}/aic8800-${PV} is valid (Whinlatter)
+    unpack_deb = os.path.join(unpackdir, 'aic8800-dkms.deb')
+    shutil.copy(deb_file, unpack_deb)
     
-    # Extract deb to workdir
     # deb format: ar x file.deb extracts control.tar.gz, data.tar.gz, debian-binary
-    os.chdir(workdir)
-    subprocess.run(['ar', 'x', workdir_deb], check=True, capture_output=True)
+    os.chdir(unpackdir)
+    subprocess.run(['ar', 'x', unpack_deb], check=True, capture_output=True)
     subprocess.run(['tar', '-xzf', 'data.tar.gz'], check=True, capture_output=True)
     
     # The deb extracts to usr/src/aic8800-<PV> and lib/firmware/aic8800DC
-    # Move driver source to S
-    src_path = os.path.join(workdir, 'usr', 'src', 'aic8800-%s' % pv)
-    dst_path = os.path.join(workdir, 'aic8800-%s' % pv)
+    # Move driver source to UNPACKDIR/aic8800-<PV> (i.e. S)
+    src_path = os.path.join(unpackdir, 'usr', 'src', 'aic8800-%s' % pv)
+    dst_path = os.path.join(unpackdir, 'aic8800-%s' % pv)
     if os.path.exists(src_path) and not os.path.exists(dst_path):
         shutil.move(src_path, dst_path)
         bb.debug(1, 'Moved source from %s to %s' % (src_path, dst_path))
     
-    # Extract udev rules from deb lib/udev/rules.d/
-    # Already extracted by tar above, just verify it exists
-    rules_path = os.path.join(workdir, 'lib', 'udev', 'rules.d', 'aic.rules')
+    # udev rules from deb lib/udev/rules.d/
+    rules_path = os.path.join(unpackdir, 'lib', 'udev', 'rules.d', 'aic.rules')
     if os.path.exists(rules_path):
         bb.debug(1, 'Found aic.rules at %s' % rules_path)
     else:
         bb.warn('aic.rules not found at %s' % rules_path)
     
-    # Convert all source files from CRLF to LF line endings
-    # This allows patches to apply cleanly despite upstream using Windows line endings
-    src_dir = os.path.join(workdir, 'aic8800-%s' % pv)
+    # Convert source from CRLF to LF so patches apply cleanly
+    src_dir = os.path.join(unpackdir, 'aic8800-%s' % pv)
     if os.path.exists(src_dir):
         for root, dirs, files in os.walk(src_dir):
             for file in files:
@@ -107,7 +105,6 @@ python do_unpack:append() {
                     try:
                         with open(filepath, 'rb') as f:
                             content = f.read()
-                        # Replace CRLF with LF
                         content = content.replace(b'\r\n', b'\n')
                         with open(filepath, 'wb') as f:
                             f.write(content)
@@ -133,13 +130,13 @@ do_install() {
     install -m 0644 ${S}/aic_load_fw/aic_load_fw.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/
     install -m 0644 ${S}/aic8800_fdrv/aic8800_fdrv.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/aic8800/
 
-    # Install firmware files from extracted deb
+    # Install firmware files from extracted deb (in UNPACKDIR)
     install -d ${D}${nonarch_base_libdir}/firmware/aic8800DC
-    if [ -d ${WORKDIR}/lib/firmware/aic8800DC ]; then
-        cp -r --no-preserve=ownership ${WORKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800DC/
+    if [ -d ${UNPACKDIR}/lib/firmware/aic8800DC ]; then
+        cp -r --no-preserve=ownership ${UNPACKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800DC/
     fi
 
     # Install udev rules extracted from deb
     install -d ${D}${sysconfdir}/udev/rules.d
-    install -m 0644 ${WORKDIR}/lib/udev/rules.d/aic.rules ${D}${sysconfdir}/udev/rules.d/
+    install -m 0644 ${UNPACKDIR}/lib/udev/rules.d/aic.rules ${D}${sysconfdir}/udev/rules.d/
 }

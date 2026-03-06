@@ -12,7 +12,7 @@ SRC_URI = "git://github.com/Builditluc/wiki-tui.git;protocol=https;branch=main \
            file://0001-Pin-tui-logger-to-0.17.3-for-Rust-1.87-compat.patch"
 SRCREV = "ff41c522ae89627ea4ba7e0d630ea7cae9d3374b"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 PV = "0.9.2+git${SRCPV}"
 

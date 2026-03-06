@@ -1,5 +1,5 @@
 diff --git a/conf/layer.conf b/conf/layer.conf
-index c8a6383..7857914 100644
+index c8a6383..71b382a 100644
 --- a/conf/layer.conf
 +++ b/conf/layer.conf
 @@ -4,7 +4,7 @@ BBPATH .= ":${LAYERDIR}"
@@ -7,7 +7,95 @@ index c8a6383..7857914 100644
  BBFILES += "${LAYERDIR}/recipes*/*/*.bb ${LAYERDIR}/recipes*/*/*.bbappend"
  
 -LAYERSERIES_COMPAT_rtlwifi = "dunfell kirkstone mickledore gatesgarth scarthgap"
-+LAYERSERIES_COMPAT_rtlwifi = "dunfell kirkstone mickledore gatesgarth scarthgap styhead walnascar"
++LAYERSERIES_COMPAT_rtlwifi = "dunfell kirkstone mickledore gatesgarth scarthgap styhead walnascar whinlatter"
  
  BBFILE_COLLECTIONS += "rtlwifi"
  BBFILE_PRIORITY_rtlwifi = "1"
+diff --git a/recipes-bsp/drivers/rtl8192eu.bb b/recipes-bsp/drivers/rtl8192eu.bb
+index 522671a..e5b859e 100644
+--- a/recipes-bsp/drivers/rtl8192eu.bb
++++ b/recipes-bsp/drivers/rtl8192eu.bb
+@@ -6,8 +6,6 @@ LIC_FILES_CHKSUM ?= "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171
+ SRC_URI = "git://github.com/Mange/rtl8192eu-linux-driver.git;protocol=https;branch=realtek-4.4.x"
+ SRCREV = "528ae31705764d78cc117abd604d9b799bd52543"
+ 
+-S = "${WORKDIR}/git"
+-
+ PV = "4.4.1-git"
+ 
+ DEPENDS = "virtual/kernel"
+diff --git a/recipes-bsp/drivers/rtl8723bu.bb b/recipes-bsp/drivers/rtl8723bu.bb
+index 5012674..5062752 100644
+--- a/recipes-bsp/drivers/rtl8723bu.bb
++++ b/recipes-bsp/drivers/rtl8723bu.bb
+@@ -9,8 +9,6 @@ SRCREV = "af3a408d6399655b0db23c2c8720436ca725ca47"
+ SRC_URI = "git://github.com/lwfinger/rtl8723bu.git;protocol=https;branch=master \
+            file://0002-realtek-Disable-IPS-mode.patch "
+ 
+-S = "${WORKDIR}/git"
+-
+ DEPENDS = "virtual/kernel"
+ 
+ inherit module
+diff --git a/recipes-bsp/drivers/rtl8723du.bb b/recipes-bsp/drivers/rtl8723du.bb
+index 38f50be..b611bfd 100644
+--- a/recipes-bsp/drivers/rtl8723du.bb
++++ b/recipes-bsp/drivers/rtl8723du.bb
+@@ -12,5 +12,4 @@ SRC_URI = "\
+ PV = "5.13.4-git"
+ 
+ inherit module
+-S = "${WORKDIR}/git"
+ EXTRA_OEMAKE:append = " KSRC=${STAGING_KERNEL_DIR}"
+diff --git a/recipes-bsp/drivers/rtl8812au.bb b/recipes-bsp/drivers/rtl8812au.bb
+index 90139ec..60a1588 100644
+--- a/recipes-bsp/drivers/rtl8812au.bb
++++ b/recipes-bsp/drivers/rtl8812au.bb
+@@ -13,6 +13,5 @@ SRC_URI = " \
+ SRCREV = "c0efee9cd121d9f0c815d9771475f76339a8f7d3"
+ 
+ PV = "5.13.6-git"
+-S = "${WORKDIR}/git"
+ 
+ EXTRA_OEMAKE:append = " KSRC=${STAGING_KERNEL_DIR}"
+diff --git a/recipes-bsp/drivers/rtl8814au.bb b/recipes-bsp/drivers/rtl8814au.bb
+index 0827720..48f3d76 100644
+--- a/recipes-bsp/drivers/rtl8814au.bb
++++ b/recipes-bsp/drivers/rtl8814au.bb
+@@ -10,5 +10,4 @@ SRC_URI = "git://github.com/morrownr/8814au;protocol=https;branch=main \
+ PV = "5.8.5.1-git"
+ 
+ inherit module
+-S = "${WORKDIR}/git"
+ EXTRA_OEMAKE:append = " KSRC=${STAGING_KERNEL_DIR}"
+diff --git a/recipes-bsp/drivers/rtl8821au.bb b/recipes-bsp/drivers/rtl8821au.bb
+index 9e7a8dc..c41ff70 100644
+--- a/recipes-bsp/drivers/rtl8821au.bb
++++ b/recipes-bsp/drivers/rtl8821au.bb
+@@ -13,6 +13,4 @@ SRC_URI = " \
+ SRCREV = "a133274b0532c17318e8790b771566f4a6b12b7c"
+ PV = "5.12.5.2-git"
+ 
+-S = "${WORKDIR}/git"
+-
+ EXTRA_OEMAKE:append = " KSRC=${STAGING_KERNEL_DIR}"
+diff --git a/recipes-bsp/drivers/rtl8821cu.bb b/recipes-bsp/drivers/rtl8821cu.bb
+index 4dc8d6b..b4032c3 100644
+--- a/recipes-bsp/drivers/rtl8821cu.bb
++++ b/recipes-bsp/drivers/rtl8821cu.bb
+@@ -12,5 +12,4 @@ SRC_URI = " \
+ PV = "5.12.0.4-git"
+ 
+ inherit module
+-S = "${WORKDIR}/git"
+ EXTRA_OEMAKE:append = " KSRC=${STAGING_KERNEL_DIR}"
+diff --git a/recipes-bsp/drivers/rtl88x2bu.bb b/recipes-bsp/drivers/rtl88x2bu.bb
+index 8073441..40797e5 100644
+--- a/recipes-bsp/drivers/rtl88x2bu.bb
++++ b/recipes-bsp/drivers/rtl88x2bu.bb
+@@ -11,5 +11,4 @@ SRC_URI = " \
+ PV = "5.13.1-git"
+ 
+ inherit module
+-S = "${WORKDIR}/git"
+ EXTRA_OEMAKE:append = " KSRC=${STAGING_KERNEL_DIR}"

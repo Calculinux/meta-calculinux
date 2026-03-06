@@ -9,7 +9,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=cf9f0edc6d0921306fabede20ebb4306"
 SRC_URI = "gitsm://github.com/gurubook/picoarch.git;protocol=https;branch=feature/calculinux"
 SRCREV = "c62605eb0621f35bb54a394cebcd0f65a13253c6"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 DEPENDS = " \
     alsa-lib \

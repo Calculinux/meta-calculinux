@@ -15,7 +15,7 @@ SRC_URI = "\
 
 SRCREV = "3a594f6dce40fb9b301f5c26ab560aae6eebd47f"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 GO_IMPORT = "github.com/tonymajestro/reddit-tui"
 

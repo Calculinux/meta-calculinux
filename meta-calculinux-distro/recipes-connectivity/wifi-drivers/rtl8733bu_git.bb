@@ -6,7 +6,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 SRC_URI = "git://github.com/libc0607/rtl8733bu-20230626.git;branch=v5.13.0.1;protocol=https"
 SRCREV = "82224810a95d8d8033d1dd38bae53a35f8d9325d"
 
-S = "${UNPACKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 DEPENDS += "virtual/kernel"
 
 inherit module

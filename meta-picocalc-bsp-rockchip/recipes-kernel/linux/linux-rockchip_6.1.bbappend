@@ -20,6 +20,7 @@ SRC_URI = " \
     file://usb-gadget.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
+    file://btrfs-print-tree-fix-block-group-tree-string.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \

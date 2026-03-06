@@ -9,23 +9,23 @@ target:
   - calculinux-bundle
   - packagegroup-meta-calculinux-apps
 
-# walnascar checkout
+# whinlatter checkout
 repos:
   meta-arm:
     url: https://git.yoctoproject.org/meta-arm
-    commit: 2de04c3d31e119d4bedbea24b9c63a8c113a1ce3
+    branch: whinlatter
     layers:
       meta-arm-bsp:
       meta-arm-toolchain:
       meta-arm:
   meta-rockchip:
     url: https://github.com/JeffyCN/meta-rockchip.git
-    commit: 71aa531a2018724a713c9587059bc53fcbd05a23
+    branch: whinlatter
     layers:
       .:
   meta-rtlwifi:
     url: https://github.com/EmbeddedAndroid/meta-rtlwifi.git
-    commit: 17a54f8a3c428039ff33c5a8ff8e045b466204b3
+    branch: master
     layers:
       .:
     patches:
@@ -34,7 +34,7 @@ repos:
         path: patches/rtlwifi.patch
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
-    commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
+    branch: whinlatter
   meta-calculinux:
     layers:
       meta-calculinux-distro:

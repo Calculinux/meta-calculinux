@@ -26,8 +26,6 @@ SRC_URI = " \
     file://config.d/luckfox_pico-lora-rfsw-ebyte_e22.yaml \
 "
 
-S = "${WORKDIR}/git"
-
 inherit python3native systemd pkgconfig
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"

@@ -9,8 +9,8 @@ SRC_URI = "file://sdl2-test.c \
            file://sdl2-list-backends.c \
            file://Makefile"
 
-S = "${WORKDIR}/sources"
-UNPACKDIR = "${S}"
+UNPACKDIR = "${WORKDIR}/sources"
+S = "${UNPACKDIR}"
 
 inherit pkgconfig
 

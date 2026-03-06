@@ -15,7 +15,6 @@ SRC_URI = "git://github.com/robhagemans/hoard-of-bitfonts.git;protocol=https;bra
           "
 SRCREV = "${AUTOREV}"
 
-S = "${WORKDIR}/git"
 
 DEPENDS = "python3-monobit-native python3-native"
 

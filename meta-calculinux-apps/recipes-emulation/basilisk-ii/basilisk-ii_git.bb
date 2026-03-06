@@ -18,7 +18,7 @@ SRCREV = "ac3273276215ffb3d0e40c8ed2e86f60882ec04d"
 # The macemu repository contains multiple emulators. Basilisk II's Unix port
 # lives in 'BasiliskII/src/Unix' in this upstream repo — set S to the git root
 # so patches can be applied to files in different subdirectories.
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 DEPENDS = "libsdl2 libpng jpeg zlib alsa-lib gmp mpfr autoconf-native automake-native libtool-native pkgconfig-native"
 HOSTTOOLS += "gcc g++"

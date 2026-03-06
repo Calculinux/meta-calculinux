@@ -11,7 +11,7 @@ inherit cmake pkgconfig
 PV = "1.1.2837"
 SRC_URI = "gitsm://github.com/nesbox/TIC-80.git;protocol=https;branch=main"
 SRCREV = "${AUTOREV}"
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 DEPENDS = "\
     libsdl2 \

@@ -18,6 +18,6 @@ SRC_URI = "\
 
 SRCREV = "b171dc2230fcd2dec5cf5ab9d461f2470d799bbe"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 
 GO_IMPORT = "tildegit.org/sloum/bombadillo"

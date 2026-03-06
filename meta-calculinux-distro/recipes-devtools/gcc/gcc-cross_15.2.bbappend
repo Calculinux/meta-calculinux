@@ -1,6 +1,6 @@
-# Fix for GCC 14.3.0 linking errors in cross-compiler build
+# Fix for GCC cross-compiler linking errors
 # The issue: libbackend.a is missing RTL object files needed for cc1/cc1plus linking
-# Root cause: all-host target in Poky only runs configure-gcc, not the full all-gcc
+# Root cause: all-host target in OE-Core only runs configure-gcc, not the full all-gcc
 # Solution: Override do_compile to build complete host components including all-gcc
 
 do_compile () {

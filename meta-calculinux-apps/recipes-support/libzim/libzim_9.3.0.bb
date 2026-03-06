@@ -10,7 +10,6 @@ SRC_URI = "git://github.com/openzim/libzim;protocol=https;branch=main \
     file://0001-add-icu-uc-dependency.patch"
 SRCREV = "f421088da622c3a1e0fc6a6ced737b10d4fa5502"
 
-S = "${WORKDIR}/git"
 
 DEPENDS = "cmake icu xz zstd xapian-core"
 
