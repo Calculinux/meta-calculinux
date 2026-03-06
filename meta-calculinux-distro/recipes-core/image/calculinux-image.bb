@@ -87,7 +87,6 @@ IMAGE_INSTALL += " \
     default-merged-fit \
     merge-dt-overlays-boot \
     terminus-font \
-    tzdata \
     tmux \
     tree \
     tzdata \
