@@ -140,19 +140,19 @@ do_compile() {
 do_install() {
     install -d ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra
     
-    # Install all kernel modules
-    install -m 0644 ${S}/picocalc_mfd/picocalc_mfd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_mfd_bms/picocalc_mfd_bms.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_mfd_bkl/picocalc_mfd_bkl.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_mfd_kbd/picocalc_mfd_kbd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_mfd_led/picocalc_mfd_led.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_kbd/picocalc_kbd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_lcd_fb/ili9488_fb.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_lcd_drm/ili9488_drm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_rk3506_rproc/rk3506_rproc.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
-    install -m 0644 ${S}/picocalc_snd-m0/picocalc_snd_m0.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    # Install all kernel modules (generic + luckfox-lyra)
+    install -m 0644 ${S}/drivers/picocalc_mfd/picocalc_mfd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_mfd_bms/picocalc_mfd_bms.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_mfd_bkl/picocalc_mfd_bkl.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_mfd_kbd/picocalc_mfd_kbd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_mfd_led/picocalc_mfd_led.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_kbd/picocalc_kbd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_lcd_fb/ili9488_fb.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_lcd_drm/ili9488_drm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_snd-pwm/picocalc_snd_pwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/drivers/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/luckfox-lyra/drivers/picocalc_rk3506_rproc/rk3506_rproc.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+    install -m 0644 ${S}/luckfox-lyra/drivers/picocalc_snd-m0/picocalc_snd_m0.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
 }
 
 SYSROOT_DIRS += "${datadir}/picocalc"

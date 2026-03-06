@@ -96,7 +96,7 @@ and reboot (merged-boot behavior).
 
 ### 1. Add Overlay Source to picocalc-drivers Repository
 
-Create a `.dts` file in the [picocalc-drivers](https://github.com/Calculinux/picocalc-drivers) repository under `devicetree-overlays/`:
+Create a `.dts` file in the [picocalc-drivers](https://github.com/Calculinux/picocalc-drivers) repository under `overlays/` (generic) or `luckfox-lyra/overlays/` (Lyra-specific):
 
 ```dts
 /dts-v1/;

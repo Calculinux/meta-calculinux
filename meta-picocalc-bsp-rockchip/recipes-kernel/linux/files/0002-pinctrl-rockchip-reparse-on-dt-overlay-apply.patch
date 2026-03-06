@@ -154,34 +154,26 @@ Signed-off-by: Calculinux <meta-calculinux>
 +	if (nd->target != dev->of_node)
 +		goto put_pdev;
 +
-+	/* Save current counts; re-count will overwrite info */
++	/* Save current counts for freeing; child_count expects nfunctions/ngroups=0 */
 +	nfunctions = info->nfunctions;
 +	ngroups = info->ngroups;
++	info->nfunctions = 0;
++	info->ngroups = 0;
 +	rockchip_pinctrl_child_count(info, dev->of_node);
 +	if (info->nfunctions == 0)
 +		goto put_pdev;
 +	if (nfunctions == info->nfunctions && ngroups == info->ngroups)
 +		goto put_pdev;
-+	nfunctions = info->nfunctions;
-+	ngroups = info->ngroups;
 +
-+	/* Free existing and re-parse */
-+	for (i = 0; i < info->nfunctions; i++)
++	/* Free existing using OLD counts (child_count overwrote info->nfunctions/ngroups) */
++	for (i = 0; i < nfunctions; i++)
 +		kfree(info->functions[i].groups);
 +	kfree(info->functions);
 +	kfree(info->groups);
++	info->functions = NULL;
++	info->groups = NULL;
 +
-+	info->nfunctions = nfunctions;
-+	info->ngroups = ngroups;
-+	info->functions = kcalloc(info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
-+	info->groups = kcalloc(info->ngroups, sizeof(*info->groups), GFP_KERNEL);
-+	if (!info->functions || !info->groups) {
-+		kfree(info->functions);
-+		kfree(info->groups);
-+		dev_err(dev, "failed to reallocate for overlay pinctrl\n");
-+		goto put_pdev;
-+	}
-+
++	/* parse_dt allocates functions/groups internally; do not pre-allocate */
 +	ret = rockchip_pinctrl_parse_dt(pdev, info);
 +	if (ret) {
 +		for (i = 0; i < info->nfunctions; i++)

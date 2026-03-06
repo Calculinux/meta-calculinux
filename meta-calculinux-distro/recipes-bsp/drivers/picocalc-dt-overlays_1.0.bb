@@ -25,8 +25,15 @@ do_compile() {
     # then dtc emits __fixups__ and the kernel resolves them at apply time from the base DTB __symbols__.
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
 
-    for overlay in ${S}/devicetree-overlays/*-overlay.dts; do
-        [ -f "$overlay" ] || bbfatal "No device tree overlay sources found in ${S}/devicetree-overlays"
+    OVERLAY_SRCS=""
+    for d in overlays luckfox-lyra/overlays; do
+        for overlay in ${S}/$d/*-overlay.dts; do
+            [ -f "$overlay" ] && OVERLAY_SRCS="$OVERLAY_SRCS $overlay"
+        done
+    done
+    [ -n "$OVERLAY_SRCS" ] || bbfatal "No device tree overlay sources found in overlays/ or luckfox-lyra/overlays/"
+
+    for overlay in $OVERLAY_SRCS; do
         name=$(basename "$overlay" -overlay.dts)
 
         # Preprocess: kernel include only (dt-bindings), no base DTS

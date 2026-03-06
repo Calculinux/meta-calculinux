@@ -215,7 +215,7 @@ The NEO-M8N GPS overlay is designed to work alongside the SX1262 LoRA module ove
 ## Device Tree Overlay Source
 
 The overlay source is located in the `picocalc-drivers` repository:
-- Path: `devicetree-overlays/neo-m8n-gps-overlay.dts`
+- Path: `luckfox-lyra/overlays/neo-m8n-gps-overlay.dts`
 - Compiled to: `/lib/firmware/overlays/neo-m8n-gps.dtbo`
 
 ## Additional Resources

@@ -127,7 +127,7 @@ do_install() {
     install -m 0644 ${S}/bin/config-dist.yaml ${D}${sysconfdir}/meshtasticd/config.yaml
     cp -r ${S}/bin/config.d/* ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
     find ${D}${sysconfdir}/meshtasticd/available.d -type f -exec chmod 0644 {} \;
-    install -m 0644 ${WORKDIR}/config.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
+    install -m 0644 ${WORKDIR}/available.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
 
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/sources-unpack/meshtasticd.service ${D}${systemd_system_unitdir}/

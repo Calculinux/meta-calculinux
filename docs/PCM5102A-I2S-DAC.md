@@ -57,7 +57,7 @@ The PCM5102A has stereo line-level outputs:
 ### 1. Device Tree Overlay
 The overlay has been created at:
 ```
-picocalc-drivers/devicetree-overlays/pcm5102a-i2s-overlay.dts
+picocalc-drivers/luckfox-lyra/overlays/pcm5102a-i2s-overlay.dts
 ```
 
 ### 2. Kernel Configuration

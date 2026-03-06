@@ -14,16 +14,16 @@ do_compile[noexec] = "1"
 
 do_install() {
     install -d ${D}${datadir}/picocalc
-    install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
-    install -m 0644 ${S}/linux-rk3506-luckfox-lyra.dtsi ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
-    install -m 0644 ${S}/linux-rk3506g-luckfox-lyra.dts ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
-    install -m 0644 ${S}/uboot-rk3506-luckfox.dtsi ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
-    install -m 0644 ${S}/uboot-rk3506-luckfox.dts ${D}${datadir}/picocalc/rk3506-luckfox.dts
+    install -m 0644 ${S}/luckfox-lyra/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
+    install -m 0644 ${S}/luckfox-lyra/linux-rk3506-luckfox-lyra.dtsi ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
+    install -m 0644 ${S}/luckfox-lyra/linux-rk3506g-luckfox-lyra.dts ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
+    install -m 0644 ${S}/luckfox-lyra/uboot-rk3506-luckfox.dtsi ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
+    install -m 0644 ${S}/luckfox-lyra/uboot-rk3506-luckfox.dts ${D}${datadir}/picocalc/rk3506-luckfox.dts
 
     # Overlay symbol whitelist – consumed by the kernel recipe to inject only
     # the needed __symbols__ entries into the base DTB.
-    if [ -f "${S}/devicetree-overlays/overlay-symbols.txt" ]; then
-        install -m 0644 ${S}/devicetree-overlays/overlay-symbols.txt ${D}${datadir}/picocalc/overlay-symbols.txt
+    if [ -f "${S}/overlays/overlay-symbols.txt" ]; then
+        install -m 0644 ${S}/overlays/overlay-symbols.txt ${D}${datadir}/picocalc/overlay-symbols.txt
     else
         bbwarn "overlay-symbols.txt not found – kernel will fall back to built-in symbol list"
     fi
