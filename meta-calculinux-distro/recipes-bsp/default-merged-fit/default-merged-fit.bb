@@ -1,8 +1,9 @@
 # Build a single default merged FIT (kernel + DT overlays) at image build time.
 # Uses the kernel and FDT deployed by the kernel recipe (fit_kernel, fit_fdt.dtb);
-# no extraction from zboot.img. Installed as /boot/zboot_merged.img on the
-# read-only root. U-Boot uses it only when both /data/fit/zboot_merged_a.img
-# and _b.img have failed to boot.
+# no extraction from zboot.img. Installs:
+#   /boot/zboot_merged.img - fallback FIT (U-Boot when both A and B on /data/fit/ fail)
+#   /boot/fit_kernel, /boot/fit_fdt.dtb, /boot/fit_compression.txt - base components
+# so merge-dt-overlays-boot.sh can build user-merged FITs from the base DTB (no extraction).
 
 SUMMARY = "Default merged zboot FIT (read-only fallback)"
 DESCRIPTION = "Builds zboot_merged.img with default device tree overlays; \
@@ -95,7 +96,12 @@ EOF
     fi
 
     install -m 0644 "$WORKDIR_MERGE/zboot_merged.img" "$OUTDIR/zboot_merged.img"
+
+    # Base FIT components for merge-dt-overlays-boot.sh (base DTB, no overlays)
+    install -m 0644 "$WORKDIR_MERGE/kernel" "$OUTDIR/fit_kernel"
+    install -m 0644 "$WORKDIR_MERGE/fdt.dtb" "$OUTDIR/fit_fdt.dtb"
+    echo -n "$COMPRESS" > "$OUTDIR/fit_compression.txt"
 }
 
-FILES:${PN} = "/boot/zboot_merged.img"
+FILES:${PN} = "/boot/zboot_merged.img /boot/fit_kernel /boot/fit_fdt.dtb /boot/fit_compression.txt"
 PACKAGES = "${PN}"
