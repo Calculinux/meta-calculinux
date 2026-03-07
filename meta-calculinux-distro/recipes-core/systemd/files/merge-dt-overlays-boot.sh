@@ -50,6 +50,8 @@ else
 fi
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
+# All extraction and repack steps use CWD for relative paths; run from WORKDIR.
+cd "$WORKDIR"
 
 trim() {
     local s="$1"
@@ -87,10 +89,16 @@ if [[ -f "$CONFIG_FILE" ]]; then
     done < "$CONFIG_FILE"
 fi
 
-# Extract kernel and fdt from FIT (dumpimage -l shows order; typically 0=kernel, 1=fdt)
-dumpimage -l "$ZBOOT_SRC" > "$WORKDIR/list.txt" 2>/dev/null || true
-dumpimage -i "$ZBOOT_SRC" -p 0 -o "$WORKDIR/kernel" 2>/dev/null || { echo "dumpimage: failed to extract kernel" >&2; exit 1; }
-dumpimage -i "$ZBOOT_SRC" -p 1 -o "$WORKDIR/fdt.dtb" 2>/dev/null || { echo "dumpimage: failed to extract fdt" >&2; exit 1; }
+# Extract kernel and fdt from FIT (dumpimage -l shows order; typically 0=kernel, 1=fdt).
+# Use -o with bare names so output is written to CWD (WORKDIR); avoids CWD-relative bugs.
+dumpimage -l "$ZBOOT_SRC" > list.txt 2>/dev/null || true
+dumpimage -i "$ZBOOT_SRC" -p 0 -o kernel 2>/dev/null || { echo "merge-dt-overlays-boot: dumpimage failed to extract kernel (is -p 0 the kernel in this FIT?)" >&2; exit 1; }
+dumpimage -i "$ZBOOT_SRC" -p 1 -o fdt.dtb 2>/dev/null || { echo "merge-dt-overlays-boot: dumpimage failed to extract fdt (is -p 1 the FDT in this FIT?)" >&2; exit 1; }
+
+if [[ ! -f fdt.dtb ]] || [[ ! -s fdt.dtb ]]; then
+    echo "merge-dt-overlays-boot: base FDT missing or empty after extract (check FIT layout with: dumpimage -l $ZBOOT_SRC)" >&2
+    exit 1
+fi
 
 # Merge overlays onto base DTB
 if [[ ${#OVERLAY_FILES[@]} -gt 0 ]]; then
@@ -98,16 +106,16 @@ if [[ ${#OVERLAY_FILES[@]} -gt 0 ]]; then
         echo "merge-dt-overlays-boot: fdtoverlay not found (need dtc with fdtoverlay)" >&2
         exit 1
     fi
-    fdtoverlay -i "$WORKDIR/fdt.dtb" -o "$WORKDIR/merged.dtb" "${OVERLAY_FILES[@]}" || { echo "fdtoverlay failed" >&2; exit 1; }
+    fdtoverlay -i fdt.dtb -o merged.dtb "${OVERLAY_FILES[@]}" || { echo "merge-dt-overlays-boot: fdtoverlay failed" >&2; exit 1; }
 else
-    cp "$WORKDIR/fdt.dtb" "$WORKDIR/merged.dtb"
+    cp fdt.dtb merged.dtb
 fi
 
 # Repack FIT with kernel + merged DTB. Use a minimal .its; mkimage will hash.
 # Compression: check dumpimage list for "Compression" (gzip common).
 COMPRESS="none"
-grep -q "gzip" "$WORKDIR/list.txt" 2>/dev/null && COMPRESS="gzip"
-cat > "$WORKDIR/image.its" << EOF
+grep -q "gzip" list.txt 2>/dev/null && COMPRESS="gzip"
+cat > image.its << EOF
 /dts-v1/;
 / {
     description = "zboot with merged DTB";
@@ -137,10 +145,10 @@ cat > "$WORKDIR/image.its" << EOF
 };
 EOF
 
-mkimage -f "$WORKDIR/image.its" -A arm "$WORKDIR/zboot_merged.img" -r 2>/dev/null || \
-    { echo "mkimage: failed to repack FIT" >&2; exit 1; }
+mkimage -f image.its -A arm zboot_merged.img -r 2>/dev/null || \
+    { echo "merge-dt-overlays-boot: mkimage failed to repack FIT" >&2; exit 1; }
 
 mkdir -p "$OUTPUT_DIR"
-install -m 0644 "$WORKDIR/zboot_merged.img" "$OUTPUT_DIR/$OUT_BASENAME"
+install -m 0644 zboot_merged.img "$OUTPUT_DIR/$OUT_BASENAME"
 fw_setenv FIT_SLOT "$NEXT_FIT_SLOT" 2>/dev/null || true
 echo "merge-dt-overlays-boot: wrote $OUT_BASENAME (${#OVERLAY_FILES[@]} overlays); set FIT_SLOT=$NEXT_FIT_SLOT for next boot"
