@@ -33,7 +33,7 @@ do_install() {
     OUTDIR="${D}/boot"
     install -d "$OUTDIR"
 
-    [ -f "$KERNEL_SRC" ] || bbfatal "default-merged-fit: $KERNEL_SRC not found (kernel must deploy fit_kernel)"
+    [ -f "$KERNEL_SRC" ] || bbfatal "default-merged-fit: $KERNEL_SRC not found (kernel must deploy fit_kernel). If using sstate, try: bitbake -c cleansstate virtual/kernel default-merged-fit"
     [ -f "$FDT_SRC" ] || bbfatal "default-merged-fit: $FDT_SRC not found (kernel must deploy fit_fdt.dtb)"
 
     WORKDIR_MERGE="${WORKDIR}/merge"
