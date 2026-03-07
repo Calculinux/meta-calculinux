@@ -75,12 +75,17 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
+    picocalc-dt-overlays \
+    picocalc-drivers \
+    picocalc-m0-firmware \
     picocalc-kbd-test \
     rauc \
     sdl2-test \
     shadow \
     sudo \
     systemd-analyze \
+    default-merged-fit \
+    merge-dt-overlays-boot \
     terminus-font \
     tmux \
     tree \

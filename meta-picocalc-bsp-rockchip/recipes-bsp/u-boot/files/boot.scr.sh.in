@@ -7,6 +7,11 @@ test -n "${{BOOT_A_LEFT}}" || setenv BOOT_A_LEFT 1;
 test "${{BOOT_A_LEFT}}" = 3 && setenv BOOT_A_LEFT 1;
 test -n "${{BOOT_B_LEFT}}" || setenv BOOT_B_LEFT 1;
 test "${{BOOT_B_LEFT}}" = 3 && setenv BOOT_B_LEFT 1;
+if test "${{DEFAULT_FIT_JUST_INSTALLED}}" = "1"; then
+    setenv DEFAULT_FIT_JUST_INSTALLED 0;
+    setenv skip_decrement 1;
+    saveenv;
+fi;
 
 setenv rauc_slot;
 
@@ -19,7 +24,7 @@ elif test "${{BOOT_ORDER}}" = "B"; then
 elif test "${{BOOT_ORDER}}" = "A B"; then
     if test ${{BOOT_A_LEFT}} -gt 0; then
         echo "Found valid slot A, ${{BOOT_A_LEFT}} attempts remaining";
-        setexpr BOOT_A_LEFT ${{BOOT_A_LEFT}} - 1;
+        if test "${{skip_decrement}}" = "1"; then setenv skip_decrement 0; else setexpr BOOT_A_LEFT ${{BOOT_A_LEFT}} - 1; fi;
         setenv rauc_slot "A";
     else
         echo "Found slot B, booting.... ";
@@ -29,7 +34,7 @@ elif test "${{BOOT_ORDER}}" = "A B"; then
 elif test "${{BOOT_ORDER}}" = "B A"; then
     if test ${{BOOT_B_LEFT}} -gt 0; then
         echo "Found valid slot B, ${{BOOT_B_LEFT}} attempts remaining";
-        setexpr BOOT_B_LEFT ${{BOOT_B_LEFT}} - 1;
+        if test "${{skip_decrement}}" = "1"; then setenv skip_decrement 0; else setexpr BOOT_B_LEFT ${{BOOT_B_LEFT}} - 1; fi;
         setenv rauc_slot "B";
     else
         echo "Found slot A, booting.... ";
@@ -55,15 +60,61 @@ saveenv;
 saveenv;
 
 setenv fit_image "zboot.img"
-
 test -n "${{baudrate}}" || setenv baudrate 1500000;
 test -n "${{consoleblank}}" || setenv consoleblank 300;
 
 setenv bootargs "console=${{console}} earlycon=uart8250,mmio32,0xff0a0000,${{baudrate}} console=ttyFIQ0,${{baudrate}} consoleblank=${{consoleblank}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
 echo Setting bootargs to ${{bootargs}};
 
-echo Loading FIT image <${{fit_image}}> from ${{devtype}} ${{devnum}}:${{mmcpart}};
-load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/${{fit_image}};
+test -n "${{FIT_SLOT}}" || setenv FIT_SLOT A;
+part number ${{devtype}} ${{devnum}} OVERLAY_DATA overlay_part_hex;
+setexpr overlay_part fmt %d ${{overlay_part_hex}};
+setenv filesize 0;
+if test "${{FIT_LAST_TRIED}}" = "B"; then
+    setenv fit_try "default";
+elif test "${{FIT_LAST_TRIED}}" = "A"; then
+    setenv fit_try "B";
+else
+    setenv fit_try ${{FIT_SLOT}};
+fi;
+setenv fit_loaded 0;
 
+# Try primary: default (boot part), A, or B
+if test "${{fit_try}}" = "default"; then
+    load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img;
+    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_BOTH_FAILED 1; setenv FIT_LAST_TRIED 0; fi;
+elif test "${{fit_try}}" = "A"; then
+    load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
+    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED A; fi;
+elif test "${{fit_try}}" = "B"; then
+    load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
+    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED B; fi;
+fi;
+
+# Fallback: other slot when primary was A or B
+if test ${{fit_loaded}} -eq 0; then
+    if test "${{fit_try}}" = "A"; then
+        load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
+        if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED B; fi;
+    elif test "${{fit_try}}" = "B"; then
+        load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
+        if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED A; fi;
+    fi;
+fi;
+
+# Final fallback: default from boot partition
+if test ${{fit_loaded}} -eq 0; then
+    load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img;
+    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_BOTH_FAILED 1; setenv FIT_LAST_TRIED 0; fi;
+fi;
+
+if test ${{fit_loaded}} -eq 1; then
+    echo Booting FIT ${{FIT_LAST_TRIED}};
+    saveenv;
+    bootm ${{ramdisk_addr_r}};
+fi;
+
+echo Loading unmerged zboot from ROOT;
+load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/${{fit_image}};
 echo Booting from address <${{ramdisk_addr_r}}>;
 bootm ${{ramdisk_addr_r}}
