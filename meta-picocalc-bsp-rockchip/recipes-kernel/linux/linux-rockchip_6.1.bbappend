@@ -247,18 +247,19 @@ do_install:append() {
 
 # Deploy the kernel blob and FDT that go into zboot.img so default-merged-fit
 # can build the merged FIT directly without extracting from zboot.img.
-# Prefer DEPLOYDIR so the deploy class includes these in do_deploy output and
-# sstate restores them in CI; fall back to DEPLOY_DIR_IMAGE if unset.
-DEPLOY_FIT_DIR = "${@d.getVar('DEPLOYDIR') or d.getVar('DEPLOY_DIR_IMAGE')}"
+# Must use DEPLOYDIR only: the deploy class copies DEPLOYDIR -> DEPLOY_DIR_IMAGE
+# and tracks the manifest. Remove any stale fit_* in DEPLOY_DIR_IMAGE (e.g. from
+# a previous build or sstate) so the deploy class does not fail with "files
+# already exist (not matched to any task)" when it copies.
 do_deploy:append() {
-    install -m 0644 "${B}/arch/${ARCH}/boot/dts/${KERNEL_DEVICETREE}" "${DEPLOY_FIT_DIR}/fit_fdt.dtb"
+    install -m 0644 "${B}/arch/${ARCH}/boot/dts/${KERNEL_DEVICETREE}" "${DEPLOYDIR}/fit_fdt.dtb"
     # Same kernel blob that is packed into zboot.img (arm=zImage, arm64=Image.lz4)
     if [ "${ARCH}" = "arm64" ]; then
-        install -m 0644 "${B}/arch/${ARCH}/boot/Image.lz4" "${DEPLOY_FIT_DIR}/fit_kernel"
-        echo -n "lz4" > "${DEPLOY_FIT_DIR}/fit_compression.txt"
+        install -m 0644 "${B}/arch/${ARCH}/boot/Image.lz4" "${DEPLOYDIR}/fit_kernel"
+        echo -n "lz4" > "${DEPLOYDIR}/fit_compression.txt"
     else
-        install -m 0644 "${B}/arch/${ARCH}/boot/zImage" "${DEPLOY_FIT_DIR}/fit_kernel"
-        echo -n "none" > "${DEPLOY_FIT_DIR}/fit_compression.txt"
+        install -m 0644 "${B}/arch/${ARCH}/boot/zImage" "${DEPLOYDIR}/fit_kernel"
+        echo -n "none" > "${DEPLOYDIR}/fit_compression.txt"
     fi
 }
 
