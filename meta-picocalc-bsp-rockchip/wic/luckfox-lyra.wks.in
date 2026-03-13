@@ -3,10 +3,8 @@
 #
 
 bootloader --ptable gpt
-part --source rawcopy --sourceparams="file=idblock.img" --align 32 --no-table
-part --source rawcopy --sourceparams="file=uboot.img" --part-name uboot --offset 2M
-part --source rawcopy --sourceparams="file=trust.img" --part-name trust --align 4
-part --source empty --part-name ubootenv --size=1 --align=4
+part --source rawcopy --sourceparams="file=u-boot-rockchip.bin" --offset 32 --no-table
+part --source empty --part-name ubootenv --size=1 --align 4
 part / --source rootfs --fstype ${RK_ROOTFS_TYPE} --label ROOT_A --mkfs-extraopts "${RK_ROOTFS_EXTRAOPTS}" --align 8192 --fixed-size 2048
 part / --source rootfs --fstype ${RK_ROOTFS_TYPE} --label ROOT_B --mkfs-extraopts "${RK_ROOTFS_EXTRAOPTS}" --align 8192 --fixed-size 2048
 part swap --size 44 --label SWAP --fstype=swap --size=1024M --overhead-factor 1
