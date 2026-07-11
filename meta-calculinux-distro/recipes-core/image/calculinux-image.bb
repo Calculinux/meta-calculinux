@@ -80,6 +80,7 @@ IMAGE_INSTALL += " \
     usbutils \
     util-linux \
     wget \
+    wireless-regdb-static \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
