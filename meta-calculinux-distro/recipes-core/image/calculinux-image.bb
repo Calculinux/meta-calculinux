@@ -93,6 +93,7 @@ IMAGE_INSTALL += " \
     util-linux \
     wget \
     which \
+    wireless-regdb-static \
     zip \
 "
 
