@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Calculinux <pedrostarling2000@gmail.com>
+Date: Wed, 19 Aug 2026 16:57:03 +0000
+Subject: [PATCH] spi: rockchip: raise MAX_SCLK_OUT to 100MHz
+
+The driver caps SCLK at 50MHz for every SoC it supports, from rk3036
+through rk3506, with a single constant and no per-SoC differentiation.
+Nothing in the hardware requires that value: BAUDR is a 16-bit even
+divider with a minimum of 2, programmed as
+
+	2 * DIV_ROUND_UP(freq, 2 * speed)
+
+so any rate up to spiclk/2 is representable. The cap is the only thing
+between a board and the top of its clock tree, and it applies silently:
+rk3399-khadas-edge asks for 104MHz on spi1 and is clamped without a
+word in the log.
+
+On the PicoCalc the SPI panel is the bandwidth bottleneck. A 320x320
+RGB565 frame is 200KiB, which is ~33ms of bus time at 50MHz and ~16ms
+at 100MHz, so the cap costs roughly half the achievable frame rate.
+
+Raise it to 100MHz, which is what spi0 reaches on rk3506 with its
+functional clock pinned at 200MHz. This changes no board on its own;
+spi-max-frequency and the clock tree still decide the rate, and boards
+that ask for less are unaffected.
+
+Not upstream material as-is: the right fix is a per-SoC limit driven by
+each TRM rather than one number for the whole family. Carried here so
+the PicoCalc display can use the bandwidth its panel bus has.
+
+Signed-off-by: Calculinux <pedrostarling2000@gmail.com>
+---
+ drivers/spi/spi-rockchip.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/spi/spi-rockchip.c b/drivers/spi/spi-rockchip.c
+index 725edce99..cc9351533 100644
+--- a/drivers/spi/spi-rockchip.c
++++ b/drivers/spi/spi-rockchip.c
+@@ -155,8 +155,13 @@
+ #define RXDMA					(1 << 0)
+ #define TXDMA					(1 << 1)
+ 
+-/* sclk_out: spi master internal logic in rk3x can support 50Mhz */
+-#define MAX_SCLK_OUT				50000000U
++/*
++ * sclk_out: this driver has always capped every rk3x SoC at 50MHz. The BAUDR
++ * divider is 16-bit, even, minimum 2, so the hardware can be programmed all
++ * the way up to spiclk/2 and the cap is the only thing in the way. Raise it
++ * and let spi-max-frequency and the board's clock tree pick the real rate.
++ */
++#define MAX_SCLK_OUT				100000000U
+ /* max sclk of driver strength 4mA */
+ #define IO_DRIVER_4MA_MAX_SCLK_OUT	24000000U
+ 

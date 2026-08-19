@@ -20,6 +20,7 @@ SRC_URI = " \
     file://usb-gadget.cfg \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
+    file://0002-spi-rockchip-raise-MAX_SCLK_OUT-to-100MHz.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += " \
