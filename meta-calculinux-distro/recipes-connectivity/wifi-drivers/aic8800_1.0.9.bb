@@ -2,7 +2,7 @@ SUMMARY = "AIC8800 USB Wi-Fi kernel module (DKMS package)"
 DESCRIPTION = "AIC8800 DC/D80/D80X2 USB wireless driver built from official BrosTrend DKMS package. Supports DC WiFi-only variant."
 HOMEPAGE = "https://linux.brostrend.com"
 LICENSE = "GPL-2.0-only"
-PV = "1.0.8"
+PV = "1.0.9"
 
 # License file is extracted from deb package (usr/share/doc/aic8800-dkms/copyright)
 LIC_FILES_CHKSUM = "file://${WORKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=dda5bafa8afaed74f884152b2b3efd00"
@@ -11,11 +11,23 @@ LIC_FILES_CHKSUM = "file://${WORKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=d
 # Patches:
 #  0001: Compilation fixes (-Werror, address checking)
 #  0002: Remove FT callback - firmware doesn't implement 802.11r (prevents "Operation not supported")
-SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0 \
+# Upstream serves every release from one unversioned URL and replaces the file
+# in place (1.0.8 -> 1.0.9 broke the build this way). Two defences:
+#  - downloadfilename pins a versioned name in DL_DIR, so a future in-place
+#    change cannot masquerade as the copy we already fetched.
+#  - CALCULINUX_SOURCE_MIRROR is consulted first, so builds keep working after
+#    upstream rotates the file. Falls back to upstream when the mirror lacks it.
+CALCULINUX_SOURCE_MIRROR ?= "https://opkg.calculinux.org/sources"
+PREMIRRORS:prepend = "https://linux.brostrend.com/.*  ${CALCULINUX_SOURCE_MIRROR}/ \n"
+
+AIC8800_DEB = "aic8800-dkms-${PV}.deb"
+
+SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0;downloadfilename=${AIC8800_DEB} \
            file://0001-disable-werror-and-fix-address-check.patch \
            file://0002-disable-ft-ies-update.patch \
 "
-SRC_URI[sha256sum] = "952152f3add4ec24fee4af5a677b40135eec7759945268c8539bcc8b8da655eb"
+# sha256 of the 1.0.9 deb (control reports 1.0.9-0b1; source dir is aic8800-1.0.9)
+SRC_URI[sha256sum] = "fd83788d564bb3018e382e236c911a616275e769740e622d42934b5a6f0d714a"
 
 S = "${WORKDIR}/aic8800-${PV}"
 B = "${S}"
@@ -65,13 +77,13 @@ python do_unpack:append() {
     pv = d.getVar('PV')
     
     # With unpack=0, the deb stays in DL_DIR
-    deb_file = os.path.join(dl_dir, 'aic8800-dkms.deb')
+    deb_file = os.path.join(dl_dir, d.getVar('AIC8800_DEB'))
     
     if not os.path.exists(deb_file):
         bb.fatal('DEB file not found in DL_DIR: %s' % deb_file)
     
     # Copy deb to workdir for extraction
-    workdir_deb = os.path.join(workdir, 'aic8800-dkms.deb')
+    workdir_deb = os.path.join(workdir, d.getVar('AIC8800_DEB'))
     shutil.copy(deb_file, workdir_deb)
     
     # Extract deb to workdir
