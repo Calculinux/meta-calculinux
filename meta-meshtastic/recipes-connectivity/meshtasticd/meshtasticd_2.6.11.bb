@@ -10,12 +10,16 @@ LIC_FILES_CHKSUM = " \
 PV = "2.6.11"
 
 SRCREV_FORMAT = "meshtastic_platform"
+# Pinned by SRCREV alone (nobranch=1) rather than tracking `develop`. Upstream
+# rewrites that branch, which orphaned this exact commit and broke do_fetch with
+# "Unable to find revision ... in branch develop". The commit itself is intact
+# and tagged upstream as v2.6.11.60ec05e; only branch ancestry stopped holding.
 SRCREV_meshtastic = "60ec05e53693535aaf616162d4f970cfca6a5d58"
 SRCREV_platform = "622341c6de8a239704318b10c3dbb00c21a3eab3"
 
 SRC_URI = " \
-    git://github.com/meshtastic/firmware.git;branch=develop;protocol=https;submodules=1;name=meshtastic \
-    git://github.com/meshtastic/platform-native.git;branch=develop;protocol=https;destsuffix=platform-native;name=platform \
+    git://github.com/meshtastic/firmware.git;nobranch=1;protocol=https;submodules=1;name=meshtastic \
+    git://github.com/meshtastic/platform-native.git;nobranch=1;protocol=https;destsuffix=platform-native;name=platform \
     file://002-remove-host-include.patch \
     file://003-portduino-buildroot-board.patch \
     file://004-platformio-link-group.patch \
