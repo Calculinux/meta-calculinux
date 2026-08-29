@@ -11,6 +11,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=574efe748ed4af8e3c587194e64d9ea8"
 SRC_URI = "git://github.com/RealBusinessAccount/uwific.git;protocol=https;branch=main"
 SRCREV = "961bc1dd0358f61aadd7ca6a0a5f76b9856ce80d"
 
+PV = "1.0+git${SRCPV}"
+
 S = "${WORKDIR}/git"
 
 inherit pkgconfig
