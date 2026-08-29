@@ -90,6 +90,7 @@ IMAGE_INSTALL += " \
     unzip \
     usb-gadget-network \
     usbutils \
+    uwific \
     util-linux \
     wget \
     which \
