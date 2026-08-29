@@ -8,6 +8,8 @@
 	aliases {
 		mmc0 = &sdmmc;
 		serial0 = &uart0;
+		spi0 = &spi0;
+		i2c2 = &i2c2;
 	};
 
 	chosen {
@@ -82,6 +84,75 @@
 	};
 };
 
+/* RMIO syscon used by PicoCalc remux SPI0 / I2C2 pinmux */
+&pinctrl {
+	rockchip,rmio = <&grf_pmu>;
+
+	/* Minimal pinconf (WIP rk3506 DT omits rockchip-pinconf.dtsi) */
+	pcfg_pull_none: pcfg-pull-none {
+		bias-disable;
+	};
+
+	pcfg_pull_up: pcfg-pull-up {
+		bias-pull-up;
+	};
+
+	pcfg_pull_none_drv_level_3: pcfg-pull-none-drv-level-3 {
+		bias-disable;
+		drive-strength = <3>;
+	};
+
+	leds {
+		/omit-if-no-ref/
+		led1: led1 {
+			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	/*
+	 * PicoCalc remux pins (same values as Linux rk3506-pinctrl-rmio.dtsi /
+	 * picocalc-luckfox-lyra.dtsi).
+	 */
+	rm_io {
+		/omit-if-no-ref/
+		rm_io4_spi0_csn0: rm-io4-spi0-csn0 {
+			rockchip,pins = <0 RK_PA4 85 &pcfg_pull_none_drv_level_3>;
+		};
+
+		/omit-if-no-ref/
+		rm_io5_spi0_miso: rm-io5-spi0-miso {
+			rockchip,pins = <0 RK_PA5 84 &pcfg_pull_none_drv_level_3>;
+		};
+
+		/omit-if-no-ref/
+		rm_io6_spi0_mosi: rm-io6-spi0-mosi {
+			rockchip,pins = <0 RK_PA6 83 &pcfg_pull_none_drv_level_3>;
+		};
+
+		/omit-if-no-ref/
+		rm_io7_spi0_clk: rm-io7-spi0-clk {
+			rockchip,pins = <0 RK_PA7 82 &pcfg_pull_none_drv_level_3>;
+		};
+
+		/omit-if-no-ref/
+		rm_io10_i2c2_scl: rm-io10-i2c2-scl {
+			rockchip,pins = <0 RK_PB2 34 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		rm_io11_i2c2_sda: rm-io11-i2c2-sda {
+			rockchip,pins = <0 RK_PB3 35 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		ili9488_pins: ili9488-pins {
+			rockchip,pins =
+				<0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
 &fspi {
 	status = "okay";
 
@@ -97,12 +168,28 @@
 	};
 };
 
-&pinctrl {
-	leds {
-		/omit-if-no-ref/
-		led1: led1 {
-			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io10_i2c2_scl &rm_io11_i2c2_sda>;
+	clock-frequency = <400000>;
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rm_io4_spi0_csn0 &rm_io5_spi0_miso
+		     &rm_io6_spi0_mosi &rm_io7_spi0_clk>;
+	num-cs = <1>;
+
+	ili9488: ili9488@0 {
+		compatible = "ilitek,ili9488", "picocalc,spilcd";
+		reg = <0>;
+		spi-max-frequency = <80000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ili9488_pins>;
+		dc-gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
 	};
 };
 

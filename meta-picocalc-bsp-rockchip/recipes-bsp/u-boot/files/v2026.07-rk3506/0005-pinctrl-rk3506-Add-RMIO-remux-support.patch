@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Calculinux <calculinux@users.noreply.github.com>
+Date: Sat, 29 Aug 2026 00:00:00 +0000
+Subject: pinctrl: rk3506: Add RMIO remux support
+
+PicoCalc routes SPI0 and I2C2 through RK3506 remappable IO (RMIO) with
+mux function IDs above the 4-bit iomux range. Port the Linux
+rockchip_set_rmio() logic so board DT can use the same rm_io* pinmux
+values as the kernel.
+
+Signed-off-by: Cursor Agent <cursor@calculinux>
+---
+--- a/drivers/pinctrl/rockchip/pinctrl-rockchip.h
++++ b/drivers/pinctrl/rockchip/pinctrl-rockchip.h
+@@ -529,6 +529,7 @@
+ 	struct regmap			*regmap_base;
+ 	struct regmap			*regmap_pmu;
+ 	struct regmap			*regmap_ioc1;
++	struct regmap			*regmap_rmio;
+ };
+ 
+ extern const struct pinctrl_ops rockchip_pinctrl_ops;
+--- a/drivers/pinctrl/rockchip/pinctrl-rockchip-core.c
++++ b/drivers/pinctrl/rockchip/pinctrl-rockchip-core.c
+@@ -668,6 +668,15 @@
+ 		}
+ 	}
+ 
++	if (dev_read_bool(dev, "rockchip,rmio")) {
++		priv->regmap_rmio =
++			syscon_regmap_lookup_by_phandle(dev, "rockchip,rmio");
++		if (IS_ERR(priv->regmap_rmio)) {
++			debug("unable to find rockchip,rmio regmap\n");
++			return PTR_ERR(priv->regmap_rmio);
++		}
++	}
++
+ 	ctrl = rockchip_pinctrl_get_soc_data(dev);
+ 	if (!ctrl) {
+ 		debug("driver data not available\n");
+--- a/drivers/pinctrl/rockchip/pinctrl-rk3506.c
++++ b/drivers/pinctrl/rockchip/pinctrl-rk3506.c
+@@ -11,6 +11,49 @@
+ #include "pinctrl-rockchip.h"
+ #include <dt-bindings/pinctrl/rockchip.h>
+ 
++static int rk3506_set_rmio(struct rockchip_pinctrl_priv *priv, int bank_num,
++			    int pin, int *mux)
++{
++	struct regmap *regmap = priv->regmap_rmio;
++	int reg, function, ret = 0;
++	u32 data, rmask;
++
++	/* 4-bit iomux max is 15; higher values select RMIO remux functions */
++	if (*mux <= 0xf)
++		return 0;
++	if (!regmap)
++		return -ENOENT;
++
++	function = *mux - 0xf;
++
++	if (bank_num == 0) {
++		if (pin < 24)
++			reg = 0x80 + 0x4 * pin;
++		else
++			ret = -EINVAL;
++	} else if (bank_num == 1) {
++		if (pin >= 9 && pin <= 11)
++			reg = 0xbc + 0x4 * pin;
++		else if (pin >= 18 && pin <= 19)
++			reg = 0xa4 + 0x4 * pin;
++		else if (pin >= 25 && pin <= 27)
++			reg = 0x90 + 0x4 * pin;
++		else
++			ret = -EINVAL;
++	} else {
++		ret = -EINVAL;
++	}
++
++	if (ret)
++		return ret;
++
++	rmask = 0x7f007f;
++	data = 0x7f0000 | function;
++	*mux = 7;
++
++	return regmap_update_bits(regmap, reg, rmask, data);
++}
++
+ static int rk3506_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
+ {
+ 	struct rockchip_pinctrl_priv *priv = bank->priv;
+@@ -19,6 +62,11 @@
+ 	int reg, mask;
+ 	u8 bit;
+ 	u32 data, rmask;
++	int ret;
++
++	ret = rk3506_set_rmio(priv, bank->bank_num, pin, &mux);
++	if (ret)
++		return ret;
+ 
+ 	if (bank->iomux[iomux_num].type & IOMUX_SOURCE_PMU)
+ 		regmap = priv->regmap_pmu;

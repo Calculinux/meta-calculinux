@@ -31,12 +31,17 @@ SRC_URI = " \
     file://v2026.07-rk3506/rockchip-rk3506-clk-Fix-CLK_SARADC-set-rate-issues.patch \
     file://v2026.07-rk3506/rockchip-rk3506-clk-Fix-trivial-clock-configuration-errors.patch \
     file://v2026.07-rk3506/rockchip-rk3506-saradc-Add-driver-data.patch \
+    file://v2026.07-rk3506/0004-video-Add-ILI9488-SPI-DM_VIDEO-driver.patch \
+    file://v2026.07-rk3506/0005-pinctrl-rk3506-Add-RMIO-remux-support.patch \
+    file://v2026.07-rk3506/0006-rockchip-rk3506-Default-stdout-to-serial-vidconsole.patch \
     file://v2026.07-rk3506/defconfig/luckfox-lyra-rk3506_defconfig \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra.dts \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra.dtsi \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra-u-boot.dtsi \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus.dts \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
+    file://v2026.07-rk3506/drivers/video/ili9488-spi.c \
+    file://calculinux-logo.bmp \
     file://calculinux.cfg \
 "
 
@@ -55,9 +60,10 @@ EXTRA_OEMAKE += " \
     TEE=${UNPACKDIR}/rkbin/rk35/${RKBIN_TEE} \
 "
 
-# Armbian overlay dirs (defconfig + board DTs) — not git patches
+# Armbian overlay dirs (defconfig + board DTs) — not git patches.
+# Also install PicoCalc ILI9488 driver + generate logo C array from BMP.
 do_configure:prepend() {
-    install -d ${S}/configs ${S}/arch/arm/dts
+    install -d ${S}/configs ${S}/arch/arm/dts ${S}/drivers/video
     cp ${UNPACKDIR}/v2026.07-rk3506/defconfig/luckfox-lyra-rk3506_defconfig ${S}/configs/
     cp ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra.dts \
        ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra.dtsi \
@@ -65,6 +71,38 @@ do_configure:prepend() {
        ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus.dts \
        ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
         ${S}/arch/arm/dts/
+    cp ${UNPACKDIR}/v2026.07-rk3506/drivers/video/ili9488-spi.c ${S}/drivers/video/
+    python3 - "${UNPACKDIR}/calculinux-logo.bmp" "${S}/drivers/video/calculinux-logo.c" <<'PY'
+import sys
+from pathlib import Path
+
+bmp = Path(sys.argv[1])
+out = Path(sys.argv[2])
+data = bmp.read_bytes()
+lines = [
+    "/* SPDX-License-Identifier: GPL-2.0+ */",
+    "/* Generated from calculinux-logo.bmp — do not edit */",
+    "#include <linux/types.h>",
+    "",
+    f"const u8 calculinux_logo_bmp[{len(data)}] = {{",
+]
+row = []
+for b in data:
+    row.append(f"0x{b:02x}")
+    if len(row) == 12:
+        lines.append("\t" + ", ".join(row) + ",")
+        row = []
+if row:
+    lines.append("\t" + ", ".join(row) + ",")
+lines += [
+    "};",
+    "",
+    f"const u32 calculinux_logo_bmp_len = {len(data)};",
+    "",
+]
+out.write_text("\n".join(lines))
+print(f"Wrote {out} ({len(data)} bytes)")
+PY
 }
 
 COMPATIBLE_MACHINE = "luckfox-lyra"

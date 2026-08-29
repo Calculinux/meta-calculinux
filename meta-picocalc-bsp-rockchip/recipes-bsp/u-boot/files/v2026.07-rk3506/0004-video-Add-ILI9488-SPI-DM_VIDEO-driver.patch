@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Calculinux <calculinux@users.noreply.github.com>
+Date: Sat, 29 Aug 2026 00:00:00 +0000
+Subject: video: Add ILI9488 SPI DM_VIDEO driver Kconfig
+
+Enable building the PicoCalc ILI9488 SPI panel driver and embedded
+Calculinux splash logo object. The .c sources are installed by the
+Yocto recipe into drivers/video/.
+
+Signed-off-by: Cursor Agent <cursor@calculinux>
+---
+--- a/drivers/video/Kconfig
++++ b/drivers/video/Kconfig
+@@ -552,6 +552,15 @@
+ 	Say Y here if you want to enable support for Himax HX8394
+ 	dsi 4dl panel.
+ 
++config VIDEO_ILI9488_SPI
++	bool "Ilitek ILI9488 SPI panel (PicoCalc)"
++	depends on DM_VIDEO && DM_SPI && DM_GPIO
++	select VIDEO_BPP16
++	help
++	  Enable a DM_VIDEO driver for the Ilitek ILI9488 SPI LCD used on
++	  PicoCalc (320x320 RGB565). Shows a centered Calculinux splash then
++	  a text vidconsole. Requires ROCKCHIP_SPI / board DT panel node.
++
+ config VIDEO_LCD_ILITEK_ILI9806E
+ 	bool "Ilitek ILI9806E-based panels"
+ 	depends on PANEL && BACKLIGHT
+--- a/drivers/video/Makefile
++++ b/drivers/video/Makefile
+@@ -61,6 +61,7 @@
+ obj-$(CONFIG_VIDEO_LCD_HIMAX_HX8394) += himax-hx8394.o
+ obj-$(CONFIG_VIDEO_LCD_HITACHI_TX10D07VM0BAA) += hitachi-tx10d07vm0baa.o
+ obj-$(CONFIG_VIDEO_LCD_HITACHI_TX18D42VM) += hitachi_tx18d42vm_lcd.o
++obj-$(CONFIG_VIDEO_ILI9488_SPI) += ili9488-spi.o calculinux-logo.o
+ obj-$(CONFIG_VIDEO_LCD_ILITEK_ILI9806E) += ilitek-ili9806e.o
+ obj-$(CONFIG_VIDEO_LCD_LG_LD070WX3) += lg-ld070wx3.o
+ obj-$(CONFIG_VIDEO_LCD_LG_LH400WV3) += lg-lh400wv3-sd04.o
