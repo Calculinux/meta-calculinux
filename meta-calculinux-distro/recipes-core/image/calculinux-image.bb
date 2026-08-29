@@ -98,6 +98,23 @@ IMAGE_INSTALL += " \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
+
+# rockchip-image.bbclass do_fixup_wks only greps *.img. Mainline U-Boot deploys
+# u-boot-rockchip.bin; an empty grep exits 1 under set -e and aborts the image.
+# Also treat .bin blobs as optional the same way .img was.
+do_fixup_wks() {
+	[ -f "${WKS_FULL_PATH}" ] || return 0
+
+	IMAGES=$(grep -oE '[^=[:space:]]+\.(img|bin)' "${WKS_FULL_PATH}" || true)
+
+	for image in ${IMAGES}; do
+		if [ ! -f "${DEPLOY_DIR_IMAGE}/${image}" ]; then
+			echo "${image} not provided, ignoring it."
+			sed -i "/file=${image}/d" "${WKS_FULL_PATH}"
+		fi
+	done
+}
+
 # Override rockchip-image.bbclass to remove Android-style firmware symlinks
 #
 # The upstream meta-rockchip layer creates /system/etc/firmware and /vendor/etc/firmware

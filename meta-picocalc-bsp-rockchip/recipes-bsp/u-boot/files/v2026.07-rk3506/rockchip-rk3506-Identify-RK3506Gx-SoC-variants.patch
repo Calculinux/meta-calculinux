@@ -48,7 +48,7 @@ index 111111111111..222222222222 100644
 +	/* variant: used to identify RK3506G SoC variant */
 +	ret = misc_read(dev, RK3506_OTP_VARIANT_OFFSET, variant, 2);
 +	if (ret < 0) {
-+		log_debug("Could not read cpu-code, ret=%d\n", ret);
++		log_debug("Could not read variant, ret=%d\n", ret);
 +		return 0;
 +	}
 +	if (variant[0] & 0x1f) {
