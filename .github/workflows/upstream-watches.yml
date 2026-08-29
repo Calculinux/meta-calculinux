@@ -1,0 +1,59 @@
+name: Upstream source watches
+
+on:
+  schedule:
+    # Daily. The check is one HTTP GET; aic8800 has already rotated in place
+    # twice and silently breaks do_fetch when it does.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-watches
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check rotating upstream downloads
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Schedule always targets default branch. Dispatch uses the chosen ref
+          # so this workflow can be tested from a PR before it lands on main.
+          ref: ${{ github.event_name == 'schedule' && github.event.repository.default_branch || github.ref }}
+
+      - name: Compare upstream files to recipes
+        id: watch
+        run: bash .github/scripts/check-upstream-watches.sh
+
+      - name: Open or update pull request
+        if: steps.watch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B chore/upstream-watches
+          git add -u meta-calculinux-distro/recipes-connectivity/wifi-drivers
+          git commit -m "Update rotating upstream downloads so do_fetch keeps working."
+          git push --force origin chore/upstream-watches
+
+          body="$(cat "${RUNNER_TEMP}/upstream-watch-summary.md")"
+          existing="$(gh pr list --head chore/upstream-watches --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --body "$body"
+            echo "Updated existing PR #$existing"
+          else
+            gh pr create \
+              --base main \
+              --head chore/upstream-watches \
+              --title "Update rotating upstream downloads" \
+              --body "$body"
+          fi
