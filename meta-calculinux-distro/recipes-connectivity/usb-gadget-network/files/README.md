@@ -7,11 +7,13 @@ This package configures the PicoCalc device to act as a USB network device, allo
 The device is configured with:
 - **Device IP**: 192.168.7.2
 - **Network**: 192.168.7.0/24
-- **Interface**: usb0
+- **Interface**: typically `usb0` (RNDIS by default)
 
-The gadget provides two configurations:
-1. **RNDIS** (for Windows)
-2. **CDC-Ether/ECM** (for Linux/macOS)
+By default the gadget exposes **RNDIS** only. That works on Windows and Linux with a single host interface. (`both` is available via config/`usb-modeswitch`, but Linux often binds ECM and RNDIS together — two interfaces on the same subnet, which breaks routing.)
+
+- **RNDIS** (default) — Windows + Linux
+- **CDC-Ether/ECM** — prefer for macOS (`USB_PROTOCOL=ecm`); Apple has no inbox RNDIS host driver
+- **both** — ECM + RNDIS in one config; avoid unless you need it and can ignore the extra Linux interface
 
 ## Host Computer Setup
 
@@ -80,6 +82,12 @@ sudo systemctl restart systemd-networkd
 
 ### macOS Host
 
+macOS has no inbox RNDIS host driver. Switch the gadget to ECM first:
+
+```bash
+sudo usb-modeswitch --mode gadget --protocol ecm
+```
+
 1. The device should appear as a CDC-Ether device.
 
 2. Open System Preferences → Network
@@ -97,21 +105,21 @@ sudo systemctl restart systemd-networkd
 
 ### Windows Host
 
-1. When you connect the device, Windows should detect it as an RNDIS device.
+1. Plug in USB — Windows should detect an **RNDIS/Ethernet Gadget** adapter automatically (Win10/11 include the driver).
 
-2. Install RNDIS drivers if prompted (Windows 10/11 usually has them built-in).
+2. Open **Settings → Network & Internet → Ethernet** (or classic Network Connections).
 
-3. Open Network Connections, find the RNDIS/Ethernet Gadget device.
+3. Set IPv4 manually:
+   - IP Address: **192.168.7.1**
+   - Subnet Mask: **255.255.255.0**
 
-4. Configure IPv4 properties:
-   - IP Address: 192.168.7.1
-   - Subnet Mask: 255.255.255.0
-
-5. Test connectivity:
+4. Test:
    ```cmd
    ping 192.168.7.2
    ssh pico@192.168.7.2
    ```
+
+No ADB or extra drivers required for basic SSH access.
 
 ## Internet Sharing
 

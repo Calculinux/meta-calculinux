@@ -67,16 +67,21 @@
 #define CONFIG_PREBOOT
 
 /*
- *     fdt:  396K - 524K
- *   Image:  1M+32k - 16M
+ *     fdt:  396K - 1M   (was 396K - 524K; enlarged for DTBs with __symbols__)
+ *   Image:  1M+256k - 16M
  *  zImage:  16M - 24M
  * ramdisk:  24M - ...
+ *
+ * NOTE: kernel_addr_r was moved from 0x108000 (1M+32K) to 0x140000 (1M+256K)
+ * to leave ~832 KB for the FDT.  The trimmed DTB with selective __symbols__
+ * is typically ~80 KB, but this headroom protects against future growth and
+ * allows U-Boot to expand the FDT with boot arguments without risk.
  */
 #define ENV_MEM_LAYOUT_SETTINGS \
 	"scriptaddr=0x00b00000\0"	\
 	"pxefile_addr_r=0x00c00000\0"	\
 	"fdt_addr_r=0x00063000\0"	\
-	"kernel_addr_r=0x00108000\0"	\
+	"kernel_addr_r=0x00140000\0"	\
 	"kernel_addr_c=0x01100000\0"	\
 	"ramdisk_addr_r=0x01800000\0"
 

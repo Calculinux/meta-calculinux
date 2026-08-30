@@ -9,7 +9,7 @@ require picocalc-drivers-source.inc
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
-# Kernel module virtual names for RPROVIDES/PROVIDES and RDEPENDS:remove.
+# Kernel module virtual names for RPROVIDES and RDEPENDS:remove.
 # Use explicit vars with ${KERNEL_VERSION} so expansion is deferred and deterministic
 # (python() + d.getVar at parse time caused basehash to change between parses).
 PICOCALC_MODULE_VIRTUALS_MFD = "kernel-module-picocalc-mfd-${KERNEL_VERSION} kernel-module-picocalc-mfd-bms-${KERNEL_VERSION} kernel-module-picocalc-mfd-bkl-${KERNEL_VERSION} kernel-module-picocalc-mfd-kbd-${KERNEL_VERSION} kernel-module-picocalc-mfd-led-${KERNEL_VERSION}"
@@ -81,8 +81,8 @@ FILES:${PN}-snd-m0 = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/pic
 
 # Satisfy kernel-module-* virtuals: we ship these out-of-tree; nothing in kernel provides them.
 # Module class adds RDEPENDS on kernel-module-<name>-${KERNEL_VERSION} per .ko; our split
-# packages provide those. Declare PROVIDES/RPROVIDES so the solver can resolve them, and
-# remove the virtual deps from the main package so it uses our split packages only.
+# packages provide those via RPROVIDES. Remove the virtual deps from the main package
+# so it uses our split packages only.
 RPROVIDES:${PN}-mfd = "${PICOCALC_MODULE_VIRTUALS_MFD}"
 RPROVIDES:${PN}-kbd = "${PICOCALC_MODULE_VIRTUALS_KBD}"
 RPROVIDES:${PN}-lcd-fb = "${PICOCALC_MODULE_VIRTUALS_LCD_FB}"
@@ -91,14 +91,6 @@ RPROVIDES:${PN}-snd-pwm = "${PICOCALC_MODULE_VIRTUALS_SND_PWM}"
 RPROVIDES:${PN}-snd-softpwm = "${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM}"
 RPROVIDES:${PN}-rproc = "${PICOCALC_MODULE_VIRTUALS_RPROC}"
 RPROVIDES:${PN}-snd-m0 = "${PICOCALC_MODULE_VIRTUALS_SND_M0}"
-PROVIDES:${PN}-mfd = "${PICOCALC_MODULE_VIRTUALS_MFD}"
-PROVIDES:${PN}-kbd = "${PICOCALC_MODULE_VIRTUALS_KBD}"
-PROVIDES:${PN}-lcd-fb = "${PICOCALC_MODULE_VIRTUALS_LCD_FB}"
-PROVIDES:${PN}-lcd-drm = "${PICOCALC_MODULE_VIRTUALS_LCD_DRM}"
-PROVIDES:${PN}-snd-pwm = "${PICOCALC_MODULE_VIRTUALS_SND_PWM}"
-PROVIDES:${PN}-snd-softpwm = "${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM}"
-PROVIDES:${PN}-rproc = "${PICOCALC_MODULE_VIRTUALS_RPROC}"
-PROVIDES:${PN}-snd-m0 = "${PICOCALC_MODULE_VIRTUALS_SND_M0}"
 
 # Remove auto-added kernel-module-* RDEPENDS from main package; we already RDEPEND on split packages.
 RDEPENDS:${PN}:remove = "${PICOCALC_ALL_MODULE_VIRTUALS}"

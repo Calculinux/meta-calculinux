@@ -14,11 +14,40 @@ do_compile[noexec] = "1"
 
 do_install() {
     install -d ${D}${datadir}/picocalc
-    install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
-    install -m 0644 ${S}/linux-rk3506-luckfox-lyra.dtsi ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
-    install -m 0644 ${S}/linux-rk3506g-luckfox-lyra.dts ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
-    install -m 0644 ${S}/uboot-rk3506-luckfox.dtsi ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
-    install -m 0644 ${S}/uboot-rk3506-luckfox.dts ${D}${datadir}/picocalc/rk3506-luckfox.dts
+
+    # Source layout varies: repo root (main) or luckfox-lyra/ (M0 branch).
+    picocalc_dt_src() {
+        for candidate in "${S}/$1" "${S}/luckfox-lyra/$1"; do
+            if [ -f "${candidate}" ]; then
+                echo "${candidate}"
+                return 0
+            fi
+        done
+        bbfatal "$1 not found in ${S} or ${S}/luckfox-lyra"
+    }
+
+    install -m 0644 "$(picocalc_dt_src picocalc-luckfox-lyra.dtsi)" ${D}${datadir}/picocalc/
+    install -m 0644 "$(picocalc_dt_src linux-rk3506-luckfox-lyra.dtsi)" ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
+    install -m 0644 "$(picocalc_dt_src linux-rk3506g-luckfox-lyra.dts)" ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
+    install -m 0644 "$(picocalc_dt_src uboot-rk3506-luckfox.dtsi)" ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
+    install -m 0644 "$(picocalc_dt_src uboot-rk3506-luckfox.dts)" ${D}${datadir}/picocalc/rk3506-luckfox.dts
+
+    # Overlay symbol whitelist – consumed by the kernel recipe to inject only
+    # the needed __symbols__ entries into the base DTB.
+    OVERLAY_SYMS=""
+    for candidate in \
+        "${S}/overlays/overlay-symbols.txt" \
+        "${S}/luckfox-lyra/overlays/overlay-symbols.txt"; do
+        if [ -f "${candidate}" ]; then
+            OVERLAY_SYMS="${candidate}"
+            break
+        fi
+    done
+    if [ -n "${OVERLAY_SYMS}" ]; then
+        install -m 0644 "${OVERLAY_SYMS}" ${D}${datadir}/picocalc/overlay-symbols.txt
+    else
+        bbwarn "overlay-symbols.txt not found – kernel will fall back to built-in symbol list"
+    fi
 }
 
 FILES:${PN} = "\
@@ -27,13 +56,6 @@ FILES:${PN} = "\
     ${datadir}/picocalc/rk3506g-luckfox-lyra.dts \
     ${datadir}/picocalc/rk3506-luckfox.dtsi \
     ${datadir}/picocalc/rk3506-luckfox.dts \
+    ${datadir}/picocalc/overlay-symbols.txt \
 "
 SYSROOT_DIRS += "${datadir}/picocalc"
-
-FILES:${PN} = "\
-    ${datadir}/picocalc/picocalc-luckfox-lyra.dtsi \
-    ${datadir}/picocalc/rk3506-luckfox-lyra.dtsi \
-    ${datadir}/picocalc/rk3506g-luckfox-lyra.dts \
-    ${datadir}/picocalc/rk3506-luckfox.dtsi \
-    ${datadir}/picocalc/rk3506-luckfox.dts \
-"
