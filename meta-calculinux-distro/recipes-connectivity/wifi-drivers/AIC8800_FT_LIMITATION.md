@@ -255,4 +255,4 @@ The AIC8800DC hardware **cannot support 802.11r** without manufacturer firmware 
 - [Linux cfg80211 Documentation](https://www.kernel.org/doc/html/latest/networking/cfg80211.html)
 - [iwd Fast Transition Support](https://iwd.wiki.kernel.org/)
 - AIC8800 vendor documentation (12 PDFs analyzed, see table above)
-- Calculinux meta-calculinux repository: `recipes-connectivity/wifi-drivers/aic8800_1.0.8.bb`
+- Calculinux meta-calculinux repository: `recipes-connectivity/wifi-drivers/aic8800_6.4.3.0.bb`
