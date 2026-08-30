@@ -66,6 +66,7 @@ Help
   Feeds  : https://opkg.calculinux.org/
 
 Quick Commands
+  uwific
   opkg update
   opkg list
   opkg list-installed

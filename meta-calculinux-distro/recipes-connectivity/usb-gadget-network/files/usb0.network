@@ -1,5 +1,5 @@
 [Match]
-Name=usb0
+Name=usb*
 
 [Network]
 Address=192.168.7.2/24

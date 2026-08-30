@@ -14,7 +14,6 @@ PACKAGES = "${PN}"
 # These will be built as IPKs and made available in the package feed
 RDEPENDS:${PN} = " \
     amfora \
-    android-adbd \
     autoconf \
     automake \
     basilisk-ii \
