@@ -1,0 +1,20 @@
+From: Fix btrfs print-tree.c BLOCK_GROUP_TREE string truncation
+Subject: [PATCH] btrfs: fix -Wunterminated-string-initialization in print-tree.c
+
+struct root_name_map has char name[16]; "BLOCK_GROUP_TREE" is 16 chars
+plus NUL = 17 bytes, causing a build error with -Werror. Shorten to
+"BLOCK_GRP_TREE" (14 chars) to fit.
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+
+--- a/fs/btrfs/print-tree.c
++++ b/fs/btrfs/print-tree.c
+@@ -23,7 +23,7 @@ static const struct root_name_map root_map[] = {
+ 	{ BTRFS_QUOTA_TREE_OBJECTID,		"QUOTA_TREE"		},
+ 	{ BTRFS_UUID_TREE_OBJECTID,		"UUID_TREE"		},
+ 	{ BTRFS_FREE_SPACE_TREE_OBJECTID,	"FREE_SPACE_TREE"	},
+-	{ BTRFS_BLOCK_GROUP_TREE_OBJECTID,	"BLOCK_GROUP_TREE"	},
++	{ BTRFS_BLOCK_GROUP_TREE_OBJECTID,	"BLOCK_GRP_TREE"	},
+ 	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
+ };
+ 
