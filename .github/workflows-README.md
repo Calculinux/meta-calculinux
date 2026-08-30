@@ -65,8 +65,8 @@ Sets up the Yocto build environment with cache directories and verification.
 ```yaml
 - uses: ./.github/actions/setup-build-env
   with:
-    dl-dir: ${{ github.workspace }}/../yocto-cache/downloads
-    sstate-dir: ${{ github.workspace }}/../yocto-cache/sstate-cache
+    dl-dir: /mnt/runner-cache/yocto-cache/downloads
+    sstate-dir: /mnt/runner-cache/yocto-cache/sstate-cache
     opkg-repo-dir: /mnt/opkg-repo
 ```
 
