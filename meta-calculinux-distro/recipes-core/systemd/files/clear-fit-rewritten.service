@@ -1,7 +1,6 @@
 [Unit]
 Description=Clear U-Boot FIT failover state after successful boot
 After=local-fs.target
-RequiresMountsFor=/data
 
 [Service]
 Type=oneshot

@@ -80,12 +80,15 @@ do_install() {
             arch = "arm";
             os = "linux";
             compression = "$COMPRESS";
+            load = <0x00140000>;
+            entry = <0x00140000>;
         };
         fdt {
             data = /incbin/("$WORKDIR_MERGE/merged.dtb");
             type = "flat_dt";
             arch = "arm";
             compression = "none";
+            load = <0x00063000>;
         };
     };
     configurations {

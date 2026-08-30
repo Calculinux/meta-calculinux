@@ -42,8 +42,6 @@ SRC_URI = " \
     git://github.com/Calculinux/luckfox-linux-6.1-rk3506.git;protocol=https;nobranch=1 \
     ${KERNEL_CFG_FRAGMENTS_SRC_URI} \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
-    file://0001-of-configfs-overlay-interface.patch \
-    file://0002-pinctrl-rockchip-reparse-on-dt-overlay-apply.patch \
     file://depmod-skip-when-echo.patch \
     file://btrfs-print-tree-fix-block-group-tree-string.patch \
 "
@@ -59,9 +57,9 @@ KERNEL_IMAGETYPES = "zboot.img"
 
 # --- Device Tree Overlay Symbol Support ---
 #
-# Runtime ConfigFS overlays need a __symbols__ node in the base DTB so the
-# kernel can resolve phandle label references (e.g. &i2c2, &pinctrl) at
-# overlay-apply time.
+# Userspace fdtoverlay (merge-dt-overlays-boot / default-merged-fit) needs a
+# __symbols__ node in the base DTB so phandle label references (e.g. &i2c2,
+# &pinctrl) resolve when overlays are merged into the FIT before boot.
 #
 # However, compiling with DTC's -@ flag adds __symbols__ for EVERY labelled
 # node. On the RK3506, the RMIO pinctrl DTSI alone defines ~3,100 labels
@@ -194,8 +192,9 @@ do_compile:append() {
             SYMS_ADDED=$(expr $SYMS_ADDED + 1)
             existing=$(fdtget -t x "${DTB_FILE}" "${path}" phandle 2>/dev/null) || true
             if [ -z "${existing}" ] || [ "${existing}" = "0" ]; then
-                if fdtget "${DTB_FILE}" "${path}" status >/dev/null 2>&1 || \
-                   fdtget "${DTB_FILE}" "${path}" compatible >/dev/null 2>&1; then
+                # Node must exist in the compact DTB (-p lists props; fails if missing).
+                # Pinconfig nodes often lack status/compatible; still need a phandle.
+                if fdtget -p "${DTB_FILE}" "${path}" >/dev/null 2>&1; then
                     NEXT_PHANDLE=$(expr ${NEXT_PHANDLE} + 1)
                     fdtput -t x "${DTB_FILE}" "${path}" phandle "$(printf '0x%x' ${NEXT_PHANDLE})" 2>/dev/null || true
                 fi
@@ -234,13 +233,6 @@ do_prepare_kernel_picocalc() {
 
 addtask prepare_kernel_picocalc after do_kernel_checkout before do_kernel_configme
 do_prepare_kernel_picocalc[depends] += "picocalc-devicetree:do_populate_sysroot"
-
-# Kernel scripts/depmod.sh creates a "99.98.$KERNELRELEASE" symlink when using older
-# depmod; it uses INSTALL_MOD_PATH which Yocto does not set, causing ln to fail on
-# /lib/modules/ on the host. Set it so the symlink is created inside the image.
-do_install:prepend() {
-    export INSTALL_MOD_PATH="${D}/usr"
-}
 
 do_install:append() {
     # Remove kernel image formats that are not needed in the device image

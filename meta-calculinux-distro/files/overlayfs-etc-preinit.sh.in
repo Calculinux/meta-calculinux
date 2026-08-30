@@ -70,6 +70,7 @@ if [ -n "$DATA_MOUNTED" ]; then
     done
     # Drop a merged FIT whose kernel no longer matches this slot's /boot/fit_kernel
     # (RAUC hook should already have done this; this recovers if the hook was skipped).
+    # Delete only — never reboot. U-Boot FIT_LAST_TRIED failover uses /boot next time.
     SLOT=A
     if [ -r /proc/cmdline ]; then
         for _arg in $(cat /proc/cmdline); do
@@ -81,13 +82,15 @@ if [ -n "$DATA_MOUNTED" ]; then
     FIT_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/$FIT_NAME"
     STAMP_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/kernel-${SLOT}.stamp"
     if [ -f "$FIT_FILE" ] && [ -f /boot/fit_kernel ]; then
-        CUR=$(sha256sum /boot/fit_kernel | awk '{print $1}')
-        OLD=$(cat "$STAMP_FILE" 2>/dev/null || true)
-        if [ "$CUR" != "$OLD" ]; then
-            echo "PREINIT: stale merged FIT for slot $SLOT, removing and rebooting so U-Boot uses /boot"
-            rm -f "$FIT_FILE" "$STAMP_FILE"
-            sync
-            reboot -f
+        # fit-stamp.sh is installed by merge-dt-overlays-boot under /usr/lib/systemd/
+        if [ -r /usr/lib/systemd/fit-stamp.sh ]; then
+            # shellcheck disable=SC1091
+            . /usr/lib/systemd/fit-stamp.sh
+            if stamp_should_drop /boot/fit_kernel "$STAMP_FILE"; then
+                echo "PREINIT: stale/unstamped merged FIT for slot $SLOT, removing (no reboot)"
+                rm -f "$FIT_FILE" "$STAMP_FILE"
+                sync
+            fi
         fi
     fi
 else

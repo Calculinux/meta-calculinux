@@ -17,7 +17,7 @@ elif test "${{BOOT_ORDER}}" = "B"; then
 elif test "${{BOOT_ORDER}}" = "A B"; then
     if test ${{BOOT_A_LEFT}} -gt 0; then
         echo "Found valid slot A, ${{BOOT_A_LEFT}} attempts remaining";
-        if test "${{skip_decrement}}" = "1"; then setenv skip_decrement 0; else setexpr BOOT_A_LEFT ${{BOOT_A_LEFT}} - 1; fi;
+        setexpr BOOT_A_LEFT ${{BOOT_A_LEFT}} - 1;
         setenv rauc_slot "A";
     else
         echo "Found slot B, booting.... ";
@@ -27,7 +27,7 @@ elif test "${{BOOT_ORDER}}" = "A B"; then
 elif test "${{BOOT_ORDER}}" = "B A"; then
     if test ${{BOOT_B_LEFT}} -gt 0; then
         echo "Found valid slot B, ${{BOOT_B_LEFT}} attempts remaining";
-        if test "${{skip_decrement}}" = "1"; then setenv skip_decrement 0; else setexpr BOOT_B_LEFT ${{BOOT_B_LEFT}} - 1; fi;
+        setexpr BOOT_B_LEFT ${{BOOT_B_LEFT}} - 1;
         setenv rauc_slot "B";
     else
         echo "Found slot A, booting.... ";
@@ -59,10 +59,14 @@ test -n "${{consoleblank}}" || setenv consoleblank 300;
 setenv bootargs "console=${{console}} earlycon=uart8250,mmio32,0xff0a0000,${{baudrate}} console=ttyFIQ0,${{baudrate}} consoleblank=${{consoleblank}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
 echo Setting bootargs to ${{bootargs}};
 
-part number ${{devtype}} ${{devnum}} OVERLAY_DATA overlay_part_hex;
-setexpr overlay_part fmt %d ${{overlay_part_hex}};
 setenv filesize 0;
 setenv fit_loaded 0;
+setenv overlay_part;
+setenv overlay_part_hex;
+part number ${{devtype}} ${{devnum}} OVERLAY_DATA overlay_part_hex;
+if test -n "${{overlay_part_hex}}"; then
+    setexpr overlay_part fmt %d ${{overlay_part_hex}};
+fi;
 if test "${{FIT_LAST_TRIED}}" = "data"; then
     setenv fit_try "boot";
 else
@@ -70,13 +74,16 @@ else
 fi;
 
 # This RAUC slot's merged FIT only — never the other slot (different kernel).
+# Skip data FIT if OVERLAY_DATA partition lookup failed.
 if test "${{fit_try}}" = "data"; then
-    if test "${{rauc_slot}}" = "A"; then
-        load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
-    else
-        load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
+    if test -n "${{overlay_part}}"; then
+        if test "${{rauc_slot}}" = "A"; then
+            load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
+        else
+            load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
+        fi;
+        if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED data; fi;
     fi;
-    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED data; fi;
 fi;
 
 # Same-slot /boot fallback (correct kernel; default or no user overlays)

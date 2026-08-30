@@ -8,6 +8,7 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/GPL-2.0-only;m
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI = " \
+    file://fit-stamp.sh \
     file://merge-dt-overlays-boot.sh \
     file://merge-dt-overlays-boot.service \
     file://merge-dt-overlays-boot.path \
@@ -25,6 +26,7 @@ SYSTEMD_AUTO_ENABLE = "enable"
 RDEPENDS:${PN} += "bash u-boot-tools dtc u-boot-fw-config"
 
 do_install() {
+    install -D -m 0644 ${S}/fit-stamp.sh ${D}${libdir}/systemd/fit-stamp.sh
     install -D -m 0755 ${S}/merge-dt-overlays-boot.sh ${D}${libdir}/systemd/merge-dt-overlays-boot.sh
     install -D -m 0644 ${S}/merge-dt-overlays-boot.service ${D}${systemd_system_unitdir}/merge-dt-overlays-boot.service
     install -D -m 0644 ${S}/merge-dt-overlays-boot.path ${D}${systemd_system_unitdir}/merge-dt-overlays-boot.path
@@ -33,6 +35,7 @@ do_install() {
 }
 
 FILES:${PN} = " \
+    ${libdir}/systemd/fit-stamp.sh \
     ${libdir}/systemd/merge-dt-overlays-boot.sh \
     ${systemd_system_unitdir}/merge-dt-overlays-boot.service \
     ${systemd_system_unitdir}/merge-dt-overlays-boot.path \
