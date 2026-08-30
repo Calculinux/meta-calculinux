@@ -104,7 +104,7 @@ Signed-off-by: Calculinux <meta-calculinux>
  }
  
 +err_free_parse_dt:
-+	for (i = 0; i < info->nfunctions && info->functions[i].groups; i++)
++	for (i = 0; i < info->nfunctions; i++)
 +		kfree(info->functions[i].groups);
 +	kfree(info->groups);
 +err_free_functions:
@@ -184,11 +184,16 @@ Signed-off-by: Calculinux <meta-calculinux>
 +		goto put_pdev;
 +	}
 +
-+	pinctrl_unregister(info->pctl_dev);
-+	info->pctl_dev = pinctrl_register(&info->pctl, dev, info);
-+	if (IS_ERR(info->pctl_dev)) {
-+		dev_err(dev, "failed to re-register pinctrl after overlay\n");
-+		info->pctl_dev = NULL;
++	{
++		struct pinctrl_dev *new_pctl;
++
++		new_pctl = pinctrl_register(&info->pctl, dev, info);
++		if (IS_ERR(new_pctl)) {
++			dev_err(dev, "failed to re-register pinctrl after overlay\n");
++			goto put_pdev;
++		}
++		pinctrl_unregister(info->pctl_dev);
++		info->pctl_dev = new_pctl;
 +	}
 +put_pdev:
 +	put_device(&pdev->dev);
@@ -225,7 +230,8 @@ Signed-off-by: Calculinux <meta-calculinux>
 +	of_overlay_notifier_unregister(&rockchip_pinctrl_overlay_nb);
 +#endif
 +
-+	pinctrl_unregister(info->pctl_dev);
++	if (info->pctl_dev)
++		pinctrl_unregister(info->pctl_dev);
 +
 +	for (i = 0; i < info->nfunctions; i++)
 +		kfree(info->functions[i].groups);
