@@ -21,9 +21,7 @@ SRC_URI = " \
     file://004-platformio-link-group.patch \
     file://meshtasticd.service \
     file://meshtasticd.avahi.xml \
-    file://config.d/luckfox_pico-lora-rfsw-tcxo.yaml \
-    file://config.d/luckfox_pico-lora-rfsw-no_tcxo.yaml \
-    file://config.d/luckfox_pico-lora-rfsw-ebyte_e22.yaml \
+    file://available.d/lora-lyra-picocalc-waveshare-sx1262.yaml \
 "
 
 S = "${WORKDIR}/git"
@@ -129,7 +127,7 @@ do_install() {
     install -m 0644 ${S}/bin/config-dist.yaml ${D}${sysconfdir}/meshtasticd/config.yaml
     cp -r ${S}/bin/config.d/* ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
     find ${D}${sysconfdir}/meshtasticd/available.d -type f -exec chmod 0644 {} \;
-    install -m 0644 ${WORKDIR}/config.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
+    install -m 0644 ${WORKDIR}/available.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
 
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${WORKDIR}/sources-unpack/meshtasticd.service ${D}${systemd_system_unitdir}/
@@ -147,6 +145,8 @@ do_install() {
 FILES:${PN} += " \
     ${sysconfdir}/meshtasticd \
     ${systemd_system_unitdir}/meshtasticd.service \
+    ${sysconfdir}/meshtasticd/available.d \
+    ${sysconfdir}/meshtasticd/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml \
 "
 
 FILES:${PN}-dbg += "${sbindir}/.debug/meshtasticd"
