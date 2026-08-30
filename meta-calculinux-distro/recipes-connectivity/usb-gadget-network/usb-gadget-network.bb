@@ -28,6 +28,7 @@ RDEPENDS:${PN} = " \
     kernel-module-usb-f-fs \
     kernel-module-usb-f-acm \
     kernel-module-dwc2 \
+    android-adbd \
     iproute2 \
     systemd \
 "

@@ -1,0 +1,27 @@
+From: Fix typeof compilation error in C++17
+Subject: [PATCH] Fix typeof compilation error in C++17
+
+The TEMP_FAILURE_RETRY macro uses 'typeof' which is a GCC extension
+not available in standard C++17. Replace with 'decltype' which is
+the C++ standard equivalent.
+
+Signed-off-by: Your Name <your.email@example.com>
+---
+ adb/sysdeps.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/adb/sysdeps.h b/adb/sysdeps.h
+index abc123..def456 100644
+--- a/adb/sysdeps.h
++++ b/adb/sysdeps.h
+@@ -44,7 +44,7 @@ extern "C" {
+ #ifndef TEMP_FAILURE_RETRY
+ /* Used to retry syscalls that can return EINTR. */
+ #define TEMP_FAILURE_RETRY(exp) ({         \
+-    typeof (exp) _rc;                      \
++    decltype (exp) _rc;                    \
+     do {                                   \
+         _rc = (exp);                       \
+     } while (_rc == -1 && errno == EINTR); \
+-- 
+2.34.1

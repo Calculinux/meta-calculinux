@@ -14,7 +14,7 @@ The Luckfox Lyra has two USB OTG controllers:
 When in gadget mode, the PicoCalc acts as a USB device providing:
 - USB networking (ECM/RNDIS)
 - USB serial console (optional)
-- SSH over USB networking (via ECM/RNDIS)
+- ADB over USB (optional)
 
 This is the default mode and is used for connecting the PicoCalc to a host computer.
 
