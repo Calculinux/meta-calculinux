@@ -17,13 +17,7 @@ USB_PROTOCOL=ecm
 ENABLE_SERIAL_CONSOLE=0
 
 # Toggle USB networking function (1=enable, 0=disable)
-# When disabled, only non-network functions (serial/ADB) are enabled
+# When disabled, only non-network functions (e.g. serial console) are enabled
 ENABLE_NETWORK=1
 
-# Toggle ADB FunctionFS gadget integration (1=enable, 0=disable)
-# NOTE: ADB requires adbd daemon running - see documentation
-ENABLE_ADB=0
-
-# Function name and mountpoint for FunctionFS (leave default unless you know why)
-ADB_FUNCTION_NAME=ffs.adb
-ADB_MOUNTPOINT=/dev/ffs/adb
+# ADB FunctionFS removed; use SSH over USB networking instead
