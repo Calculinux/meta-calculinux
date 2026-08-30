@@ -80,7 +80,8 @@ if [ -n "$DATA_MOUNTED" ]; then
     fi
     case "$SLOT" in B) FIT_NAME=zboot_merged_b.img ;; *) FIT_NAME=zboot_merged_a.img ;; esac
     FIT_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/$FIT_NAME"
-    STAMP_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/kernel-${SLOT}.stamp"
+    # Double-brace SLOT so overlayfs-etc str.format leaves a shell variable.
+    STAMP_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/kernel-${{SLOT}}.stamp"
     if [ -f "$FIT_FILE" ] && [ -f /boot/fit_kernel ]; then
         # fit-stamp.sh is installed by merge-dt-overlays-boot under /usr/lib/systemd/
         if [ -r /usr/lib/systemd/fit-stamp.sh ]; then
