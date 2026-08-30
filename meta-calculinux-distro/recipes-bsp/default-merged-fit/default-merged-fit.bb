@@ -21,10 +21,14 @@ DEFAULT_DT_OVERLAYS ?= ""
 DEPENDS = "virtual/kernel picocalc-dt-overlays u-boot-tools-native dtc-native"
 do_install[depends] += "virtual/kernel:do_deploy"
 
-# S = ${WORKDIR} is not allowed since Yocto 5.1 (insane.bbclass). Use UNPACKDIR + placeholder.
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI = "file://dummy"
+# No fetched sources; do_install only uses DEPLOY_DIR_IMAGE. Empty SRC_URI plus
+# mkdir keeps S=${UNPACKDIR} valid without a dummy file (Yocto 5.1 forbids S=${WORKDIR}).
+SRC_URI = ""
 S = "${UNPACKDIR}"
+do_unpack() {
+    mkdir -p ${UNPACKDIR}
+}
+do_patch[noexec] = "1"
 
 do_install() {
     DEPLOY="${DEPLOY_DIR_IMAGE}"
