@@ -48,6 +48,9 @@ Key features:
 ### cleanall.yml
 Workflow for cleaning BitBake recipes. Useful for forcing rebuilds or clearing cache.
 
+### upstream-watches.yml
+Daily (and manual) check of unversioned upstream downloads that replace the file in place. Today that is the BrosTrend `aic8800-dkms.deb`. When the sha256 or packaged version changes, the workflow updates the recipe and opens or refreshes `chore/upstream-watches`. Add another source in `.github/scripts/check-upstream-watches.sh`.
+
 ## Reusable Actions
 
 ### setup-build-env

@@ -119,6 +119,7 @@ RDEPENDS:${PN} = " \
     tic-80 \
     tmux \
     tree \
+    uwific \
     valgrind \
     vice-libretro \
     vim \
