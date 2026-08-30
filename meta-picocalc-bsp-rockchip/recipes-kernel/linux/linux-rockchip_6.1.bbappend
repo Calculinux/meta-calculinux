@@ -50,7 +50,7 @@ SRC_URI = " \
 
 KERNEL_CONFIG_FRAGMENTS += "${KERNEL_CFG_FRAGMENTS_LIST}"
 
-DEPENDS += "gzip"
+DEPENDS += "gzip picocalc-devicetree"
 KBUILD_DEFCONFIG = "rk3506_luckfox_defconfig"
 
 ROCKCHIP_KERNEL_IMAGES = "0"
@@ -194,8 +194,9 @@ do_compile:append() {
             SYMS_ADDED=$(expr $SYMS_ADDED + 1)
             existing=$(fdtget -t x "${DTB_FILE}" "${path}" phandle 2>/dev/null) || true
             if [ -z "${existing}" ] || [ "${existing}" = "0" ]; then
-                if fdtget "${DTB_FILE}" "${path}" status >/dev/null 2>&1 || \
-                   fdtget "${DTB_FILE}" "${path}" compatible >/dev/null 2>&1; then
+                # Node must exist in the compact DTB (-p lists props; fails if missing).
+                # Pinconfig nodes often lack status/compatible; still need a phandle.
+                if fdtget -p "${DTB_FILE}" "${path}" >/dev/null 2>&1; then
                     NEXT_PHANDLE=$(expr ${NEXT_PHANDLE} + 1)
                     fdtput -t x "${DTB_FILE}" "${path}" phandle "$(printf '0x%x' ${NEXT_PHANDLE})" 2>/dev/null || true
                 fi

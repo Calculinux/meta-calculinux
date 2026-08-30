@@ -21,10 +21,11 @@ new pin groups from the overlay take effect before any new devices probe.
   produces correct group indices (use file-level static for grp_index).
 
 Signed-off-by: Calculinux <meta-calculinux>
-
+diff --git a/drivers/pinctrl/pinctrl-rockchip.c b/drivers/pinctrl/pinctrl-rockchip.c
+index e5c77c202..658f45632 100644
 --- a/drivers/pinctrl/pinctrl-rockchip.c
 +++ b/drivers/pinctrl/pinctrl-rockchip.c
-@@ -35,6 +35,7 @@
+@@ -34,6 +34,7 @@
  #include <linux/regmap.h>
  #include <linux/mfd/syscon.h>
  #include <linux/string_helpers.h>
@@ -32,7 +33,7 @@ Signed-off-by: Calculinux <meta-calculinux>
  #include <linux/rockchip/cpu.h>
  
  #include <dt-bindings/pinctrl/rockchip.h>
-@@ -4520,6 +4521,9 @@ static const struct of_device_id rockchip_bank_match[] = {
+@@ -4518,6 +4519,9 @@ static const struct of_device_id rockchip_bank_match[] = {
  	{},
  };
  
@@ -40,10 +41,9 @@ Signed-off-by: Calculinux <meta-calculinux>
 +static u32 rockchip_grp_index;
 +
  static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
- 					struct device_node *np)
+ 						struct device_node *np)
  {
-@@ -4597,7 +4601,7 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
- 	struct device_node *child;
+@@ -4603,7 +4607,6 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
  	struct rockchip_pmx_func *func;
  	struct rockchip_pin_group *grp;
  	int ret;
@@ -51,7 +51,7 @@ Signed-off-by: Calculinux <meta-calculinux>
  	u32 i = 0;
  
  	dev_dbg(dev, "parse function(%d): %pOFn\n", index, np);
-@@ -4608,14 +4612,14 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
+@@ -4616,13 +4619,13 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
  	if (func->ngroups <= 0)
  		return 0;
  
@@ -67,8 +67,31 @@ Signed-off-by: Calculinux <meta-calculinux>
  		ret = rockchip_pinctrl_parse_groups(child, grp, info, i++);
  		if (ret) {
  			of_node_put(child);
-@@ -4628,6 +4632,7 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
- 	struct device_node *child;
+@@ -4633,6 +4636,23 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
+ 	return 0;
+ }
+ 
++
++static void rockchip_pinctrl_free_parse_tables(struct rockchip_pinctrl *info)
++{
++	int i;
++
++	if (!info || !info->functions)
++		return;
++	for (i = 0; i < info->nfunctions; i++)
++		kfree(info->functions[i].groups);
++	kfree(info->functions);
++	kfree(info->groups);
++	info->functions = NULL;
++	info->groups = NULL;
++	info->nfunctions = 0;
++	info->ngroups = 0;
++}
++
+ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 					      struct rockchip_pinctrl *info)
+ {
+@@ -4642,18 +4662,21 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
  	int ret;
  	int i;
  
@@ -76,21 +99,25 @@ Signed-off-by: Calculinux <meta-calculinux>
  	rockchip_pinctrl_child_count(info, np);
  
  	dev_dbg(dev, "nfunctions = %d\n", info->nfunctions);
-@@ -4635,11 +4640,11 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
+ 	dev_dbg(dev, "ngroups = %d\n", info->ngroups);
  
 -	info->functions = devm_kcalloc(dev, info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
 +	info->functions = kcalloc(info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
  	if (!info->functions)
  		return -ENOMEM;
  
+-	info->groups = devm_kcalloc(dev, info->ngroups, sizeof(*info->groups), GFP_KERNEL);
+-	if (!info->groups)
+-		return -ENOMEM;
 +	info->groups = kcalloc(info->ngroups, sizeof(*info->groups), GFP_KERNEL);
-+	if (!info->groups)
++	if (!info->groups) {
++		ret = -ENOMEM;
 +		goto err_free_functions;
++	}
  
  	i = 0;
  
-@@ -4643,6 +4648,8 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
- 		ret = rockchip_pinctrl_parse_functions(child, info, i++);
+@@ -4665,11 +4688,18 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
  		if (ret) {
  			dev_err(dev, "failed to parse function\n");
  			of_node_put(child);
@@ -99,32 +126,31 @@ Signed-off-by: Calculinux <meta-calculinux>
  		}
  	}
  
-@@ -4650,6 +4657,16 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
  	return 0;
++
++err_free_parse_dt:
++	rockchip_pinctrl_free_parse_tables(info);
++	return ret;
++err_free_functions:
++	rockchip_pinctrl_free_parse_tables(info);
++	return ret;
  }
  
-+err_free_parse_dt:
-+	for (i = 0; i < info->nfunctions; i++)
-+		kfree(info->functions[i].groups);
-+	kfree(info->groups);
-+err_free_functions:
-+	kfree(info->functions);
-+	return ret;
-+}
-+
  static int rockchip_pinctrl_register(struct platform_device *pdev,
- 					struct rockchip_pinctrl *info)
-@@ -4667,7 +4674,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
- 	ret = rockchip_pinctrl_parse_dt(pdev, info);
+@@ -4718,13 +4748,96 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
  	if (ret)
  		return ret;
  
 -	info->pctl_dev = devm_pinctrl_register(dev, ctrldesc, info);
+-	if (IS_ERR(info->pctl_dev))
+-		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
 +	info->pctl_dev = pinctrl_register(&info->pctl, dev, info);
- 	if (IS_ERR(info->pctl_dev))
- 		return dev_err_probe(dev, PTR_ERR(info->pctl_dev), "could not register pinctrl driver\n");
++	if (IS_ERR(info->pctl_dev)) {
++		ret = PTR_ERR(info->pctl_dev);
++		rockchip_pinctrl_free_parse_tables(info);
++		return dev_err_probe(dev, ret, "could not register pinctrl driver\n");
++	}
  
-@@ -4674,6 +4681,90 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
  	return 0;
  }
  
@@ -137,7 +163,7 @@ Signed-off-by: Calculinux <meta-calculinux>
 +	struct rockchip_pinctrl *info;
 +	struct device *dev;
 +	int nfunctions, ngroups;
-+	int i, ret;
++	int i, ret, notifier_ret = NOTIFY_OK;
 +
 +	if (action != OF_OVERLAY_POST_APPLY)
 +		return NOTIFY_OK;
@@ -165,6 +191,12 @@ Signed-off-by: Calculinux <meta-calculinux>
 +	if (nfunctions == info->nfunctions && ngroups == info->ngroups)
 +		goto put_pdev;
 +
++	/* Unregister before freeing tables the live handle may reference */
++	if (info->pctl_dev) {
++		pinctrl_unregister(info->pctl_dev);
++		info->pctl_dev = NULL;
++	}
++
 +	/* Free existing using OLD counts (child_count overwrote info->nfunctions/ngroups) */
 +	for (i = 0; i < nfunctions; i++)
 +		kfree(info->functions[i].groups);
@@ -172,32 +204,28 @@ Signed-off-by: Calculinux <meta-calculinux>
 +	kfree(info->groups);
 +	info->functions = NULL;
 +	info->groups = NULL;
++	info->nfunctions = 0;
++	info->ngroups = 0;
 +
-+	/* parse_dt allocates functions/groups internally; do not pre-allocate */
 +	ret = rockchip_pinctrl_parse_dt(pdev, info);
 +	if (ret) {
-+		for (i = 0; i < info->nfunctions; i++)
-+			kfree(info->functions[i].groups);
-+		kfree(info->functions);
-+		kfree(info->groups);
++		rockchip_pinctrl_free_parse_tables(info);
 +		dev_err(dev, "failed to re-parse pinctrl after overlay: %d\n", ret);
++		notifier_ret = NOTIFY_BAD;
 +		goto put_pdev;
 +	}
 +
-+	{
-+		struct pinctrl_dev *new_pctl;
-+
-+		new_pctl = pinctrl_register(&info->pctl, dev, info);
-+		if (IS_ERR(new_pctl)) {
-+			dev_err(dev, "failed to re-register pinctrl after overlay\n");
-+			goto put_pdev;
-+		}
-+		pinctrl_unregister(info->pctl_dev);
-+		info->pctl_dev = new_pctl;
++	info->pctl_dev = pinctrl_register(&info->pctl, dev, info);
++	if (IS_ERR(info->pctl_dev)) {
++		dev_err(dev, "failed to re-register pinctrl after overlay\n");
++		rockchip_pinctrl_free_parse_tables(info);
++		notifier_ret = NOTIFY_BAD;
++		goto put_pdev;
 +	}
++	g_pctldev = info->pctl_dev;
 +put_pdev:
 +	put_device(&pdev->dev);
-+	return NOTIFY_OK;
++	return notifier_ret;
 +}
 +
 +static struct notifier_block rockchip_pinctrl_overlay_nb = {
@@ -208,7 +236,7 @@ Signed-off-by: Calculinux <meta-calculinux>
  static const struct of_device_id rockchip_pinctrl_dt_match[];
  static struct rockchip_pin_bank rk3308bs_pin_banks[];
  static struct rockchip_pin_bank px30s_pin_banks[];
-@@ -4714,6 +4809,11 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
+@@ -5017,6 +5130,10 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
  	if (ret)
  		return ret;
  
@@ -219,10 +247,7 @@ Signed-off-by: Calculinux <meta-calculinux>
  	platform_set_drvdata(pdev, info);
  	g_pctldev = info->pctl_dev;
  
-@@ -4728,6 +4828,18 @@ static int rockchip_pinctrl_remove(struct platform_device *pdev)
- {
- 	struct rockchip_pinctrl *info = platform_get_drvdata(pdev);
- 	struct rockchip_pin_bank *bank;
+@@ -5036,6 +5153,18 @@ static int rockchip_pinctrl_remove(struct platform_device *pdev)
  	struct rockchip_pin_deferred *cfg;
  	int i;
  
@@ -240,3 +265,4 @@ Signed-off-by: Calculinux <meta-calculinux>
 +
  	g_pctldev = NULL;
  	of_platform_depopulate(&pdev->dev);
+ 
