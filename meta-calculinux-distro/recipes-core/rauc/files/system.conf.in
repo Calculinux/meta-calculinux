@@ -4,7 +4,7 @@ bootloader=uboot
 statusfile=/etc/rauc/rauc-slots.status
 
 [keyring]
-path=/etc/rauc/ca.cert.pem
+path=/usr/lib/rauc/ca.cert.pem
 
 [slot.rootfs.0]
 device={RAUC_SLOT_A_DEVICE}

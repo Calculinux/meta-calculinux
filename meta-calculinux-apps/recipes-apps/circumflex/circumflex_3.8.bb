@@ -10,11 +10,9 @@ LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=4ae09d45eac4aa08d013b5f2
 inherit go-mod
 
 SRC_URI = "\
-    git://${GO_IMPORT};destsuffix=git/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
+    git://${GO_IMPORT};destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
 "
 
 SRCREV = "d3718631d4dad87c239d2d7b0209773dfdb40ea6"
-
-S = "${WORKDIR}/git"
 
 GO_IMPORT = "github.com/bensadeh/circumflex"

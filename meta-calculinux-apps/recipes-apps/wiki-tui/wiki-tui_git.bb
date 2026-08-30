@@ -8,11 +8,8 @@ SECTION = "console/utils"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0d4b70885d03e5f949ce9030bac50c5d"
 
-SRC_URI = "git://github.com/Builditluc/wiki-tui.git;protocol=https;branch=main \
-           file://0001-Pin-tui-logger-to-0.17.3-for-Rust-1.87-compat.patch"
+SRC_URI = "git://github.com/Builditluc/wiki-tui.git;protocol=https;branch=main"
 SRCREV = "ff41c522ae89627ea4ba7e0d630ea7cae9d3374b"
-
-S = "${WORKDIR}/git"
 
 PV = "0.9.2+git${SRCPV}"
 

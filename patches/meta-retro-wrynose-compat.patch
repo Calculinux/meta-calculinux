@@ -1,0 +1,25 @@
+diff --git a/conf/layer.conf b/conf/layer.conf
+index 78b1db7..5433f09 100644
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -13,7 +13,7 @@ BBFILE_COLLECTIONS += "meta-libretro"
+ BBFILE_PATTERN_meta-libretro := "^${LAYERDIR}/"
+ BBFILE_PRIORITY_meta-libretro = "100"
+ 
+-LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap"
++LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap wrynose"
+ 
+ # Additional license directories.
+ RETRO_LICENSE_DIR = "${LAYERDIR}/files/custom-licenses"
+diff --git a/wic/retro-rpi-sdimage.wks b/files/wic/retro-rpi-sdimage.wks
+similarity index 100%
+rename from wic/retro-rpi-sdimage.wks
+rename to files/wic/retro-rpi-sdimage.wks
+diff --git a/wic/retro-systemd-bootdisk.wks b/files/wic/retro-systemd-bootdisk.wks
+similarity index 100%
+rename from wic/retro-systemd-bootdisk.wks
+rename to files/wic/retro-systemd-bootdisk.wks
+diff --git a/wic/sdimage-dual-raspberrypi-retro.wks b/files/wic/sdimage-dual-raspberrypi-retro.wks
+similarity index 100%
+rename from wic/sdimage-dual-raspberrypi-retro.wks
+rename to files/wic/sdimage-dual-raspberrypi-retro.wks

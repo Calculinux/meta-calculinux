@@ -83,7 +83,7 @@ do_install() {
         bbdebug 1 "Processing font: $font"
         
         # Enhance the font
-        if python3 ${WORKDIR}/sources-unpack/enhance-psf-unicode.py "$font" "${font}.enhanced"; then
+        if python3 ${UNPACKDIR}/enhance-psf-unicode.py "$font" "${font}.enhanced"; then
             mv "${font}.enhanced" "$font"
             bbnote "Enhanced $font with additional Unicode mappings"
         else

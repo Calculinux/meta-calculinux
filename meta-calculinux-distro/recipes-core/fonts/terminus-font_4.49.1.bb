@@ -55,7 +55,7 @@ do_install () {
         fi
         
         # Enhance the font
-        if python3 ${WORKDIR}/enhance-psf-unicode.py "$input_font" "$output_font"; then
+        if python3 ${UNPACKDIR}/enhance-psf-unicode.py "$input_font" "$output_font"; then
             # Replace original with enhanced version
             if [ "$needs_compress" = "1" ]; then
                 gzip -c "$output_font" > "$font"

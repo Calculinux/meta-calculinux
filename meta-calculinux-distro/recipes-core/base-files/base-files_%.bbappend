@@ -14,12 +14,12 @@ do_install:append() {
     install -d ${D}/mnt
     
     install -d ${D}${sysconfdir}/profile.d
-    install -m 0644 ${WORKDIR}/sources/locale.sh ${D}${sysconfdir}/profile.d/locale.sh
+    install -m 0644 ${UNPACKDIR}/locale.sh ${D}${sysconfdir}/profile.d/locale.sh
 
     install -d ${D}${sysconfdir}
     
     # Install vconsole.conf for default console font
-    install -m 0644 ${WORKDIR}/sources/vconsole.conf ${D}${sysconfdir}/vconsole.conf
+    install -m 0644 ${UNPACKDIR}/vconsole.conf ${D}${sysconfdir}/vconsole.conf
 
     codename="${DISTRO_CODENAME}"
     [ -n "${codename}" ] || codename="unknown"

@@ -5,7 +5,7 @@ LICENSE = "GPL-2.0-only"
 PV = "6.4.3.0"
 
 # License file is extracted from deb package (usr/share/doc/aic8800-dkms/copyright)
-LIC_FILES_CHKSUM = "file://${WORKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=dda5bafa8afaed74f884152b2b3efd00"
+LIC_FILES_CHKSUM = "file://${UNPACKDIR}/usr/share/doc/aic8800-dkms/copyright;md5=dda5bafa8afaed74f884152b2b3efd00"
 
 # Upstream serves every release from one unversioned URL and replaces the file
 # in place (1.0.8 -> 1.0.9 -> 6.4.3.0 broke do_fetch this way). downloadfilename
@@ -24,7 +24,7 @@ SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0;downloadfilenam
 # sha256 of the 6.4.3.0-0b1 deb (extracts to usr/src/aic8800-6.4.3.0)
 SRC_URI[sha256sum] = "5abe730ee9edec292a894f5cdf407c205491b8c57fd39b87886aae3785cd5fac"
 
-S = "${WORKDIR}/aic8800-${PV}"
+S = "${UNPACKDIR}/aic8800-${PV}"
 B = "${S}"
 
 DEPENDS = "virtual/kernel"
@@ -67,7 +67,7 @@ python do_unpack:append() {
     import os
     import shutil
     
-    workdir = d.getVar('WORKDIR')
+    unpackdir = d.getVar('UNPACKDIR')
     dl_dir = d.getVar('DL_DIR')
     pv = d.getVar('PV')
     
@@ -77,34 +77,34 @@ python do_unpack:append() {
     if not os.path.exists(deb_file):
         bb.fatal('DEB file not found in DL_DIR: %s' % deb_file)
     
-    # Copy deb to workdir for extraction
-    workdir_deb = os.path.join(workdir, d.getVar('AIC8800_DEB'))
+    # Copy deb to unpackdir for extraction
+    workdir_deb = os.path.join(unpackdir, d.getVar('AIC8800_DEB'))
     shutil.copy(deb_file, workdir_deb)
     
-    # Extract deb to workdir
+    # Extract deb to unpackdir
     # deb format: ar x file.deb extracts control.tar.gz, data.tar.gz, debian-binary
-    os.chdir(workdir)
+    os.chdir(unpackdir)
     subprocess.run(['ar', 'x', workdir_deb], check=True, capture_output=True)
     subprocess.run(['tar', '-xzf', 'data.tar.gz'], check=True, capture_output=True)
     
     # The deb extracts to usr/src/aic8800-<PV> and lib/firmware/aic8800DC
     # Move driver source to S
-    src_path = os.path.join(workdir, 'usr', 'src', 'aic8800-%s' % pv)
-    dst_path = os.path.join(workdir, 'aic8800-%s' % pv)
+    src_path = os.path.join(unpackdir, 'usr', 'src', 'aic8800-%s' % pv)
+    dst_path = os.path.join(unpackdir, 'aic8800-%s' % pv)
     if os.path.exists(src_path) and not os.path.exists(dst_path):
         shutil.move(src_path, dst_path)
         bb.debug(1, 'Moved source from %s to %s' % (src_path, dst_path))
     
     # Extract udev rules from deb lib/udev/rules.d/
     # Already extracted by tar above, just verify it exists
-    rules_path = os.path.join(workdir, 'lib', 'udev', 'rules.d', 'aic.rules')
+    rules_path = os.path.join(unpackdir, 'lib', 'udev', 'rules.d', 'aic.rules')
     if os.path.exists(rules_path):
         bb.debug(1, 'Found aic.rules at %s' % rules_path)
     else:
         bb.warn('aic.rules not found at %s' % rules_path)
     
     # Convert source from CRLF to LF so patches apply cleanly
-    src_dir = os.path.join(workdir, 'aic8800-%s' % pv)
+    src_dir = os.path.join(unpackdir, 'aic8800-%s' % pv)
     if os.path.exists(src_dir):
         for root, dirs, files in os.walk(src_dir):
             for file in files:
@@ -140,11 +140,11 @@ do_install() {
 
     # Install firmware files from extracted deb
     install -d ${D}${nonarch_base_libdir}/firmware/aic8800DC
-    if [ -d ${WORKDIR}/lib/firmware/aic8800DC ]; then
-        cp -r --no-preserve=ownership ${WORKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800DC/
+    if [ -d ${UNPACKDIR}/lib/firmware/aic8800DC ]; then
+        cp -r --no-preserve=ownership ${UNPACKDIR}/lib/firmware/aic8800DC/* ${D}${nonarch_base_libdir}/firmware/aic8800DC/
     fi
 
     # Install udev rules extracted from deb
     install -d ${D}${sysconfdir}/udev/rules.d
-    install -m 0644 ${WORKDIR}/lib/udev/rules.d/aic.rules ${D}${sysconfdir}/udev/rules.d/
+    install -m 0644 ${UNPACKDIR}/lib/udev/rules.d/aic.rules ${D}${sysconfdir}/udev/rules.d/
 }

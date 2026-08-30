@@ -15,8 +15,6 @@ SRC_URI = "git://github.com/robhagemans/hoard-of-bitfonts.git;protocol=https;bra
           "
 SRCREV = "${AUTOREV}"
 
-S = "${WORKDIR}/git"
-
 DEPENDS = "python3-monobit-native python3-native"
 
 inherit python3native
@@ -42,7 +40,7 @@ do_compile() {
     for font in ${B}/psf-fonts/*.psf; do
         [ -f "$font" ] || continue
         
-        if python3 ${WORKDIR}/enhance-psf-unicode.py "$font" "${font}.enhanced"; then
+        if python3 ${UNPACKDIR}/enhance-psf-unicode.py "$font" "${font}.enhanced"; then
             mv "${font}.enhanced" "$font"
             bbnote "Enhanced $(basename $font) with additional Unicode mappings"
         fi
