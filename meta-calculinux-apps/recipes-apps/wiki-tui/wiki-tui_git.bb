@@ -17,9 +17,7 @@ inherit cargo cargo-update-recipe-crates
 
 DEPENDS = "openssl"
 
-# Use --offline instead of --frozen: Cargo.lock may need to be updated to match
-# Cargo.toml (e.g. after our tui-logger pin patch); --offline allows local
-# lockfile updates without network access.
+# --offline uses the vendored crates.inc without lockfile network refresh.
 CARGO_BUILD_FLAGS:remove = "--frozen"
 CARGO_BUILD_FLAGS += "--offline"
 
@@ -28,6 +26,4 @@ export OPENSSL_DIR = "${STAGING_DIR_HOST}${prefix}"
 export OPENSSL_LIB_DIR = "${STAGING_DIR_HOST}${libdir}"
 export OPENSSL_INCLUDE_DIR = "${STAGING_DIR_HOST}${includedir}"
 
-# Include the auto-generated crates file (run 'bitbake -c update_crates wiki-tui' to regenerate)
-# Note: tui-logger pinned to 0.17.3 in crates.inc; 0.17.4 requires Rust 1.87+ (is_multiple_of)
 require ${BPN}-crates.inc

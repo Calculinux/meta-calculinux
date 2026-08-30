@@ -35,7 +35,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 python do_unpack:append() {
     import shutil, os
     os.makedirs(d.getVar('S') + '/include', exist_ok=True)
-    shutil.copy(d.getVar('WORKDIR') + '/mustache.hpp', d.getVar('S') + '/include/mustache.hpp')
+    shutil.copy(d.getVar('UNPACKDIR') + '/mustache.hpp', d.getVar('S') + '/include/mustache.hpp')
 }
 
 do_install:append() {
