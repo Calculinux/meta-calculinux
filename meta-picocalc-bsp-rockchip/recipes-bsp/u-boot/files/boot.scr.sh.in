@@ -4,14 +4,7 @@ if test "x${{BOOT_ORDER}}" = "x"; then
     saveenv;
 fi;
 test -n "${{BOOT_A_LEFT}}" || setenv BOOT_A_LEFT 1;
-test "${{BOOT_A_LEFT}}" = 3 && setenv BOOT_A_LEFT 1;
 test -n "${{BOOT_B_LEFT}}" || setenv BOOT_B_LEFT 1;
-test "${{BOOT_B_LEFT}}" = 3 && setenv BOOT_B_LEFT 1;
-if test "${{DEFAULT_FIT_JUST_INSTALLED}}" = "1"; then
-    setenv DEFAULT_FIT_JUST_INSTALLED 0;
-    setenv skip_decrement 1;
-    saveenv;
-fi;
 
 setenv rauc_slot;
 
@@ -66,46 +59,30 @@ test -n "${{consoleblank}}" || setenv consoleblank 300;
 setenv bootargs "console=${{console}} earlycon=uart8250,mmio32,0xff0a0000,${{baudrate}} console=ttyFIQ0,${{baudrate}} consoleblank=${{consoleblank}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
 echo Setting bootargs to ${{bootargs}};
 
-test -n "${{FIT_SLOT}}" || setenv FIT_SLOT A;
 part number ${{devtype}} ${{devnum}} OVERLAY_DATA overlay_part_hex;
 setexpr overlay_part fmt %d ${{overlay_part_hex}};
 setenv filesize 0;
-if test "${{FIT_LAST_TRIED}}" = "B"; then
-    setenv fit_try "default";
-elif test "${{FIT_LAST_TRIED}}" = "A"; then
-    setenv fit_try "B";
-else
-    setenv fit_try ${{FIT_SLOT}};
-fi;
 setenv fit_loaded 0;
-
-# Try primary: default (boot part), A, or B
-if test "${{fit_try}}" = "default"; then
-    load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img;
-    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_BOTH_FAILED 1; setenv FIT_LAST_TRIED 0; fi;
-elif test "${{fit_try}}" = "A"; then
-    load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
-    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED A; fi;
-elif test "${{fit_try}}" = "B"; then
-    load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
-    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED B; fi;
+if test "${{FIT_LAST_TRIED}}" = "data"; then
+    setenv fit_try "boot";
+else
+    setenv fit_try "data";
 fi;
 
-# Fallback: other slot when primary was A or B
-if test ${{fit_loaded}} -eq 0; then
-    if test "${{fit_try}}" = "A"; then
-        load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
-        if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED B; fi;
-    elif test "${{fit_try}}" = "B"; then
+# This RAUC slot's merged FIT only — never the other slot (different kernel).
+if test "${{fit_try}}" = "data"; then
+    if test "${{rauc_slot}}" = "A"; then
         load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
-        if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED A; fi;
+    else
+        load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
     fi;
+    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED data; fi;
 fi;
 
-# Final fallback: default from boot partition
+# Same-slot /boot fallback (correct kernel; default or no user overlays)
 if test ${{fit_loaded}} -eq 0; then
     load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img;
-    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_BOTH_FAILED 1; setenv FIT_LAST_TRIED 0; fi;
+    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED boot; fi;
 fi;
 
 if test ${{fit_loaded}} -eq 1; then

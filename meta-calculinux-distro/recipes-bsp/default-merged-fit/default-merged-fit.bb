@@ -14,7 +14,9 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
 # Overlay names (without .dtbo) to apply by default. Empty = no overlays.
-DEFAULT_DT_OVERLAYS ?= "sx1262-lora"
+# Empty: match the shipped /etc/device-tree-overlays.conf. Users add overlays
+# (e.g. sx1262-lora) to that file; merge-dt-overlays-boot applies them per slot.
+DEFAULT_DT_OVERLAYS ?= ""
 
 DEPENDS = "virtual/kernel picocalc-dt-overlays u-boot-tools-native dtc-native"
 do_install[depends] += "virtual/kernel:do_deploy"

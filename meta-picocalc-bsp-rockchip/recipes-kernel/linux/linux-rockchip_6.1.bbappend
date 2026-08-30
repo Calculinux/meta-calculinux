@@ -43,6 +43,7 @@ SRC_URI = " \
     ${KERNEL_CFG_FRAGMENTS_SRC_URI} \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
+    file://0002-pinctrl-rockchip-reparse-on-dt-overlay-apply.patch \
     file://depmod-skip-when-echo.patch \
     file://btrfs-print-tree-fix-block-group-tree-string.patch \
 "
@@ -176,22 +177,27 @@ do_compile:append() {
     # Create __symbols__ node in the compact DTB
     fdtput -c "${DTB_FILE}" /__symbols__ 2>/dev/null || true
 
-    # Copy only whitelisted symbol entries from the full DTB, and inject phandles
-    # for each symbol's target node so the overlay resolver can resolve &label refs.
+    # Copy only whitelisted symbol paths. Keep any phandle the compact DTB
+    # already has (those are what in-tree clocks/pinctrl/i2c refs use). Only
+    # allocate a new id when the node exists but has no phandle.
     SYMS_ADDED=0
     SYMS_MISSING=0
+    NEXT_PHANDLE=$(dtc -I dtb -O dts "${DTB_FILE}" 2>/dev/null \
+        | sed -n 's/.*phandle = <0x\([0-9a-fA-F]*\)>;/\1/p' \
+        | while read h; do printf '%d\n' "0x$h"; done \
+        | sort -n | tail -1)
+    NEXT_PHANDLE=${NEXT_PHANDLE:-0}
     for sym in ${SYMBOLS}; do
         path=$(fdtget -ts "${DTB_FULL}" /__symbols__ "${sym}" 2>/dev/null) || true
         if [ -n "${path}" ]; then
             fdtput -ts "${DTB_FILE}" /__symbols__ "${sym}" "${path}"
             SYMS_ADDED=$(expr $SYMS_ADDED + 1)
-            # Ensure the target node has a phandle in the compact DTB so overlay
-            # resolver can patch fragment targets (otherwise refnode->phandle is 0).
-            phandle=$(fdtget -t x "${DTB_FULL}" "${path}" phandle 2>/dev/null) || true
-            if [ -n "${phandle}" ] && [ "${phandle}" != "0" ]; then
+            existing=$(fdtget -t x "${DTB_FILE}" "${path}" phandle 2>/dev/null) || true
+            if [ -z "${existing}" ] || [ "${existing}" = "0" ]; then
                 if fdtget "${DTB_FILE}" "${path}" status >/dev/null 2>&1 || \
                    fdtget "${DTB_FILE}" "${path}" compatible >/dev/null 2>&1; then
-                    fdtput -t x "${DTB_FILE}" "${path}" phandle "${phandle}" 2>/dev/null || true
+                    NEXT_PHANDLE=$(expr ${NEXT_PHANDLE} + 1)
+                    fdtput -t x "${DTB_FILE}" "${path}" phandle "$(printf '0x%x' ${NEXT_PHANDLE})" 2>/dev/null || true
                 fi
             fi
         else

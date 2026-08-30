@@ -18,7 +18,8 @@ The NEO-M8N defaults to **9600 baud** but can be configured up to 230400 baud us
 
 ## Enabling the NEO-M8N Overlay
 
-The compiled overlay is installed to `/lib/firmware/overlays/neo-m8n-gps.dtbo`.
+The compiled overlay is installed to `/boot/devicetree/neo-m8n-gps.dtbo`.
+For a persistent enable, add `neo-m8n-gps` to `/etc/device-tree-overlays.conf` and reboot.
 
 ### Method 1: Runtime via ConfigFS (Temporary)
 
@@ -29,7 +30,7 @@ To enable the NEO-M8N GPS at runtime (will not persist across reboots):
 mkdir -p /sys/kernel/config/device-tree/overlays/neo-m8n
 
 # Load the overlay
-cat /lib/firmware/overlays/neo-m8n-gps.dtbo > /sys/kernel/config/device-tree/overlays/neo-m8n/dtbo
+cat /boot/devicetree/neo-m8n-gps.dtbo > /sys/kernel/config/device-tree/overlays/neo-m8n/dtbo
 
 # Apply the overlay
 echo 1 > /sys/kernel/config/device-tree/overlays/neo-m8n/status
@@ -57,7 +58,7 @@ Requires=sys-kernel-config.mount
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/bin/sh -c 'mkdir -p /sys/kernel/config/device-tree/overlays/neo-m8n && \
-  cat /lib/firmware/overlays/neo-m8n-gps.dtbo > /sys/kernel/config/device-tree/overlays/neo-m8n/dtbo && \
+  cat /boot/devicetree/neo-m8n-gps.dtbo > /sys/kernel/config/device-tree/overlays/neo-m8n/dtbo && \
   echo 1 > /sys/kernel/config/device-tree/overlays/neo-m8n/status'
 ExecStop=/bin/sh -c 'echo 0 > /sys/kernel/config/device-tree/overlays/neo-m8n/status; \
   rmdir /sys/kernel/config/device-tree/overlays/neo-m8n'
@@ -216,7 +217,7 @@ The NEO-M8N GPS overlay is designed to work alongside the SX1262 LoRA module ove
 
 The overlay source is located in the `picocalc-drivers` repository:
 - Path: `luckfox-lyra/overlays/neo-m8n-gps-overlay.dts`
-- Compiled to: `/lib/firmware/overlays/neo-m8n-gps.dtbo`
+- Compiled to: `/boot/devicetree/neo-m8n-gps.dtbo`
 
 ## Additional Resources
 

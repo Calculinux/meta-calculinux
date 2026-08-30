@@ -1,7 +1,7 @@
 SUMMARY = "Merge device tree overlays into zboot FIT for next boot"
-DESCRIPTION = "Builds zboot_merged_<slot>.img (per RAUC slot A/B) from zboot.img and \
-overlays in /etc/device-tree-overlays.conf, writes to OVERLAY_DATA so U-Boot loads \
-the matching slot's image. Ensures correct kernel+DTB on update and on failover."
+DESCRIPTION = "Builds zboot_merged_<slot>.img for the current RAUC slot from \
+/boot/fit_* and overlays in /etc/device-tree-overlays.conf. U-Boot loads that \
+slot's FIT, then falls back to /boot/zboot_merged.img (never the other slot)."
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
@@ -19,7 +19,7 @@ S = "${UNPACKDIR}"
 
 inherit systemd
 
-SYSTEMD_SERVICE:${PN} = "merge-dt-overlays-boot.path clear-fit-rewritten.service"
+SYSTEMD_SERVICE:${PN} = "merge-dt-overlays-boot.service merge-dt-overlays-boot.path clear-fit-rewritten.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
 RDEPENDS:${PN} += "bash u-boot-tools dtc u-boot-fw-config"

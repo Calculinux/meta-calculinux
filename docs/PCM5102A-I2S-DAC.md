@@ -36,7 +36,7 @@
 - **H1L**, **H2L**, **H3L**, **H4L** → All LOW (3.3V system, I2S format)
 
 **Optional:**
-- **SCK** (master clock) can be left disconnected - PCM5102A will work fine without it
+- **SCK** (master clock) can be left disconnected - PCM5102A will work fine without it. Leave it disconnected if you also use the SX1262 overlay (DIO1 is GPIO3_B6).
 - If your module doesn't have these jumpers, it likely runs in fixed hardware mode (which is perfect)
 
 ### Output Connections
@@ -77,14 +77,18 @@ This enables:
 ./meta-calculinux/kas-container build ./meta-calculinux/kas-luckfox-lyra-bundle.yaml
 
 # Flash updated image to device
-# Copy overlay to device: /lib/firmware/overlays/pcm5102a-i2s.dtbo
+# Copy overlay to device: /boot/devicetree/pcm5102a-i2s.dtbo
 ```
 
-### 4. Apply Overlay at Runtime
+### 4. Enable Overlay
+
+Add `pcm5102a-i2s` to `/etc/device-tree-overlays.conf` and reboot.
+
+To apply at runtime instead:
 ```bash
 # On the PicoCalc device:
 mkdir -p /sys/kernel/config/device-tree/overlays/pcm5102a
-cat /lib/firmware/overlays/pcm5102a-i2s.dtbo > \
+cat /boot/devicetree/pcm5102a-i2s.dtbo > \
     /sys/kernel/config/device-tree/overlays/pcm5102a/dtbo
 echo 1 > /sys/kernel/config/device-tree/overlays/pcm5102a/status
 ```

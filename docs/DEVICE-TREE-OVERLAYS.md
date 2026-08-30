@@ -48,12 +48,19 @@ Enables UART5 for communication with the u-blox NEO-M8N GPS module on RMII1 test
 
 ## Default (Persistent) Behavior: Merge for Next Boot
 
-List overlays in `/etc/device-tree-overlays.conf`. On boot (and whenever the config or overlays change),
-Calculinux will build a merged FIT image (kernel + DTB with overlays applied) for the **next boot**.
+List overlays in `/etc/device-tree-overlays.conf`. `merge-dt-overlays-boot` runs at boot and
+when that config (or `/etc/devicetree/`) changes, and writes
+`/data/fit/zboot_merged_<rauc-slot>.img` for the **current** RAUC slot only.
+
+U-Boot loads that slot's FIT, then `/boot/zboot_merged.img` on the same root, then
+unmerged `zboot.img`. It never boots the other slot's FIT (that FIT has the other
+slot's kernel). A RAUC install deletes the target slot's merged FIT so the first
+boot after update uses `/boot/zboot_merged.img`.
 
 Notes:
 
 - **Changes require a reboot** to take effect.
+- The image does not enable hardware overlays by default; add names such as `sx1262-lora` to the config.
 - Overlays are resolved from `/etc/devicetree/` first (user overrides), then `/boot/devicetree/` (image-provided).
 
 ## Runtime Overlay Loading (ConfigFS) (Developer Option)

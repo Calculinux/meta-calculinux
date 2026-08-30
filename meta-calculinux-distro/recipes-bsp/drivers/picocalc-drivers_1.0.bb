@@ -116,8 +116,6 @@ RDEPENDS:${PN} = " \
     ${PN}-lcd-drm \
     ${PN}-snd-m0 \
     ${PN}-rproc \
-    ${PN}-snd-pwm \
-    ${PN}-snd-softpwm \
     ${PN}-mfd \
 "
 RDEPENDS:${PN}-snd-m0 = "${PN}-rproc picocalc-m0-firmware"

@@ -16,7 +16,8 @@ The default I2C address for DS3231 is **0x68**.
 
 ## Enabling the DS3231 Overlay
 
-The compiled overlay is installed to `/lib/firmware/overlays/ds3231-rtc.dtbo`.
+The compiled overlay is installed to `/boot/devicetree/ds3231-rtc.dtbo`.
+For a persistent enable, add `ds3231-rtc` to `/etc/device-tree-overlays.conf` and reboot.
 
 ### Method 1: Runtime via ConfigFS (Temporary)
 
@@ -27,7 +28,7 @@ To enable the DS3231 RTC at runtime (will not persist across reboots):
 mkdir -p /sys/kernel/config/device-tree/overlays/ds3231
 
 # Load the overlay
-cat /lib/firmware/overlays/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo
+cat /boot/devicetree/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo
 
 # Apply the overlay
 echo 1 > /sys/kernel/config/device-tree/overlays/ds3231/status
@@ -55,7 +56,7 @@ Requires=sys-kernel-config.mount
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/bin/sh -c 'mkdir -p /sys/kernel/config/device-tree/overlays/ds3231 && \
-  cat /lib/firmware/overlays/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo && \
+  cat /boot/devicetree/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo && \
   echo 1 > /sys/kernel/config/device-tree/overlays/ds3231/status'
 ExecStop=/bin/sh -c 'echo 0 > /sys/kernel/config/device-tree/overlays/ds3231/status; \
   rmdir /sys/kernel/config/device-tree/overlays/ds3231'

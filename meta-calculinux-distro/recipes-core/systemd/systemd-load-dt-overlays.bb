@@ -7,19 +7,27 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI = " \
     file://load-dt-overlays.sh \
+    file://load-dt-overlays.service \
 "
 
 S = "${UNPACKDIR}"
 
-# Add bash as a runtime dependency
+inherit systemd
+
+# Developer tool: installed, not started.
+SYSTEMD_SERVICE:${PN} = "load-dt-overlays.service"
+SYSTEMD_AUTO_ENABLE = "disable"
+
 RDEPENDS:${PN} += "bash"
 
 do_install() {
     install -D -m 0755 ${S}/load-dt-overlays.sh ${D}${bindir}/load-dt-overlays
+    install -D -m 0644 ${S}/load-dt-overlays.service ${D}${systemd_system_unitdir}/load-dt-overlays.service
 }
 
 FILES:${PN} = " \
     ${bindir}/load-dt-overlays \
+    ${systemd_system_unitdir}/load-dt-overlays.service \
 "
 
 COMPATIBLE_MACHINE = "luckfox-lyra"

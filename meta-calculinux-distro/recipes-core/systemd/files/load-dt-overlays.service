@@ -8,7 +8,7 @@ ConditionPathExists=/etc/device-tree-overlays.conf
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/lib/systemd/load-dt-overlays.sh /etc/device-tree-overlays.conf
+ExecStart=/usr/bin/load-dt-overlays /etc/device-tree-overlays.conf
 StandardOutput=journal
 StandardError=journal
 

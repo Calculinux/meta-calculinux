@@ -190,7 +190,7 @@ managed directly through ConfigFS at runtime without building an external module
 4. Echo `1` into the matching `status` attribute to apply the overlay, or `0` to remove it again.
 
 This matches the workflow documented upstream in the `dtbocfg`/OpenWrt examples while keeping the code in-tree.
-Place reusable overlays in `/lib/firmware/overlays` (or another directory of your choosing) so
+Place reusable overlays in `/boot/devicetree` (or `/etc/devicetree` for overrides) so
 they can be easily copied into ConfigFS when needed.
 
 ---

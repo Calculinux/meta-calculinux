@@ -14,13 +14,12 @@
 PicoCalc Lyra              SX1262 Module
 ────────────────────────────────────────
 GPIO3_B2 (Pin 30)  →  CLK
-GPIO3_B3 (Pin 29)  →  MOSI
-GPIO3_B4 (Pin 28)  →  MISO
+GPIO3_B5 (Pin 27)  →  MOSI
+GPIO3_A6           →  MISO
 GPIO3_B6 (Pin 26)  →  DIO1
-GPIO3_B5 (Pin 27)  →  BUSY
-GPIO1_D0 (Pin 115) →  DIO2
-GND                →  CS + GND
-3.3V               →  VCC + DIO2_RF_SWITCH
+GPIO1_D0 (Pin 115) →  BUSY
+GND                →  CS
+3.3V               →  VCC + RESET pullup
 ```
 
 ### RESET Pin Handling
@@ -69,24 +68,24 @@ The SX1262 module includes automatic RF switching. Configuration:
 
 ## Meshtastic Configuration
 
-The config file has been updated:
-- **File**: `meta-meshtastic/recipes-connectivity/meshtasticd/files/config.d/luckfox_pico-lora-rfsw-no_tcxo.yaml`
-- **SPI Method**: GPIO bitbang (not hardware SPI)
-- **Speed**: 2 MHz (adequate for LoRA)
-- **RF Switch**: Automatic (DIO2_AS_RF_SWITCH: true)
+Shipped config (enable by linking into `/etc/meshtasticd/config.d/`):
+- **File**: `meta-meshtastic/recipes-connectivity/meshtasticd/files/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml`
+- **On device**: `/etc/meshtasticd/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml`
+- **SPI Method**: GPIO bitbang (`spidev2.0` from the `sx1262-lora` overlay)
+- **Speed**: 2 MHz
+- **RF Switch**: Automatic (`DIO2_AS_RF_SWITCH: true`); CS and RESET tied (config `-1`)
 
-### GPIO Mapping (for reference)
+### GPIO Mapping (matches the shipped YAML)
 
-The GPIO numbers in the config use `gpiochip: 1` with 32 subtracted:
+`gpiochip` 3 is bank 3; line = group*8+X (A=0, B=1, …). Busy is on gpiochip 1.
 
-| Pin | Logical GPIO | Meshtastic ID | Function |
-|-----|--------------|----------------|----------|
-| GPIO3_B2 | 106 | 74 (CLK-32) | SPI Clock |
-| GPIO3_B3 | 107 | 75 (MOSI-32) | SPI MOSI |
-| GPIO3_B4 | 108 | 76 (MISO-32) | SPI MISO |
-| GPIO3_B6 | 110 | 78 (IRQ-32) | DIO1 Interrupt |
-| GPIO3_B5 | 109 | 77 (BUSY-32) | Busy Status |
-| GPIO1_D0 | 64 | 32 (DIO2-32) | RF Switch |
+| Pin | yaml | Function |
+|-----|------|----------|
+| GPIO3_B2 | gpiochip 3, CLK: 10 | SPI Clock |
+| GPIO3_B5 | gpiochip 3, MOSI: 13 | SPI MOSI |
+| GPIO3_A6 | gpiochip 3, MISO: 6 | SPI MISO |
+| GPIO3_B6 | gpiochip 3, IRQ: 14 | DIO1 |
+| GPIO1_D0 | gpiochip 1, Busy line: 24 | Busy |
 
 ## Assembly Instructions
 
@@ -123,7 +122,7 @@ On the SX1262 module, locate the RESET pin and connect:
 
 **Option B:** Use GPIO (uses extra pin)
 - If you want CS controlled by software later, don't ground it
-- Add GPIO3_B2 mapping and change meshtastic config `CS: 106`
+- Wire CS to a free GPIO and set `CS:` in the YAML (do not reuse CLK GPIO3_B2)
 
 ### 5. Power and Ground
 
@@ -136,7 +135,7 @@ On the SX1262 module, locate the RESET pin and connect:
 - **Antenna**: Connect to ANT connector
 - **RXEN**: Tie to GND (RX default)
 - **TXEN**: Tie to GND (or control via GPIO if desired)
-- **DIO2**: For automatic RF switching, connect to GPIO1_D0
+- **DIO2**: Module-internal RF switch (`DIO2_AS_RF_SWITCH`); GPIO1_D0 is Busy, not DIO2
 
 ## Software Setup
 
@@ -198,7 +197,7 @@ grep -i "sx1262\|lora" /tmp/dt.dts
 ls -la /sys/class/gpio/ | grep gpio[0-9]
 
 # Verify Meshtastic config
-cat /etc/meshtastic/config.d/luckfox_pico-lora-rfsw-no_tcxo.yaml
+cat /etc/meshtasticd/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml
 ```
 
 ### SPI Communication Issues
