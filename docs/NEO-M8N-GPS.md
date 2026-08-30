@@ -29,17 +29,14 @@ To enable the NEO-M8N GPS at runtime (will not persist across reboots):
 # Create overlay directory
 mkdir -p /sys/kernel/config/device-tree/overlays/neo-m8n
 
-# Load the overlay
+# Write the overlay (kernel applies on this write; status is read-only)
 cat /boot/devicetree/neo-m8n-gps.dtbo > /sys/kernel/config/device-tree/overlays/neo-m8n/dtbo
-
-# Apply the overlay
-echo 1 > /sys/kernel/config/device-tree/overlays/neo-m8n/status
+cat /sys/kernel/config/device-tree/overlays/neo-m8n/status   # expect: applied
 ```
 
 To remove the overlay:
 
 ```bash
-echo 0 > /sys/kernel/config/device-tree/overlays/neo-m8n/status
 rmdir /sys/kernel/config/device-tree/overlays/neo-m8n
 ```
 
@@ -59,9 +56,8 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/bin/sh -c 'mkdir -p /sys/kernel/config/device-tree/overlays/neo-m8n && \
   cat /boot/devicetree/neo-m8n-gps.dtbo > /sys/kernel/config/device-tree/overlays/neo-m8n/dtbo && \
-  echo 1 > /sys/kernel/config/device-tree/overlays/neo-m8n/status'
-ExecStop=/bin/sh -c 'echo 0 > /sys/kernel/config/device-tree/overlays/neo-m8n/status; \
-  rmdir /sys/kernel/config/device-tree/overlays/neo-m8n'
+  [ "$(cat /sys/kernel/config/device-tree/overlays/neo-m8n/status)" = applied ]'
+ExecStop=/bin/sh -c 'rmdir /sys/kernel/config/device-tree/overlays/neo-m8n'
 
 [Install]
 WantedBy=multi-user.target

@@ -90,7 +90,7 @@ To apply at runtime instead:
 mkdir -p /sys/kernel/config/device-tree/overlays/pcm5102a
 cat /boot/devicetree/pcm5102a-i2s.dtbo > \
     /sys/kernel/config/device-tree/overlays/pcm5102a/dtbo
-echo 1 > /sys/kernel/config/device-tree/overlays/pcm5102a/status
+cat /sys/kernel/config/device-tree/overlays/pcm5102a/status   # expect: applied
 ```
 
 ### 5. Verify Audio Device

@@ -187,9 +187,10 @@ managed directly through ConfigFS at runtime without building an external module
 2. Create a directory under `/sys/kernel/config/device-tree/overlays/<name>` for each overlay you want to
    stage.
 3. Copy the compiled overlay blob (`*.dtbo`) into the `dtbo` attribute inside that directory.
-4. Echo `1` into the matching `status` attribute to apply the overlay, or `0` to remove it again.
+   The kernel applies the overlay on that write; `status` is read-only.
+4. Confirm it applied (`cat .../status` should print `applied`). To unload, `rmdir` the overlay directory.
 
-This matches the workflow documented upstream in the `dtbocfg`/OpenWrt examples while keeping the code in-tree.
+This matches `load-dt-overlays.sh` (write `dtbo`, then check `status` for `applied`).
 Place reusable overlays in `/boot/devicetree` (or `/etc/devicetree` for overrides) so
 they can be easily copied into ConfigFS when needed.
 

@@ -77,20 +77,16 @@ Device tree overlays use the upstream kernel ConfigFS interface (`drivers/of/con
 # 1. Create overlay directory
 mkdir -p /sys/kernel/config/device-tree/overlays/<overlay-name>
 
-# 2. Load the compiled overlay
+# 2. Write the compiled overlay (kernel applies on this write; status is read-only)
 cat /boot/devicetree/<overlay-name>.dtbo > /sys/kernel/config/device-tree/overlays/<overlay-name>/dtbo
 
-# 3. Activate the overlay
-echo 1 > /sys/kernel/config/device-tree/overlays/<overlay-name>/status
+# 3. Confirm it applied
+cat /sys/kernel/config/device-tree/overlays/<overlay-name>/status   # expect: applied
 ```
 
 ### Unloading an Overlay
 
 ```bash
-# 1. Deactivate
-echo 0 > /sys/kernel/config/device-tree/overlays/<overlay-name>/status
-
-# 2. Remove directory
 rmdir /sys/kernel/config/device-tree/overlays/<overlay-name>
 ```
 
@@ -137,8 +133,8 @@ For one-off overlays not in the main build, you can manually compile:
 
 ```bash
 # On device or build host with dtc installed
-dtc -@ -I dts -O dtb -o my-overlay.dtbo my-overlay-overlay.dts
-cp my-overlay.dtbo /etc/devicetree/
+dtc -@ -I dts -O dtb -o custom-device.dtbo custom-device-overlay.dts
+cp custom-device.dtbo /etc/devicetree/
 ```
 
 ### 3. Testing Your Overlay
@@ -157,9 +153,9 @@ ssh pico@192.168.7.2 dmesg | grep -i overlay
 Test with ConfigFS before committing to the image:
 
 ```bash
-mkdir -p /sys/kernel/config/device-tree/overlays/my-overlay
-cat /etc/devicetree/my-overlay.dtbo > /sys/kernel/config/device-tree/overlays/my-overlay/dtbo
-echo 1 > /sys/kernel/config/device-tree/overlays/my-overlay/status
+mkdir -p /sys/kernel/config/device-tree/overlays/custom-device
+cat /etc/devicetree/custom-device.dtbo > /sys/kernel/config/device-tree/overlays/custom-device/dtbo
+cat /sys/kernel/config/device-tree/overlays/custom-device/status   # expect: applied
 ```
 
 Check dmesg for any errors:

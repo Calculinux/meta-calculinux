@@ -18,7 +18,8 @@ GPIO3_B5 (Pin 27)  →  MOSI
 GPIO3_A6           →  MISO
 GPIO3_B6 (Pin 26)  →  DIO1
 GPIO1_D0 (Pin 115) →  BUSY
-GND                →  CS
+GND                →  GND
+GND                →  CS (tie CS low; or a free GPIO if you want software CS)
 3.3V               →  VCC + RESET pullup
 ```
 
@@ -68,14 +69,17 @@ The SX1262 module includes automatic RF switching. Configuration:
 
 ## Meshtastic Configuration
 
-Shipped config (enable by linking into `/etc/meshtasticd/config.d/`):
-- **File**: `meta-meshtastic/recipes-connectivity/meshtasticd/files/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml`
-- **On device**: `/etc/meshtasticd/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml`
+Shipped Meshtastic samples (Luckfox Pico modules, not this PicoCalc wiring) live in
+`meta-meshtastic/recipes-connectivity/meshtasticd/files/config.d/` and install to
+`/etc/meshtasticd/available.d/`. Enable a sample by linking it into `/etc/meshtasticd/config.d/`.
+
+For the Waveshare wiring above, copy a sample and edit CS/IRQ/Busy/gpiochip (or write a new
+YAML) so it matches the table below. With CS tied to GND, set `CS: -1`.
 - **SPI Method**: GPIO bitbang (`spidev2.0` from the `sx1262-lora` overlay)
 - **Speed**: 2 MHz
 - **RF Switch**: Automatic (`DIO2_AS_RF_SWITCH: true`); CS and RESET tied (config `-1`)
 
-### GPIO Mapping (matches the shipped YAML)
+### GPIO Mapping (for the wiring above)
 
 `gpiochip` 3 is bank 3; line = group*8+X (A=0, B=1, …). Busy is on gpiochip 1.
 
@@ -165,7 +169,7 @@ ssh pico@192.168.7.2
 mkdir -p /sys/kernel/config/device-tree/overlays/sx1262
 cat /boot/devicetree/sx1262-lora.dtbo > \
     /sys/kernel/config/device-tree/overlays/sx1262/dtbo
-echo 1 > /sys/kernel/config/device-tree/overlays/sx1262/status
+cat /sys/kernel/config/device-tree/overlays/sx1262/status   # expect: applied
 ```
 
 If you see `rockchip-pinctrl ... unable to find group for node sx1262-pins`, use the merged-boot workflow
@@ -196,8 +200,9 @@ grep -i "sx1262\|lora" /tmp/dt.dts
 # Check GPIO pins are exported
 ls -la /sys/class/gpio/ | grep gpio[0-9]
 
-# Verify Meshtastic config
-cat /etc/meshtasticd/available.d/lora-lyra-picocalc-waveshare-sx1262.yaml
+# Verify Meshtastic config (edit a sample from available.d to match this wiring)
+ls /etc/meshtasticd/available.d/
+ls /etc/meshtasticd/config.d/
 ```
 
 ### SPI Communication Issues

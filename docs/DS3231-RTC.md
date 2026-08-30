@@ -27,17 +27,14 @@ To enable the DS3231 RTC at runtime (will not persist across reboots):
 # Create overlay directory
 mkdir -p /sys/kernel/config/device-tree/overlays/ds3231
 
-# Load the overlay
+# Write the overlay (kernel applies on this write; status is read-only)
 cat /boot/devicetree/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo
-
-# Apply the overlay
-echo 1 > /sys/kernel/config/device-tree/overlays/ds3231/status
+cat /sys/kernel/config/device-tree/overlays/ds3231/status   # expect: applied
 ```
 
 To remove the overlay:
 
 ```bash
-echo 0 > /sys/kernel/config/device-tree/overlays/ds3231/status
 rmdir /sys/kernel/config/device-tree/overlays/ds3231
 ```
 
@@ -57,9 +54,8 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/bin/sh -c 'mkdir -p /sys/kernel/config/device-tree/overlays/ds3231 && \
   cat /boot/devicetree/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo && \
-  echo 1 > /sys/kernel/config/device-tree/overlays/ds3231/status'
-ExecStop=/bin/sh -c 'echo 0 > /sys/kernel/config/device-tree/overlays/ds3231/status; \
-  rmdir /sys/kernel/config/device-tree/overlays/ds3231'
+  [ "$(cat /sys/kernel/config/device-tree/overlays/ds3231/status)" = applied ]'
+ExecStop=/bin/sh -c 'rmdir /sys/kernel/config/device-tree/overlays/ds3231'
 
 [Install]
 WantedBy=multi-user.target
