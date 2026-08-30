@@ -137,7 +137,7 @@ index e5c77c202..658f45632 100644
  }
  
  static int rockchip_pinctrl_register(struct platform_device *pdev,
-@@ -4718,13 +4748,96 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
+@@ -4718,13 +4748,95 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
  	if (ret)
  		return ret;
  
