@@ -21,10 +21,11 @@ GADGET_PATH="${GADGET_DIR}/${GADGET_NAME}"
 # USB port mode: "gadget" (device mode) or "host" (host mode)
 USB_MODE=${USB_MODE:-gadget}
 
-# USB network protocol: "both" (default), "ecm" (Linux/macOS), or "rndis" (Windows)
-# "both" exposes ECM + RNDIS in one config; the host OS picks its driver.
+# USB network protocol: "rndis" (default), "ecm" (Linux/macOS), or "both"
+# RNDIS: one interface on Windows and Linux. "both" can leave Linux with two
+# interfaces on the same subnet. Use "ecm" for macOS.
 # Only applies when USB_MODE=gadget
-USB_PROTOCOL=${USB_PROTOCOL:-both}
+USB_PROTOCOL=${USB_PROTOCOL:-rndis}
 
 # Optional USB serial console on ttyGS0 (ACM function)
 ENABLE_SERIAL_CONSOLE=${ENABLE_SERIAL_CONSOLE:-0}

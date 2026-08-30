@@ -5,10 +5,13 @@
 # host - Enables USB host mode (device can connect to USB peripherals like flash drives, keyboards)
 USB_MODE=gadget
 
-# USB network protocol: "both" (default), "ecm" (Linux/macOS), or "rndis" (Windows)
-# "both" exposes ECM + RNDIS; each host OS binds the driver it understands.
+# USB network protocol: "rndis" (default), "ecm" (Linux/macOS), or "both"
+# RNDIS works on Windows and Linux with a single host interface.
+# "both" also works cross-platform but Linux often binds ECM and RNDIS together
+# (two interfaces, same addressing) which can confuse routing.
+# Use "ecm" for macOS (no inbox RNDIS host driver).
 # Only applies when USB_MODE=gadget
-USB_PROTOCOL=both
+USB_PROTOCOL=rndis
 
 # Toggle USB serial console on ttyGS0 (1=enable, 0=disable)
 # When enabled, provides console access via USB ACM (Abstract Control Model)

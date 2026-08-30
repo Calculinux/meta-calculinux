@@ -7,13 +7,13 @@ This package configures the PicoCalc device to act as a USB network device, allo
 The device is configured with:
 - **Device IP**: 192.168.7.2
 - **Network**: 192.168.7.0/24
-- **Interface**: `usb0` (ECM) and/or `usb1` (RNDIS) — only the one your host binds is used
+- **Interface**: typically `usb0` (RNDIS by default)
 
-By default the gadget exposes **both ECM and RNDIS** in a single USB configuration:
-1. **RNDIS** — Windows (auto driver via Microsoft OS descriptors)
-2. **CDC-Ether/ECM** — Linux/macOS
+By default the gadget exposes **RNDIS** only. That works on Windows and Linux with a single host interface. (`both` is available via config/`usb-modeswitch`, but Linux often binds ECM and RNDIS together — two interfaces on the same subnet, which breaks routing.)
 
-No mode switch is needed when moving between Windows and Linux hosts.
+- **RNDIS** (default) — Windows + Linux
+- **CDC-Ether/ECM** — prefer for macOS (`USB_PROTOCOL=ecm`); Apple has no inbox RNDIS host driver
+- **both** — ECM + RNDIS in one config; avoid unless you need it and can ignore the extra Linux interface
 
 ## Host Computer Setup
 
@@ -81,6 +81,12 @@ sudo systemctl restart systemd-networkd
 ```
 
 ### macOS Host
+
+macOS has no inbox RNDIS host driver. Switch the gadget to ECM first:
+
+```bash
+sudo usb-modeswitch --mode gadget --protocol ecm
+```
 
 1. The device should appear as a CDC-Ether device.
 
