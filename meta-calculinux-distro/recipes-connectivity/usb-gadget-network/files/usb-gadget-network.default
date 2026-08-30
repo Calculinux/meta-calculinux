@@ -5,11 +5,10 @@
 # host - Enables USB host mode (device can connect to USB peripherals like flash drives, keyboards)
 USB_MODE=gadget
 
-# USB network protocol: "ecm" for Linux/macOS (default), "rndis" for Windows
-# ECM (CDC-Ether) is the native Linux protocol and works on macOS
-# RNDIS is required for Windows compatibility
+# USB network protocol: "both" (default), "ecm" (Linux/macOS), or "rndis" (Windows)
+# "both" exposes ECM + RNDIS; each host OS binds the driver it understands.
 # Only applies when USB_MODE=gadget
-USB_PROTOCOL=ecm
+USB_PROTOCOL=both
 
 # Toggle USB serial console on ttyGS0 (1=enable, 0=disable)
 # When enabled, provides console access via USB ACM (Abstract Control Model)
@@ -17,13 +16,7 @@ USB_PROTOCOL=ecm
 ENABLE_SERIAL_CONSOLE=0
 
 # Toggle USB networking function (1=enable, 0=disable)
-# When disabled, only non-network functions (serial/ADB) are enabled
+# When disabled, only non-network functions (e.g. serial console) are enabled
 ENABLE_NETWORK=1
 
-# Toggle ADB FunctionFS gadget integration (1=enable, 0=disable)
-# NOTE: ADB requires adbd daemon running - see documentation
-ENABLE_ADB=0
-
-# Function name and mountpoint for FunctionFS (leave default unless you know why)
-ADB_FUNCTION_NAME=ffs.adb
-ADB_MOUNTPOINT=/dev/ffs/adb
+# ADB FunctionFS removed; use SSH over USB networking instead

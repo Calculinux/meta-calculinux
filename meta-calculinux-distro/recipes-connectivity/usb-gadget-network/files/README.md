@@ -7,11 +7,13 @@ This package configures the PicoCalc device to act as a USB network device, allo
 The device is configured with:
 - **Device IP**: 192.168.7.2
 - **Network**: 192.168.7.0/24
-- **Interface**: usb0
+- **Interface**: `usb0` (ECM) and/or `usb1` (RNDIS) — only the one your host binds is used
 
-The gadget provides two configurations:
-1. **RNDIS** (for Windows)
-2. **CDC-Ether/ECM** (for Linux/macOS)
+By default the gadget exposes **both ECM and RNDIS** in a single USB configuration:
+1. **RNDIS** — Windows (auto driver via Microsoft OS descriptors)
+2. **CDC-Ether/ECM** — Linux/macOS
+
+No mode switch is needed when moving between Windows and Linux hosts.
 
 ## Host Computer Setup
 
@@ -97,21 +99,21 @@ sudo systemctl restart systemd-networkd
 
 ### Windows Host
 
-1. When you connect the device, Windows should detect it as an RNDIS device.
+1. Plug in USB — Windows should detect an **RNDIS/Ethernet Gadget** adapter automatically (Win10/11 include the driver).
 
-2. Install RNDIS drivers if prompted (Windows 10/11 usually has them built-in).
+2. Open **Settings → Network & Internet → Ethernet** (or classic Network Connections).
 
-3. Open Network Connections, find the RNDIS/Ethernet Gadget device.
+3. Set IPv4 manually:
+   - IP Address: **192.168.7.1**
+   - Subnet Mask: **255.255.255.0**
 
-4. Configure IPv4 properties:
-   - IP Address: 192.168.7.1
-   - Subnet Mask: 255.255.255.0
-
-5. Test connectivity:
+4. Test:
    ```cmd
    ping 192.168.7.2
    ssh pico@192.168.7.2
    ```
+
+No ADB or extra drivers required for basic SSH access.
 
 ## Internet Sharing
 
