@@ -20,7 +20,8 @@ do_compile() {
 }
 
 do_install() {
-    oe_runmake install DESTDIR=${D} PREFIX=${STAGING_DIR_NATIVE}${prefix}
+    install -d ${D}${bindir}
+    install -m 0755 ${S}/kbitx2bdf ${D}${bindir}/kbitx2bdf
 }
 
 FILES:${PN} = "${bindir}/kbitx2bdf"

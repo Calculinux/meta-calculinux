@@ -41,7 +41,7 @@ do_compile() {
     [ -f "$TER_BDF" ] || bbfatal "ter-u12n.bdf not found in Terminus tarball"
     [ -f "$FFX_KBITX" ] || bbfatal "Fairfax.kbitx not found"
 
-    kbitx2bdf "$FFX_KBITX" "$FFX_BDF"
+    ${STAGING_BINDIR_NATIVE}/kbitx2bdf "$FFX_KBITX" "$FFX_BDF"
     [ -s "$FFX_BDF" ] || bbfatal "kbitx2bdf failed to export Fairfax.bdf"
 
     ${B}/mkyaftfont --cell 6x12 "$TER_BDF" "$FFX_BDF" ${B}/console.yaftfont
