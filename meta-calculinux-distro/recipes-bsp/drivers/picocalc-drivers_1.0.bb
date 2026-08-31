@@ -118,13 +118,31 @@ ALLOW_EMPTY:${PN} = "1"
 
 # Build all drivers individually
 do_compile() {
-    # Use the top-level Makefile to build all modules in the repository
-    if [ -f ${S}/Makefile ]; then
-        cd ${S}
-        make KERNEL_SRC=${STAGING_KERNEL_DIR} KSRC=${STAGING_KERNEL_DIR} all
-    else
+    if [ ! -f ${S}/Makefile ]; then
         bbfatal "Top-level Makefile not found in ${S}"
     fi
+    unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
+    oe_runmake -C ${S} \
+        KERNEL_SRC=${STAGING_KERNEL_DIR} \
+        KSRC=${STAGING_KERNEL_DIR} \
+        CC="${KERNEL_CC}" LD="${KERNEL_LD}" AR="${KERNEL_AR}" \
+        O=${STAGING_KERNEL_BUILDDIR} \
+        all
+    for ko in \
+        drivers/picocalc_mfd/picocalc_mfd.ko \
+        drivers/picocalc_mfd_bms/picocalc_mfd_bms.ko \
+        drivers/picocalc_mfd_bkl/picocalc_mfd_bkl.ko \
+        drivers/picocalc_mfd_kbd/picocalc_mfd_kbd.ko \
+        drivers/picocalc_mfd_led/picocalc_mfd_led.ko \
+        drivers/picocalc_kbd/picocalc_kbd.ko \
+        drivers/picocalc_lcd_fb/ili9488_fb.ko \
+        drivers/picocalc_lcd_drm/ili9488_drm.ko \
+        drivers/picocalc_snd-pwm/picocalc_snd_pwm.ko \
+        drivers/picocalc_snd-softpwm/picocalc_snd_softpwm.ko \
+        luckfox-lyra/drivers/picocalc_rk3506_rproc/rk3506_rproc.ko \
+        luckfox-lyra/drivers/picocalc_snd-m0/picocalc_snd_m0.ko; do
+        [ -f ${S}/$ko ] || bbfatal "Expected ${S}/$ko was not built"
+    done
 }
 
 do_install() {
