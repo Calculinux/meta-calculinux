@@ -87,6 +87,8 @@ IMAGE_INSTALL += " \
     tzdata \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
+    console-font \
+    unifont-console \
     unzip \
     usb-gadget-network \
     usbutils \
@@ -95,6 +97,7 @@ IMAGE_INSTALL += " \
     wget \
     which \
     wireless-regdb-static \
+    yaft \
     zip \
 "
 
