@@ -24,6 +24,15 @@ runs:
         echo "  DL_DIR: ${{ inputs.dl-dir }}"
         echo "  SSTATE_DIR: ${{ inputs.sstate-dir }}"
 
+    - name: Configure git for shared DL_DIR mirrors
+      shell: bash
+      run: |
+        # Parallel self-hosted runners share DL_DIR; git2 mirrors may be owned
+        # by another container UID. kas-container mounts GITCONFIG_FILE inside.
+        gitconfig=/tmp/kas-shared-dl-gitconfig
+        printf '%s\n' '[safe]' '	directory = *' > "$gitconfig"
+        echo "GITCONFIG_FILE=$gitconfig" >> "$GITHUB_ENV"
+
     - name: Verify package repository storage
       if: inputs.opkg-repo-dir != ''
       shell: bash

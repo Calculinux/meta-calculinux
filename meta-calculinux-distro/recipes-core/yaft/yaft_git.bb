@@ -24,11 +24,6 @@ inherit systemd
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-# Shared DL_DIR git mirrors may be owned by another CI runner UID.
-do_fetch:prepend() {
-    git config --global --add safe.directory '*'
-}
-
 EXTRA_OEMAKE = "CC='${CC}' \
     CFLAGS='${CFLAGS} -std=c99 -D_XOPEN_SOURCE=600' \
     LDFLAGS='${LDFLAGS}' \

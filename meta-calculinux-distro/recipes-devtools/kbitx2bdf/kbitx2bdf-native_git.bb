@@ -13,11 +13,6 @@ PV = "1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
-# Shared DL_DIR git mirrors may be owned by another CI runner UID.
-do_fetch:prepend() {
-    git config --global --add safe.directory '*'
-}
-
 do_configure[noexec] = "1"
 
 do_compile() {
