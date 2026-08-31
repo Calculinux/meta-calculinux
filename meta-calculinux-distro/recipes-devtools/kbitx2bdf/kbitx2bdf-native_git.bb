@@ -3,15 +3,20 @@ DESCRIPTION = "Converts BitsNPicas .kbitx bitmap fonts to BDF without Java. \
 Used when building Calculinux yaft console fonts from Fairfax.kbitx."
 HOMEPAGE = "https://github.com/Calculinux/kbitx2bdf"
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=0c1ca00017fe02adea99b8b709ff179b"
+LIC_FILES_CHKSUM = "file://${WORKDIR}/git/LICENSE;md5=0c1ca00017fe02adea99b8b709ff179b"
 
 inherit native
 
-KBITX2BDF_COMMIT = "6c35fe83051b9ed96726bb2bb4871a108e0ae7c3"
-SRC_URI = "https://github.com/Calculinux/kbitx2bdf/archive/${KBITX2BDF_COMMIT}.tar.gz;downloadfilename=kbitx2bdf-${KBITX2BDF_COMMIT}.tar.gz"
-PV = "1.0+git"
+SRC_URI = "git://github.com/Calculinux/kbitx2bdf.git;protocol=https;branch=main"
+SRCREV = "6c35fe83051b9ed96726bb2bb4871a108e0ae7c3"
+PV = "1.0+git${SRCPV}"
 
-S = "${WORKDIR}/kbitx2bdf-${KBITX2BDF_COMMIT}"
+S = "${WORKDIR}/git"
+
+# Shared DL_DIR git mirrors may be owned by another CI runner UID.
+do_fetch:prepend() {
+    git config --global --add safe.directory '*'
+}
 
 do_configure[noexec] = "1"
 
