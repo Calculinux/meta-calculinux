@@ -47,14 +47,14 @@ do_compile() {
     ${B}/mkyaftfont --cell 6x12 "$TER_BDF" "$FFX_BDF" ${B}/console.yaftfont
 
     python3 - <<'PY' ${B}/console.yaftfont
-import struct, sys
+import os, struct, sys
 path = sys.argv[1]
 with open(path, "rb") as f:
     hdr = f.read(24)
 magic, cw, ch, gs, _ = struct.unpack("<8sIIII", hdr)
 assert magic == b"YAFTFNT1", magic
 assert (cw, ch, gs) == (6, 12, 32), (cw, ch, gs)
-size = f.seek(0, 2)
+size = os.path.getsize(path)
 assert size > 500000, size
 print("console.yaftfont ok:", cw, "x", ch, size, "bytes")
 PY
