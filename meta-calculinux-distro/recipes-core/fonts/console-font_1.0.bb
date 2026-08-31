@@ -13,16 +13,14 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 TERMINUS_PV = "4.49.1"
 
 SRC_URI = "https://download.sourceforge.net/terminus-font/terminus-font-${TERMINUS_PV}.tar.gz;name=terminus \
-           https://raw.githubusercontent.com/kreativekorp/open-relay/master/Fairfax/Fairfax.kbitx;name=fairfax \
+           file://Fairfax.bdf.gz;name=fairfax \
            file://mkyaftfont.c \
            "
 SRC_URI[terminus.sha256sum] = "d961c1b781627bf417f9b340693d64fc219e0113ad3a3af1a3424c7aa373ef79"
-SRC_URI[fairfax.sha256sum] = "439247d7e783bf4a2cf5912bc914fc64c025d53edbfa79ea1d23066275473e68"
+SRC_URI[fairfax.sha256sum] = "5b51c6df637b94e084cb49a9ef5686f09b4eb8c94b9c079f0549a06e12d2547d"
 
 S = "${UNPACKDIR}"
 B = "${WORKDIR}/build"
-
-DEPENDS = "bitsnpicas-native"
 
 do_configure[noexec] = "1"
 
@@ -34,14 +32,10 @@ do_compile() {
     ${B}/mkyaftfont --self-check
 
     TER_BDF=${UNPACKDIR}/terminus-font-${TERMINUS_PV}/ter-u12n.bdf
-    FFX_KBITX=${UNPACKDIR}/Fairfax.kbitx
-    FFX_BDF=${B}/Fairfax.bdf
+    FFX_BDF=${UNPACKDIR}/Fairfax.bdf
 
     [ -f "$TER_BDF" ] || bbfatal "ter-u12n.bdf not found in Terminus tarball"
-    [ -f "$FFX_KBITX" ] || bbfatal "Fairfax.kbitx not found"
-
-    bitsnpicas convertbitmap -f bdf -o "$FFX_BDF" "$FFX_KBITX"
-    [ -s "$FFX_BDF" ] || bbfatal "BitsNPicas failed to export Fairfax.bdf"
+    [ -s "$FFX_BDF" ] || bbfatal "Fairfax.bdf not found (from Fairfax.bdf.gz)"
 
     ${B}/mkyaftfont --cell 6x12 "$TER_BDF" "$FFX_BDF" ${B}/console.yaftfont
 
