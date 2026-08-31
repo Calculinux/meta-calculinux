@@ -7,6 +7,7 @@ inherit packagegroup
 
 # Disable GTK GUI and sound for vim so we don't pull in an entire desktop stack
 PACKAGECONFIG:remove:pn-vim = "gtkgui sound"
+# meta-oe emacs is already --with-x=no; install the TTY split, not emacs-full icons
 
 PACKAGES = "${PN}"
 
@@ -26,7 +27,7 @@ RDEPENDS:${PN} = " \
     criu \
     diffutils \
     dosbox-pure-libretro \
-    emacs-full \
+    emacs \
     fceumm-libretro \
     file \
     flex \
