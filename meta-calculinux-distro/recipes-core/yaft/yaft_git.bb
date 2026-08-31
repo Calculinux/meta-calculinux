@@ -8,14 +8,14 @@ HOMEPAGE = "https://github.com/Calculinux/yaft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-SRC_URI = "git://github.com/Calculinux/yaft.git;protocol=https;branch=main \
+YAFT_COMMIT = "3c4a430cc896332410f3741334ec59728694422d"
+SRC_URI = "https://github.com/Calculinux/yaft/archive/${YAFT_COMMIT}.tar.gz;downloadfilename=yaft-${YAFT_COMMIT}.tar.gz \
            file://yaft@.service \
            file://yaft-budget-check.sh \
            "
-SRCREV = "3c4a430cc896332410f3741334ec59728694422d"
-PV = "0.2.9+calculinux${SRCPV}"
+PV = "0.2.9+calculinux"
 
-S = "${WORKDIR}/git"
+S = "${WORKDIR}/yaft-${YAFT_COMMIT}"
 
 DEPENDS = "ncurses-native"
 RDEPENDS:${PN} = "console-font"
