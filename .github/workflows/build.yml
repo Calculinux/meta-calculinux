@@ -198,7 +198,7 @@ jobs:
         # Remove our custom image to save space
         docker rmi kas-custom:latest || true
 
-        # Note: Shared artifacts cleanup handled by publish job
+        # Shared artifacts stay on NFS until cleanup-artifacts (after successful or skipped publish)
 
   publish:
     name: Publish artifacts and notifications
@@ -344,13 +344,12 @@ jobs:
     - name: Cleanup
       if: always()
       run: |
-        rm -rf "$SHARED_ARTIFACTS_DIR" || true
         docker system prune -f || true
 
   cleanup-artifacts:
     name: Cleanup shared artifacts
     needs: [build, publish]
-    if: always()
+    if: always() && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
     runs-on: [self-hosted, Linux, X64]
     steps:
     - name: Clean up shared artifacts directory
