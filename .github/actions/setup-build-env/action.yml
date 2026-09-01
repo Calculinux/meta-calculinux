@@ -35,6 +35,18 @@ runs:
         fi
         echo "Package repository verified: ${{ inputs.opkg-repo-dir }}"
 
+    - name: Pre-pull kas image
+      shell: bash
+      run: |
+        # Two runners on one docker daemon (monster) race containerd if they
+        # both docker-pull kas at once: commit/rename ENOENT, exit 127.
+        ver=$(awk -F'"' '/^KAS_CONTAINER_SCRIPT_VERSION=/{print $2; exit}' kas-container)
+        img="ghcr.io/siemens/kas/kas:${ver}"
+        echo "Ensuring $img is local"
+        flock /tmp/kas-image.lock bash -c '
+          docker image inspect "$1" >/dev/null 2>&1 || docker pull "$1"
+        ' _ "$img"
+
     - name: Clean up Docker environment
       shell: bash
       run: |

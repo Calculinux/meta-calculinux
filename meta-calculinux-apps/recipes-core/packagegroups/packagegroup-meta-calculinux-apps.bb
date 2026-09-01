@@ -14,7 +14,6 @@ PACKAGES = "${PN}"
 # These will be built as IPKs and made available in the package feed
 RDEPENDS:${PN} = " \
     amfora \
-    android-adbd \
     autoconf \
     automake \
     basilisk-ii \
@@ -87,6 +86,7 @@ RDEPENDS:${PN} = " \
     m4 \
     mame2003-plus-libretro \
     mc \
+    meshtastic-cli \
     meshtasticd \
     nano \
     nmap \
@@ -118,6 +118,7 @@ RDEPENDS:${PN} = " \
     tic-80 \
     tmux \
     tree \
+    uwific \
     valgrind \
     vice-libretro \
     vim \

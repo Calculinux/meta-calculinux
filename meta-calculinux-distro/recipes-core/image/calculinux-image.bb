@@ -84,14 +84,17 @@ IMAGE_INSTALL += " \
     terminus-font \
     tmux \
     tree \
+    tzdata \
     u-boot-fw-config \
     u-boot-rockchip-bootscript \
     unzip \
     usb-gadget-network \
     usbutils \
+    uwific \
     util-linux \
     wget \
     which \
+    wireless-regdb-static \
     zip \
 "
 

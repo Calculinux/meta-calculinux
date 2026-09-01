@@ -18,6 +18,13 @@ ehthumbs.db
 Thumbs.db
 
 # Editor files
+.vscode
+.idea
+.cursor
+.cursorrules
+meta-calculinux.code-workspace
+
+# Editor files
 *.swp
 *.swo
 *~

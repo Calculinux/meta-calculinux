@@ -4,7 +4,7 @@ header:
 
 distro: calculinux-distro
 
-# scarthgap checkout
+# walnascar (5.2) checkout
 repos:
   poky:
     url: https://git.yoctoproject.org/poky.git
@@ -69,6 +69,15 @@ local_conf_header:
     # Skip problematic recipes from meta-retro that use AUTOREV or have missing dependencies
     BBMASK += "meta-retro/recipes-extended/slipr"
     BBMASK += "meta-retro/recipes-graphics/mesa"
+  fetch-user-agent: |
+    # crates.io answers 403 to wget's default User-Agent, so every crate://
+    # fetch falls back to the Yocto source mirror; crates absent from that
+    # mirror fail the build outright. Their crawler policy asks for a
+    # descriptive agent, so send one.
+    # NB: must set the whole value. bb/fetch2/wget.py supplies its default via
+    # `d.getVar("FETCHCMD_wget") or "..."`, so any :append makes the variable
+    # set and silently drops the wget binary from the command.
+    FETCHCMD_wget = "/usr/bin/env wget --tries=2 --timeout=100 --user-agent='calculinux-yocto-build (+https://calculinux.org)'"
   rust-version: |
     # Use meta-lts-mixins' Scarthgap Rust mixin toolchain
     PREFERRED_VERSION_rust = "1.92%"
