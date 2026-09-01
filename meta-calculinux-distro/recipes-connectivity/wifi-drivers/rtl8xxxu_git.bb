@@ -12,6 +12,7 @@ SRC_URI = "\
     file://rtl8188ftv-block-size.patch \
     file://rtl8188eu-needs-full-init.patch \
     file://rtl8xxxu-retry-firmware-download.patch \
+    file://rtl8xxxu-ampdu-rts-only-when-operational.patch \
     "
 SRCREV = "7cb5b73796b19b460af835144e604595083ca60d"
 
