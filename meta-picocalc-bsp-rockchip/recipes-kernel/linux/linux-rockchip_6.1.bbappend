@@ -43,7 +43,6 @@ SRC_URI = " \
     ${KERNEL_CFG_FRAGMENTS_SRC_URI} \
     file://mmc-spi-fix-nullpointer-on-shutdown.patch \
     file://0001-of-configfs-overlay-interface.patch \
-    file://0002-pinctrl-rockchip-reparse-on-dt-overlay-apply.patch \
     file://depmod-skip-when-echo.patch \
     file://btrfs-print-tree-fix-block-group-tree-string.patch \
 "
