@@ -1,6 +1,6 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-SRC_URI:append := "\
+SRC_URI:append = "\
     file://system.conf.in \
     file://post-install-handler.sh \
 "
@@ -34,7 +34,7 @@ python do_create_system_config() {
 
     with open(filePath, 'w') as f:
         f.write(fileTemplate.format(**args))
-    os.chmod(filePath, 0o755)
+    os.chmod(filePath, 0o644)
 }
 
 addtask create_system_config after do_configure before do_install

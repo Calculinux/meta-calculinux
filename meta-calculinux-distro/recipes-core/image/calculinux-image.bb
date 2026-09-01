@@ -100,7 +100,8 @@ IMAGE_INSTALL += " \
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
 
-ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest; calculinux_install_opkg_image_status; calculinux_export_bundle_extras;"
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest; calculinux_install_opkg_image_status;"
+IMAGE_POSTPROCESS_COMMAND += " calculinux_export_bundle_extras;"
 
 calculinux_create_version_manifest() {
     manifest_dir="${IMAGE_ROOTFS}/var/lib/calculinux"
@@ -110,7 +111,7 @@ calculinux_create_version_manifest() {
         echo "# Distribution Version Manifest (generated at image build time)"
         echo "CALCULINUX_VERSION=\"${DISTRO_VERSION}\""
         echo "CALCULINUX_CODENAME=\"${DISTRO_CODENAME}\""
-        echo "YOCTO_VERSION=\"${LAYERSERIES}\""
+        echo "YOCTO_VERSION=\"${LAYERSERIES_CORENAMES}\""
         echo "KERNEL_VERSION=\"${KERNEL_VERSION}\""
         echo "PYTHON_VERSION=\"${PYTHON_BASEVERSION}\""
         echo "FEED_BASE_URL=\"${PACKAGE_FEED_URIS}\""
@@ -139,13 +140,13 @@ calculinux_install_opkg_image_status() {
 }
 
 calculinux_export_bundle_extras() {
-    extras_base="${DEPLOY_DIR_IMAGE}/bundle-extras/extras"
+    extras_work="${WORKDIR}/bundle-extras"
+    extras_base="${extras_work}/extras"
     extras_dir="${extras_base}/opkg"
-    rm -rf "${DEPLOY_DIR_IMAGE}/bundle-extras"
-    
-    # Only create extras if we have data to export
+    rm -rf "${extras_work}"
+
     has_data=0
-    
+
     if [ -d "${IMAGE_ROOTFS}/etc/opkg" ]; then
         install -d "${extras_dir}/etc"
         cp -r "${IMAGE_ROOTFS}/etc/opkg" "${extras_dir}/etc/"
@@ -158,16 +159,14 @@ calculinux_export_bundle_extras() {
         has_data=1
     fi
 
-    # Version manifest for major-version upgrade compatibility checking
     if [ -f "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" ]; then
         install -d "${extras_base}"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" "${extras_base}/version-manifest.env"
         has_data=1
     fi
 
-    # Create a tarball only if we have data to include in the bundle
-    if [ "$has_data" = "1" ] && [ -d "${DEPLOY_DIR_IMAGE}/bundle-extras/extras" ]; then
-        tar -czf "${DEPLOY_DIR_IMAGE}/bundle-extras.tar.gz" -C "${DEPLOY_DIR_IMAGE}/bundle-extras" extras
+    if [ "$has_data" = "1" ] && [ -d "${extras_base}" ]; then
+        tar -czf "${IMGDEPLOYDIR}/bundle-extras.tar.gz" -C "${extras_work}" extras
     fi
 }
 

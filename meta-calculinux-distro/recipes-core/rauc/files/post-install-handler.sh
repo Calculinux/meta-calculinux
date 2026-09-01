@@ -20,6 +20,16 @@ if [ -f "${EXTRAS_TARBALL}" ]; then
     echo "Bundle extras extracted successfully"
 fi
 
+# Overlay /etc/opkg from the new image so post-reboot `opkg update` hits
+# the new codename feeds. Without this, an upper-layer copy of the old
+# feed config (walnascar) shadows the new image after the A/B switch.
+BUNDLE_OPKG_CONF="${RAUC_BUNDLE_MOUNT_POINT}/extras/opkg/etc/opkg"
+if [ -d "${BUNDLE_OPKG_CONF}" ]; then
+    echo "Installing opkg feed configuration from bundle extras"
+    mkdir -p /etc/opkg
+    cp -a "${BUNDLE_OPKG_CONF}/." /etc/opkg/
+fi
+
 # Check if bundle extras contain the status.image file
 BUNDLE_STATUS_IMAGE="${RAUC_BUNDLE_MOUNT_POINT}/extras/opkg/status.image"
 

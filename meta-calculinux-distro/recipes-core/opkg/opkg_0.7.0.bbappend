@@ -5,3 +5,4 @@ SRC_URI:remove = "http://downloads.yoctoproject.org/releases/${BPN}/${BPN}-${PV}
 SRC_URI:prepend = "git://github.com/Calculinux/opkg.git;protocol=https;branch=master "
 
 SRCREV = "v0.9.0-calculinux1"
+S = "${WORKDIR}/git"
