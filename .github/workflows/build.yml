@@ -363,4 +363,4 @@ jobs:
         fi
 
         # Clean up old artifacts directories (older than 7 days)
-        find /mnt/opkg-repo/.build-artifacts -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; 2>/dev/null || true
+        find /mnt/opkg-repo/.build-artifacts -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; 2>/dev/null || true
