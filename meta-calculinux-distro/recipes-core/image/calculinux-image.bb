@@ -131,6 +131,8 @@ calculinux_export_bundle_extras() {
         install -d "${extras_base}"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" \
             "${extras_base}/version-manifest.env"
+        install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" \
+            "${IMGDEPLOYDIR}/version-manifest.env"
         tar -czf "${IMGDEPLOYDIR}/bundle-extras.tar.gz" -C "${extras_work}" extras
     fi
 }

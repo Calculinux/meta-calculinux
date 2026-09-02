@@ -21,16 +21,21 @@ OUTPUT_FILE="$UPDATE_DIR/index.json"
 
 mkdir -p "$UPDATE_DIR" "$IMAGE_DIR" "$ARTIFACTS_DIR"
 
-python3 .github/scripts/generate-artifact-index.py \
-  --base-url "$BASE_URL" \
-  --update-dir "$UPDATE_DIR" \
-  --image-dir "$IMAGE_DIR" \
-  --output "$OUTPUT_FILE" \
-  --feed-name "$FEED_NAME" \
-  --subfolder "$SUBFOLDER" \
-  --machine "$MACHINE" \
-  --distro-version "$DISTRO_VERSION" \
+INDEX_ARGS=(
+  --base-url "$BASE_URL"
+  --update-dir "$UPDATE_DIR"
+  --image-dir "$IMAGE_DIR"
+  --output "$OUTPUT_FILE"
+  --feed-name "$FEED_NAME"
+  --subfolder "$SUBFOLDER"
+  --machine "$MACHINE"
+  --distro-version "$DISTRO_VERSION"
   --git-sha "$GIT_SHA"
+)
+if [ -f "$ARTIFACTS_DIR/version-manifest.env" ]; then
+  INDEX_ARGS+=(--version-manifest "$ARTIFACTS_DIR/version-manifest.env")
+fi
+python3 .github/scripts/generate-artifact-index.py "${INDEX_ARGS[@]}"
 
 if [ -f "$OUTPUT_FILE" ]; then
   cp "$OUTPUT_FILE" "$ARTIFACTS_DIR/index.json"
