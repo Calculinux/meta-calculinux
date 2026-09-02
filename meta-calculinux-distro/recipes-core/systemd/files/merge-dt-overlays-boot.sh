@@ -159,8 +159,10 @@ mkimage -f image.its -A arm zboot_merged.img -r || \
     { echo "merge-dt-overlays-boot: mkimage failed to repack FIT" >&2; exit 1; }
 
 mkdir -p "$OUTPUT_DIR"
-# Atomic replace: temp then rename, then stamp (crash cannot leave torn FIT + matching stamp)
-install -m 0644 zboot_merged.img "$OUTPUT_DIR/${OUT_BASENAME}.tmp"
+# Atomic replace: temp then rename, then stamp (crash cannot leave torn FIT + matching stamp).
+# Use cp/chmod — BusyBox images often have no `install`.
+cp zboot_merged.img "$OUTPUT_DIR/${OUT_BASENAME}.tmp"
+chmod 0644 "$OUTPUT_DIR/${OUT_BASENAME}.tmp"
 mv -f "$OUTPUT_DIR/${OUT_BASENAME}.tmp" "$OUTPUT_DIR/$OUT_BASENAME"
 fit_kernel_stamp "$FIT_KERNEL" > "$STAMP_FILE"
 echo "merge-dt-overlays-boot: wrote $OUT_BASENAME for RAUC slot $SLOT (${#OVERLAY_FILES[@]} overlays)"
