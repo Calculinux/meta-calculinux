@@ -78,6 +78,12 @@ local_conf_header:
     # `d.getVar("FETCHCMD_wget") or "..."`, so any :append makes the variable
     # set and silently drops the wget binary from the command.
     FETCHCMD_wget = "/usr/bin/env wget --tries=2 --timeout=100 --user-agent='calculinux-yocto-build (+https://calculinux.org)'"
+  fetch-git-safe-directory: |
+    # kas-container runs git as root against a host-owned DL_DIR. Bitbake's
+    # fetcher uses a throwaway HOME, so user gitconfig never applies, and this
+    # walnascar FETCHCMD_git default has no safe.directory. Must set the whole
+    # value; :append would drop the default -c flags (same as FETCHCMD_wget).
+    FETCHCMD_git = "git -c gc.autoDetach=false -c core.pager=cat -c safe.bareRepository=all -c clone.defaultRemoteName=origin -c safe.directory='*'"
   rust-version: |
     # Use meta-lts-mixins' Scarthgap Rust mixin toolchain
     PREFERRED_VERSION_rust = "1.92%"

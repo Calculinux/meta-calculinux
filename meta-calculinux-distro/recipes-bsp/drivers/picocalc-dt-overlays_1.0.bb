@@ -11,26 +11,32 @@ COMPATIBLE_MACHINE = "luckfox-lyra"
 
 DEPENDS = "dtc-native virtual/kernel"
 
+# Skip default do_configure (oe_runmake clean) — compile uses dtc only.
+do_configure[noexec] = "1"
+do_compile[depends] += "virtual/kernel:do_shared_workdir"
+
 do_compile() {
+    # Kernel include/ only (dt-bindings). Do not add arch/.../boot/dts so
+    # labels like &snd_pins stay as __fixups__ for ConfigFS apply.
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
-    KERNEL_DTS_INCLUDE="${STAGING_KERNEL_DIR}/arch/${ARCH}/boot/dts"
-    KERNEL_DTS_INCLUDE_COMMON="${KERNEL_DTS_INCLUDE}/include"
-    
-    for overlay in ${S}/devicetree-overlays/*-overlay.dts; do
-        [ -f "$overlay" ] || bbfatal "No device tree overlay sources found in ${S}/devicetree-overlays"
-        name=$(basename "$overlay" -overlay.dts)
-        
-        # Preprocess with cpp to handle #include directives
-        ${CPP} -nostdinc \
-            -I"${KERNEL_INCLUDE}" \
-            -I"${KERNEL_DTS_INCLUDE}" \
-            -I"${KERNEL_DTS_INCLUDE_COMMON}" \
-            -undef -D__DTS__ -x assembler-with-cpp \
-            "$overlay" > "${B}/${name}.pp.dts"
-        
-        # Compile preprocessed DTS to DTBO
-        dtc -@ -I dts -O dtb -o ${B}/${name}.dtbo "${B}/${name}.pp.dts"
+
+    found=0
+    for dir in ${S}/devicetree-overlays ${S}/overlays ${S}/luckfox-lyra/overlays; do
+        [ -d "$dir" ] || continue
+        for overlay in "$dir"/*-overlay.dts; do
+            [ -f "$overlay" ] || continue
+            name=$(basename "$overlay" -overlay.dts)
+
+            ${CPP} -nostdinc \
+                -I"${KERNEL_INCLUDE}" \
+                -undef -D__DTS__ -x assembler-with-cpp \
+                "$overlay" > "${B}/${name}.pp.dts"
+
+            dtc -@ -L -I dts -O dtb -o ${B}/${name}.dtbo "${B}/${name}.pp.dts"
+            found=1
+        done
     done
+    [ "$found" = 1 ] || bbfatal "No *-overlay.dts found under ${S}/{devicetree-overlays,overlays,luckfox-lyra/overlays}"
 }
 
 do_install() {

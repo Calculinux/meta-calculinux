@@ -14,11 +14,23 @@ do_compile[noexec] = "1"
 
 do_install() {
     install -d ${D}${datadir}/picocalc
-    install -m 0644 ${S}/picocalc-luckfox-lyra.dtsi ${D}${datadir}/picocalc/
-    install -m 0644 ${S}/linux-rk3506-luckfox-lyra.dtsi ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
-    install -m 0644 ${S}/linux-rk3506g-luckfox-lyra.dts ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
-    install -m 0644 ${S}/uboot-rk3506-luckfox.dtsi ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
-    install -m 0644 ${S}/uboot-rk3506-luckfox.dts ${D}${datadir}/picocalc/rk3506-luckfox.dts
+
+    # Source layout varies: repo root (main) or luckfox-lyra/ (M0 branch).
+    picocalc_dt_src() {
+        for candidate in "${S}/$1" "${S}/luckfox-lyra/$1"; do
+            if [ -f "${candidate}" ]; then
+                echo "${candidate}"
+                return 0
+            fi
+        done
+        bbfatal "$1 not found in ${S} or ${S}/luckfox-lyra"
+    }
+
+    install -m 0644 "$(picocalc_dt_src picocalc-luckfox-lyra.dtsi)" ${D}${datadir}/picocalc/
+    install -m 0644 "$(picocalc_dt_src linux-rk3506-luckfox-lyra.dtsi)" ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
+    install -m 0644 "$(picocalc_dt_src linux-rk3506g-luckfox-lyra.dts)" ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
+    install -m 0644 "$(picocalc_dt_src uboot-rk3506-luckfox.dtsi)" ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
+    install -m 0644 "$(picocalc_dt_src uboot-rk3506-luckfox.dts)" ${D}${datadir}/picocalc/rk3506-luckfox.dts
 
     # Overlay symbol whitelist – consumed by the kernel recipe to inject only
     # the needed __symbols__ entries into the base DTB.
