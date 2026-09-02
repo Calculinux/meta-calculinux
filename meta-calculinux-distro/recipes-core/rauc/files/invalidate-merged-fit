@@ -1,0 +1,30 @@
+#!/bin/sh
+# Drop the merged FIT for the slot RAUC just installed so U-Boot boots
+# /boot/zboot_merged.img (matching kernel) until merge-dt-overlays-boot rebuilds it.
+set -e
+DATA_FIT="${DATA_FIT:-/data/fit}"
+
+invalidate() {
+    case "$1" in
+        A|a) rm -f "$DATA_FIT/zboot_merged_a.img" "$DATA_FIT/kernel-A.stamp" ;;
+        B|b) rm -f "$DATA_FIT/zboot_merged_b.img" "$DATA_FIT/kernel-B.stamp" ;;
+    esac
+}
+
+did=
+for s in ${RAUC_TARGET_SLOTS:-}; do
+    key=$(printf '%s' "$s" | tr '.' '_')
+    eval bn=\$RAUC_SLOT_BOOTNAME_$key
+    [ -z "$bn" ] && eval bn=\$RAUC_SLOT_BOOTNAME_$s
+    if [ -n "$bn" ]; then
+        invalidate "$bn"
+        did=1
+    fi
+done
+
+# Unknown slot names: drop both FITs. /boot/zboot_merged.img still boots.
+if [ -z "$did" ]; then
+    rm -f "$DATA_FIT/zboot_merged_a.img" "$DATA_FIT/zboot_merged_b.img" \
+        "$DATA_FIT/kernel-A.stamp" "$DATA_FIT/kernel-B.stamp"
+fi
+exit 0
