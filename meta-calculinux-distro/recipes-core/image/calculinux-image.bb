@@ -118,7 +118,10 @@ calculinux_create_version_manifest() {
         echo "PYTHON_VERSION=\"${PYTHON_BASEVERSION}\""
         echo "FEED_BASE_URL=\"${PACKAGE_FEED_URIS}\""
         echo "FEED_PATH=\"${PACKAGE_FEED_BASE_PATHS}\""
-        echo "BUILD_TIMESTAMP=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
+        # SOURCE_DATE_EPOCH keeps the rootfs bit-identical across rebuilds.
+        build_ts="$(date -u -d "@${SOURCE_DATE_EPOCH}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+            || date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "BUILD_TIMESTAMP=\"${build_ts}\""
     } > "${manifest_file}"
     chmod 644 "${manifest_file}"
 }
@@ -126,14 +129,17 @@ calculinux_create_version_manifest() {
 calculinux_export_bundle_extras() {
     extras_work="${WORKDIR}/bundle-extras"
     extras_base="${extras_work}/extras"
+    extras_tar="${IMGDEPLOYDIR}/bundle-extras.tar.gz"
+    extras_manifest="${IMGDEPLOYDIR}/version-manifest.env"
     rm -rf "${extras_work}"
+    rm -f "${extras_tar}" "${extras_manifest}"
     if [ -f "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" ]; then
         install -d "${extras_base}"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" \
             "${extras_base}/version-manifest.env"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" \
-            "${IMGDEPLOYDIR}/version-manifest.env"
-        tar -czf "${IMGDEPLOYDIR}/bundle-extras.tar.gz" -C "${extras_work}" extras
+            "${extras_manifest}"
+        tar -czf "${extras_tar}" -C "${extras_work}" extras
     fi
 }
 
