@@ -37,11 +37,16 @@ bash "$(dirname "$0")/lib/copy-with-checksum.sh" "$BUNDLE_PATH" "$TARGET_BUNDLE"
 
 echo "Published PR bundle to ${TARGET_BUNDLE}"
 
-python3 .github/scripts/generate-artifact-index.py \
-  --base-url "$UPDATE_BASE_URL" \
-  --update-dir "$PR_DIR" \
-  --output "$PR_DIR/index.json" \
-  --feed-name "$PR_FEED" \
-  --subfolder "pr" \
-  --machine "$MACHINE" \
+INDEX_ARGS=(
+  --base-url "$UPDATE_BASE_URL"
+  --update-dir "$PR_DIR"
+  --output "$PR_DIR/index.json"
+  --feed-name "$PR_FEED"
+  --subfolder "pr"
+  --machine "$MACHINE"
   --is-pr-channel
+)
+if [ -f "$ARTIFACTS_DIR/version-manifest.env" ]; then
+  INDEX_ARGS+=(--version-manifest "$ARTIFACTS_DIR/version-manifest.env")
+fi
+python3 .github/scripts/generate-artifact-index.py "${INDEX_ARGS[@]}"
