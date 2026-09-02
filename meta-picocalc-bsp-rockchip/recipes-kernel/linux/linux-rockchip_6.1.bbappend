@@ -258,6 +258,9 @@ do_install:append() {
 # a previous build or sstate) so the deploy class does not fail with "files
 # already exist (not matched to any task)" when it copies.
 do_deploy:append() {
+    rm -f "${DEPLOY_DIR_IMAGE}/fit_fdt.dtb" \
+          "${DEPLOY_DIR_IMAGE}/fit_kernel" \
+          "${DEPLOY_DIR_IMAGE}/fit_compression.txt"
     install -m 0644 "${B}/arch/${ARCH}/boot/dts/${KERNEL_DEVICETREE}" "${DEPLOYDIR}/fit_fdt.dtb"
     # Same kernel blob that is packed into zboot.img (arm=zImage, arm64=Image.lz4)
     if [ "${ARCH}" = "arm64" ]; then
