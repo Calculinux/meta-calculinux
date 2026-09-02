@@ -1,0 +1,29 @@
+rtl8xxxu: advertise 4us RX A-MPDU density instead of 16us
+
+IEEE80211_HT_MPDU_DENSITY_16 tells the AP to leave 16us between MPDUs
+in aggregates sent to us. That is the most conservative spacing and
+caps 8188EU download A-MPDU efficiency, especially on TCP ACKs.
+
+4us matches typical USB 802.11n clients. TX density still comes from
+the peer HT cap.
+
+Upstream-Status: Pending
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ rtl8xxxu_core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rtl8xxxu_core.c b/rtl8xxxu_core.c
+--- a/rtl8xxxu_core.c
++++ b/rtl8xxxu_core.c
+@@ -8091,7 +8091,7 @@ int rtl8xxxu_probe(struct usb_interface *interface,
+ 	sband = &rtl8xxxu_supported_band;
+ 	sband->ht_cap.ht_supported = true;
+ 	sband->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
+-	sband->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
++	sband->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
+ 	sband->ht_cap.cap = IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40;
+ 	memset(&sband->ht_cap.mcs, 0, sizeof(sband->ht_cap.mcs));
+ 	sband->ht_cap.mcs.rx_mask[0] = 0xff;

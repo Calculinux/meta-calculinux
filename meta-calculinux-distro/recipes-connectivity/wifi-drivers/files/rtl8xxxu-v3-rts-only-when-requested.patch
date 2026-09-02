@@ -1,0 +1,29 @@
+rtl8xxxu: do not force RTS/CTS on 8188EU A-MPDU
+
+fill_txdesc_v3 treats ampdu_enable as "needs RTS". After the BA session
+is up that puts RTS/CTS on every aggregated frame, including TCP ACKs,
+so download ACK clocking stays poor even though RA can leave MCS 0.
+
+Only enable RTS/CTS when mac80211 or the RTS threshold asks for it.
+CTS-to-self for ERP protection is unchanged.
+
+Upstream-Status: Pending
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ rtl8xxxu_core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rtl8xxxu_core.c b/rtl8xxxu_core.c
+--- a/rtl8xxxu_core.c
++++ b/rtl8xxxu_core.c
+@@ -5536,7 +5536,7 @@ rtl8xxxu_fill_txdesc_v3(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
+ 	 * rts_rate is zero if RTS/CTS or CTS to SELF are not enabled
+ 	 */
+ 	tx_desc->txdw4 |= cpu_to_le32(rts_rate << TXDESC32_RTS_RATE_SHIFT);
+-	if (ampdu_enable || tx_info->control.use_rts) {
++	if (tx_info->control.use_rts) {
+ 		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_RTS_CTS_ENABLE);
+ 		tx_desc->txdw4 |= cpu_to_le32(TXDESC32_HW_RTS_ENABLE);
+ 	} else if (tx_info->control.use_cts_prot) {
