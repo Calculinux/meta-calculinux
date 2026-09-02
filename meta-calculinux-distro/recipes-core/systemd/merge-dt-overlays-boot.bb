@@ -24,6 +24,7 @@ SYSTEMD_SERVICE:${PN} = "merge-dt-overlays-boot.service merge-dt-overlays-boot.p
 SYSTEMD_AUTO_ENABLE = "enable"
 
 RDEPENDS:${PN} += "bash u-boot-tools dtc u-boot-fw-config"
+CONFFILES:${PN} += "${sysconfdir}/device-tree-overlays.conf"
 
 do_install() {
     install -D -m 0644 ${S}/fit-stamp.sh ${D}${libdir}/systemd/fit-stamp.sh
