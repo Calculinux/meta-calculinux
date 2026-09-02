@@ -1,0 +1,34 @@
+rtl8xxxu: do not let 8188EU RA collapse on half-duplex ACK drops
+
+A TCP download is RX data plus TX ACKs on the same 1T1R radio. Hardware
+TX reports count those ACK collisions as drops. dropping_necessary is 3
+at MCS 2 and 1 at MCS 0, so a handful of collisions per 200 ms report
+walks decision_rate to MCS 0 and parks there. Downloads then start
+around 2 MB/s and fall toward 1 MB/s as ACK airtime grows.
+
+Only treat drops as a rate-down if they are a large fraction of the
+window (>25%). Retry-weighted nsc_down is unchanged, so a genuinely
+too-high MCS still falls.
+
+Upstream-Status: Pending
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ rtl8xxxu_8188e.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/rtl8xxxu_8188e.c b/rtl8xxxu_8188e.c
+--- a/rtl8xxxu_8188e.c
++++ b/rtl8xxxu_8188e.c
+@@ -1537,7 +1537,9 @@ static void rtl8188e_rate_decision(struct rtl8xxxu_ra_info *ra)
+ 		ra->nsc_up = 0;
+ 
+ 	if (ra->nsc_down < n_threshold_low[rate_id] ||
+-	    ra->drop > dropping_necessary[rate_id]) {
++	    (ra->drop > dropping_necessary[rate_id] &&
++	     ra->drop * 4 > ra->total)) {
++		/* Sparse drops are 1T1R RX/TX collisions, not a bad MCS. */
+ 		rtl8188e_rate_down(ra);
+ 
+ 		rtl8xxxu_update_ra_report(&priv->ra_report, ra->decision_rate,
