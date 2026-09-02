@@ -1,0 +1,3 @@
+# VBUS cannot drop on this board. dwc2 SOF watchdog emits this on unplug.
+SUBSYSTEM=="android_usb", ACTION=="change", ENV{USB_STATE}=="DISCONNECTED", \
+  TAG+="systemd", ENV{SYSTEMD_WANTS}+="usb-gadget-link.service"

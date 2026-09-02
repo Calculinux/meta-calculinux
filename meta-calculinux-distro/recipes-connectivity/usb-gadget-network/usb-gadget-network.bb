@@ -5,8 +5,11 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 
 SRC_URI = " \
     file://usb-gadget-network.sh \
+    file://usb-gadget-link \
     file://usb-modeswitch \
     file://usb-gadget-network.service \
+    file://usb-gadget-link.service \
+    file://50-usb-gadget-link.rules \
     file://usb0.network \
     file://usb-gadget-network.default \
     file://serial-getty@ttyGS0.service \
@@ -36,13 +39,18 @@ do_install() {
     # Install the configuration script
     install -d ${D}${bindir}
     install -m 0755 ${UNPACKDIR}/usb-gadget-network.sh ${D}${bindir}/
+    install -m 0755 ${UNPACKDIR}/usb-gadget-link ${D}${bindir}/
     install -m 0755 ${UNPACKDIR}/usb-gadget-serial-console.sh ${D}${bindir}/
     install -m 0755 ${UNPACKDIR}/usb-modeswitch ${D}${bindir}/
 
     # Install systemd service
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${UNPACKDIR}/usb-gadget-network.service ${D}${systemd_system_unitdir}/
+    install -m 0644 ${UNPACKDIR}/usb-gadget-link.service ${D}${systemd_system_unitdir}/
     install -m 0644 ${UNPACKDIR}/serial-getty@ttyGS0.service ${D}${systemd_system_unitdir}/
+
+    install -d ${D}${nonarch_base_libdir}/udev/rules.d
+    install -m 0644 ${UNPACKDIR}/50-usb-gadget-link.rules ${D}${nonarch_base_libdir}/udev/rules.d/
     install -m 0644 ${UNPACKDIR}/usb-gadget-serial-console.service ${D}${systemd_system_unitdir}/
 
     # Install systemd network configuration
@@ -60,6 +68,8 @@ do_install() {
 
 FILES:${PN} += " \
     ${systemd_system_unitdir}/usb-gadget-network.service \
+    ${systemd_system_unitdir}/usb-gadget-link.service \
+    ${nonarch_base_libdir}/udev/rules.d/50-usb-gadget-link.rules \
     ${systemd_system_unitdir}/serial-getty@ttyGS0.service \
     ${systemd_system_unitdir}/usb-gadget-serial-console.service \
     ${systemd_unitdir}/network/usb0.network \

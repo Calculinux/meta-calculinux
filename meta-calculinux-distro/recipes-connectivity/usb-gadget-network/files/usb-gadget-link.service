@@ -1,0 +1,9 @@
+[Unit]
+Description=Bounce USB gadget after host disconnect
+After=usb-gadget-network.service systemd-networkd.service
+PartOf=usb-gadget-network.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/usb-gadget-link
