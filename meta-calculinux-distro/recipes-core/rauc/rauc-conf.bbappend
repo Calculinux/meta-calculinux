@@ -2,6 +2,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI:append := "\
                     file://system.conf.in \
+                    file://invalidate-merged-fit \
                   "
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
@@ -37,3 +38,9 @@ python do_create_system_config() {
 }
 
 addtask create_system_config after do_configure before do_install
+
+do_install:append() {
+    install -D -m 0755 ${UNPACKDIR}/invalidate-merged-fit ${D}${libdir}/rauc/invalidate-merged-fit
+}
+
+FILES:${PN} += "${libdir}/rauc/invalidate-merged-fit"
