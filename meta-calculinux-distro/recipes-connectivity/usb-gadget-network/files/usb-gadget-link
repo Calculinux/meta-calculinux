@@ -1,4 +1,4 @@
-#!/bin/busybox ash
+#!/bin/sh
 # android_usb DISCONNECTED: bounce usb* so networkd drops a stale DHCP lease.
 for path in /sys/class/net/usb*; do
     [ -e "$path" ] || continue
