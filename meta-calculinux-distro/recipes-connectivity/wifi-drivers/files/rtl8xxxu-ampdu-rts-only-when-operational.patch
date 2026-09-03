@@ -1,0 +1,34 @@
+rtl8xxxu: do not RTS/CTS every HT frame on 8188EU
+
+ampdu_enable was set true for all HT QoS data, and fill_txdesc_v3
+enables RTS/CTS whenever ampdu_enable is set. That puts RTS on
+every TCP ACK before a BA session exists, so 8188EU rate control
+stays at MCS 0 and downloads sit around 50 KB/s.
+
+Only mark the frame as A-MPDU after IEEE80211_AMPDU_TX_OPERATIONAL.
+Still start the BA session the same way.
+
+Upstream-Status: Pending
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ rtl8xxxu_core.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/rtl8xxxu_core.c b/rtl8xxxu_core.c
+--- a/rtl8xxxu_core.c
++++ b/rtl8xxxu_core.c
+@@ -5659,7 +5659,11 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
+ 			val32 = ampdu << TXDESC_AMPDU_DENSITY_SHIFT;
+ 			tx_desc->txdw2 |= cpu_to_le32(val32);
+ 
+-			ampdu_enable = true;
++			/* Only treat the frame as A-MPDU once the BA session is up.
++			 * ampdu_enable=true on every HT QoS frame forced RTS/CTS
++			 * (fill_txdesc_v3) and pinned 8188EU RA at MCS 0 (~50 KB/s).
++			 */
++			ampdu_enable = test_bit(tid, priv->tid_tx_operational);
+ 
+ 			if (!test_bit(tid, priv->tx_aggr_started) &&
+ 			    !(skb->protocol == cpu_to_be16(ETH_P_PAE)))

@@ -1,0 +1,27 @@
+rtl8xxxu: enable HT40 on 2.4 GHz by default
+
+Mainline dropped the ht40_2g opt-in after the channel-setup bugs that
+made 40 MHz miserable were fixed. 8188EU is stuck on HT20 MCS 0-1
+(~6.5 Mbps TX). Advertise 40 MHz so the AP can give us HT40; keep the
+module parameter so ht40_2g=0 still disables it.
+
+Upstream-Status: Backport [https://git.kernel.org/linus/dbf9b7bb0edfa192d43ebb41dd0e1041f8a9c5b0]
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ rtl8xxxu_core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rtl8xxxu_core.c b/rtl8xxxu_core.c
+--- a/rtl8xxxu_core.c
++++ b/rtl8xxxu_core.c
+@@ -20,7 +20,7 @@
+ #define DRIVER_NAME "rtl8xxxu"
+ 
+ int rtl8xxxu_debug;
+-static bool rtl8xxxu_ht40_2g;
++static bool rtl8xxxu_ht40_2g = true;
+ static bool rtl8xxxu_dma_aggregation;
+ static int rtl8xxxu_dma_agg_timeout = -1;
+ static int rtl8xxxu_dma_agg_pages = -1;
