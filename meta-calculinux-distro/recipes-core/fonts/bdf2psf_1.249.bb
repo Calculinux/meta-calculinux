@@ -5,12 +5,15 @@ that cover many of the world's languages. When the source font does not define a
 glyph for a particular symbol in the encoding table, that glyph position in the \
 console font is not wasted but used for another symbol."
 
-HOMEPAGE = "https://salsa.debian.org/installer-team/console-setup"
+HOMEPAGE = "https://packages.debian.org/source/sid/console-setup"
 SECTION = "utils"
 LICENSE = "GPL-2.0-or-later & MIT"
 LIC_FILES_CHKSUM = "file://debian/copyright;md5=6fdba635ca4be614fab872320fcb2220"
 
-SRC_URI = "git://salsa.debian.org/installer-team/console-setup;protocol=https;branch=master;tag=${PV}"
+SRC_URI = "${DEBIAN_MIRROR}/main/c/console-setup/console-setup_${PV}.tar.xz"
+SRC_URI[sha256sum] = "2042e268b085ad900f2f9863715d67fadb95b8994554f10d407fc14f224b73ae"
+
+S = "${WORKDIR}/console-setup"
 
 inherit allarch
 

@@ -44,6 +44,7 @@ cp "$DEPLOY_DIR"/u-boot-*initial-env-"${MACHINE}"-* "$ARTIFACTS_DIR/" 2>/dev/nul
 echo "Collecting manifests and test data..."
 find "$DEPLOY_DIR" -name "*.manifest" -o -name "*.testdata.json" | \
     xargs -I {} cp {} "$ARTIFACTS_DIR/" || true
+cp "$DEPLOY_DIR/version-manifest.env" "$ARTIFACTS_DIR/" 2>/dev/null || true
 
 # List what we collected
 echo ""

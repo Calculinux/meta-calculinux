@@ -187,19 +187,8 @@ make list-images
 
 ## Device Tree Overlays
 
-The kernel is now patched with the upstream `drivers/of/configfs` implementation, so overlays can be
-managed directly through ConfigFS at runtime without building an external module:
-
-1. Make sure ConfigFS is mounted (systemd will normally handle this via `sys-kernel-config.mount`, but you
-   can do it manually with `mount -t configfs none /sys/kernel/config`).
-2. Create a directory under `/sys/kernel/config/device-tree/overlays/<name>` for each overlay you want to
-   stage.
-3. Copy the compiled overlay blob (`*.dtbo`) into the `dtbo` attribute inside that directory.
-4. Echo `1` into the matching `status` attribute to apply the overlay, or `0` to remove it again.
-
-This matches the workflow documented upstream in the `dtbocfg`/OpenWrt examples while keeping the code in-tree.
-Place reusable overlays in `/lib/firmware/overlays` (or another directory of your choosing) so
-they can be easily copied into ConfigFS when needed.
+Persistent overlays are listed in `/etc/device-tree-overlays.conf` and merged into a per-RAUC-slot FIT at boot.
+Runtime apply via ConfigFS is still available for I2C-child overlays. See [docs/DEVICE-TREE-OVERLAYS.md](docs/DEVICE-TREE-OVERLAYS.md).
 
 ---
 
