@@ -18,11 +18,7 @@ do_compile[depends] += "virtual/kernel:do_shared_workdir"
 
 do_compile() {
     # Kernel include/ only (dt-bindings). Do not add arch/.../boot/dts so
-<<<<<<< HEAD
-    # labels like &snd_pins stay as __fixups__ for ConfigFS apply.
-=======
-    # labels like &i2c2 stay as __fixups__ for ConfigFS and fdtoverlay.
->>>>>>> origin/main
+    # labels like &i2c2 / &snd_pins stay as __fixups__ for ConfigFS and fdtoverlay.
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
 
     found=0
