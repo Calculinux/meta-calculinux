@@ -42,13 +42,32 @@ bytes_mib() {
 	echo $(($1 / 1048576))
 }
 
+# Logical sector size for $1 (e.g. /dev/mmcblk0). Default 512.
+disk_sector_size() {
+	disk=$1
+	base=$(basename "$disk")
+	ss=
+	if [ -r "/sys/block/$base/queue/logical_block_size" ]; then
+		ss=$(cat "/sys/block/$base/queue/logical_block_size")
+	elif command -v blockdev >/dev/null 2>&1; then
+		ss=$(blockdev --getss "$disk" 2>/dev/null || true)
+	fi
+	case "$ss" in
+		*[!0-9]*|"") echo 512 ;;
+		*) echo "$ss" ;;
+	esac
+}
+
 # Return partition start (bytes) for PARTLABEL=$1 on disk $2, or empty.
+# lsblk START is always in sectors; -b only affects SIZE.
 partlabel_start_bytes() {
 	label=$1
 	disk=$2
-	# lsblk START is in sectors when -b not used; use -b for bytes.
-	lsblk -b -n -o START,PARTLABEL "$disk" 2>/dev/null \
-		| awk -v l="$label" '$2 == l { print $1; exit }'
+	ss=$(disk_sector_size "$disk")
+	lsblk -n -o START,PARTLABEL "$disk" 2>/dev/null \
+		| awk -v l="$label" -v ss="$ss" '
+			$2 == l { print $1 * ss; exit }
+		'
 }
 
 # Preflight: ROOT_A must start at 16 MiB. Args: start_bytes. Echo ok|fail.
@@ -231,6 +250,15 @@ run_self_check() {
 		echo "ok: ROOT_A at 16 MiB proceeds"
 	fi
 
+	# Field-card layout (ROOT_A at 8 MiB) must abort — blob would overlap
+	field=$((8 * 1048576))
+	if out=$(preflight_root_a "$field"); then
+		echo "FAIL: 8 MiB ROOT_A should fail" >&2
+		fail=1
+	else
+		echo "ok: ROOT_A at 8 MiB aborts"
+	fi
+
 	# ROOT_A at 24 MiB aborts
 	bad=$((24 * 1048576))
 	if out=$(preflight_root_a "$bad"); then
@@ -254,6 +282,17 @@ run_self_check() {
 		fail=1
 	else
 		echo "ok: oversized blob aborts"
+	fi
+
+	# lsblk START is sectors → bytes (16384 sectors * 512 = 8 MiB)
+	got=$(printf '16384 ROOT_A\n' | awk -v l=ROOT_A -v ss=512 '
+		$2 == l { print $1 * ss; exit }
+	')
+	if [ "$got" != "8388608" ]; then
+		echo "FAIL: sector→byte got $got want 8388608" >&2
+		fail=1
+	else
+		echo "ok: lsblk START sectors convert to bytes"
 	fi
 
 	[ "$fail" -eq 0 ]
@@ -285,7 +324,7 @@ slot_post_install() {
 
 	root_a_start=$(partlabel_start_bytes ROOT_A "$disk" || true)
 	if ! preflight_root_a "${root_a_start:-}" >/dev/null; then
-		flash_wic "ROOT_A starts at ${root_a_start:-unknown} bytes (need $ROOT_A_EXPECT_BYTES / 16 MiB)"
+		flash_wic "ROOT_A starts at ${root_a_start:-unknown} bytes ($(bytes_mib "${root_a_start:-0}") MiB); need $ROOT_A_EXPECT_BYTES (16 MiB) so the ~9 MiB U-Boot image fits below it"
 	fi
 
 	blob_sha=$(sha256_file "$blob")
