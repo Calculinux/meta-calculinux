@@ -8,6 +8,8 @@ inherit bundle
 RAUC_BUNDLE_FORMAT = "verity"
 RAUC_BUNDLE_COMPATIBLE = "${RAUC_COMPATIBLE}"
 RAUC_BUNDLE_SLOTS = "rootfs"
+RAUC_BUNDLE_EXTRA_DEPENDS += "calculinux-image:do_image_complete"
+RAUC_BUNDLE_EXTRA_FILES += "bundle-extras.tar.gz"
 
 RAUC_SLOT_rootfs = "calculinux-image"
 RAUC_SLOT_rootfs[fstype] = "ext4"
