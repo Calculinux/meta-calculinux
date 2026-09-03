@@ -12,6 +12,10 @@ env:
 permissions:
   contents: read
 
+concurrency:
+  group: pr-rauc-cleanup
+  cancel-in-progress: false
+
 jobs:
   cleanup:
     name: Remove PR RAUC and WIC artifacts
