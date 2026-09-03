@@ -28,6 +28,11 @@ permissions:
   contents: write      # Needed for creating releases
   pull-requests: write # Needed for commenting on PRs
 
+# Drop superseded runs when a branch/PR is pushed again (Yocto builds are expensive).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # To add a new machine configuration, do something similar to the following:
 #
 # matrix:
