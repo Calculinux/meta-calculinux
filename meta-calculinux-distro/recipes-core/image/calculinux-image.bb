@@ -89,6 +89,7 @@ IMAGE_INSTALL += " \
     tree \
     tzdata \
     u-boot-fw-config \
+    u-boot-ota \
     u-boot-rockchip-bootscript \
     unzip \
     usb-gadget-network \

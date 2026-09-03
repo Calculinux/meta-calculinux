@@ -67,4 +67,28 @@ do_configure:prepend() {
         ${S}/arch/arm/dts/
 }
 
+# Blob at 32 KiB must end before ubootenv at 12 MiB (OTA + WIC share this ceiling).
+UBOOT_OTA_MAX_BYTES = "12550144"
+
+do_install:append() {
+    install -d ${D}${libdir}/calculinux
+    install -m 0644 ${B}/${UBOOT_BINARY} ${D}${libdir}/calculinux/${UBOOT_BINARY}
+}
+
+do_deploy:append() {
+    bin="${DEPLOYDIR}/${UBOOT_BINARY}"
+    if [ ! -f "$bin" ]; then
+        bin="${B}/${UBOOT_BINARY}"
+    fi
+    if [ -f "$bin" ]; then
+        size=$(stat -c%s "$bin")
+        if [ "$size" -gt "${UBOOT_OTA_MAX_BYTES}" ]; then
+            bbfatal "${UBOOT_BINARY} is ${size} bytes; must be <= ${UBOOT_OTA_MAX_BYTES} (12 MiB - 32 KiB)"
+        fi
+    fi
+}
+
+PACKAGES =+ "${PN}-ota"
+FILES:${PN}-ota = "${libdir}/calculinux/${UBOOT_BINARY}"
+
 COMPATIBLE_MACHINE = "luckfox-lyra"
