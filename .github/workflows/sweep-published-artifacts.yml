@@ -1,0 +1,38 @@
+name: Sweep published artifacts
+
+on:
+  workflow_dispatch:
+
+env:
+  OPKG_REPO_DIR: /mnt/opkg-repo
+  UPDATE_BASE_URL: https://opkg.calculinux.org
+  KEEP_CONTINUOUS: "4"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sweep:
+    name: Sweep PR and continuous artifacts
+    runs-on: [self-hosted, Linux, X64]
+    strategy:
+      matrix:
+        machine: [luckfox-lyra]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Keep open-PR artifacts and last continuous builds
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        bash .github/scripts/sweep-published-artifacts.sh \
+          "${{ matrix.machine }}" \
+          "$OPKG_REPO_DIR" \
+          "$UPDATE_BASE_URL" \
+          "${{ github.repository }}"
