@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [ main ]
     types: [closed]
+  workflow_dispatch:
 
 env:
   OPKG_REPO_DIR: /mnt/opkg-repo
@@ -11,17 +12,15 @@ env:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  cleanup:
-    name: Remove PR RAUC artifacts
+  sweep:
+    name: Keep only open-PR artifacts
     runs-on: [self-hosted, Linux, X64]
     strategy:
       matrix:
         machine: [luckfox-lyra]
-        include:
-          - machine: luckfox-lyra
-            kas_file: "kas-luckfox-lyra-bundle.yaml"
 
     steps:
     - name: Checkout repository
@@ -29,23 +28,13 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Determine feed configuration
-      id: feed-config
+    - name: Remove closed-PR RAUC/WIC artifacts and refresh indexes
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -euo pipefail
-        # For PR cleanup, we need to determine the feed name from the base branch
-        # PRs target main, so we check what feed main would use
-        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh \
-          "${{ matrix.kas_file }}" \
-          "main" \
-          "branch"
-
-    - name: Remove PR bundle and refresh index
-      run: |
-        set -euo pipefail
-        bash .github/scripts/cleanup-pr-bundle.sh \
+        bash .github/scripts/sweep-stale-pr-artifacts.sh \
           "${{ matrix.machine }}" \
-          "${{ github.event.pull_request.number }}" \
           "$OPKG_REPO_DIR" \
-          "${{ steps.feed-config.outputs.feed_name }}" \
-          "$UPDATE_BASE_URL"
+          "$UPDATE_BASE_URL" \
+          "${{ github.repository }}"
