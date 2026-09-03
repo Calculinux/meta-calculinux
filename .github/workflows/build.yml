@@ -166,8 +166,8 @@ jobs:
         path: |
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz.sha256
           ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
           ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
           ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
@@ -240,7 +240,7 @@ jobs:
         set -euo pipefail
         bash .github/scripts/load-script-output.sh --env-all --from-file "$SHARED_ARTIFACTS_DIR/workflow-metadata.env"
 
-    - name: Publish PR RAUC bundle
+    - name: Publish PR RAUC bundle and WIC image
       if: github.event_name == 'pull_request'
       run: |
         set -euo pipefail
@@ -308,8 +308,8 @@ jobs:
         files: |
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz.sha256
           ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
           ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
           ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
