@@ -1,3 +1,5 @@
-# VBUS cannot drop on this board. dwc2 SOF watchdog emits this on unplug.
-SUBSYSTEM=="udc", ACTION=="change", ATTR{state}=="not attached", \
+# VBUS cannot drop on this board. CONFIG_USB_CONFIGFS_UEVENT android0
+# emits USB_STATE=DISCONNECTED after the dwc2 SOF watchdog disconnects.
+# UDC state stays "configured" on unplug, so do not match on udc.
+SUBSYSTEM=="android_usb", ACTION=="change", ENV{USB_STATE}=="DISCONNECTED", \
   TAG+="systemd", ENV{SYSTEMD_WANTS}+="usb-gadget-link.service"
