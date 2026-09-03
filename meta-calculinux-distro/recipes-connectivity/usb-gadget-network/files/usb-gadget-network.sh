@@ -21,10 +21,11 @@ GADGET_PATH="${GADGET_DIR}/${GADGET_NAME}"
 # USB port mode: "gadget" (device mode) or "host" (host mode)
 USB_MODE=${USB_MODE:-gadget}
 
-# USB network protocol selection: "ecm" (Linux/macOS) or "rndis" (Windows)
-# ECM is preferred for Linux/macOS, RNDIS for Windows
+# USB network protocol: "rndis" (default), "ecm" (Linux/macOS), or "both"
+# RNDIS: one interface on Windows and Linux. "both" can leave Linux with two
+# interfaces on the same subnet. Use "ecm" for macOS.
 # Only applies when USB_MODE=gadget
-USB_PROTOCOL=${USB_PROTOCOL:-ecm}
+USB_PROTOCOL=${USB_PROTOCOL:-rndis}
 
 # Optional USB serial console on ttyGS0 (ACM function)
 ENABLE_SERIAL_CONSOLE=${ENABLE_SERIAL_CONSOLE:-0}
@@ -46,9 +47,11 @@ SERIAL_NUMBER="calculinux001"
 MANUFACTURER="Calculinux"
 PRODUCT="PicoCalc USB Network"
 
-# Network configuration
-HOST_MAC="48:6f:73:74:50:43"  # HostPC
-DEVICE_MAC="44:65:76:69:63:65"  # Device
+# Network configuration (distinct MACs per function when both are enabled)
+HOST_MAC="48:6f:73:74:50:43"  # HostPC (ECM)
+DEVICE_MAC="44:65:76:69:63:65"  # Device (ECM)
+HOST_MAC_RNDIS="48:6f:73:74:50:44"  # HostPC (RNDIS)
+DEVICE_MAC_RNDIS="44:65:76:69:63:66"  # Device (RNDIS)
 
 # Function to clean up existing gadget
 cleanup_gadget() {
@@ -197,32 +200,42 @@ setup_gadget() {
         mkdir -p functions/acm.usb0
     fi
     
-    NETWORK_FUNCTION=""
+    ENABLE_ECM=0
+    ENABLE_RNDIS=0
     CONFIG_LABEL_PARTS=()
 
-    # Create network function based on protocol selection (if enabled)
+    # Create network function(s) based on protocol selection (if enabled)
     if [ "${ENABLE_NETWORK}" = "1" ]; then
-        if [ "${USB_PROTOCOL}" = "rndis" ]; then
-            # RNDIS function for Windows
-            mkdir -p functions/rndis.usb0
-            echo ${HOST_MAC} > functions/rndis.usb0/host_addr
-            echo ${DEVICE_MAC} > functions/rndis.usb0/dev_addr
+        case "${USB_PROTOCOL}" in
+            both)
+                ENABLE_ECM=1
+                ENABLE_RNDIS=1
+                ;;
+            rndis)
+                ENABLE_RNDIS=1
+                ;;
+            ecm|*)
+                ENABLE_ECM=1
+                ;;
+        esac
 
-            # RNDIS needs OS descriptors for Windows compatibility
-            echo 1 > os_desc/use
-            echo 0xcd > os_desc/b_vendor_code
-            echo MSFT100 > os_desc/qw_sign
-
-            NETWORK_FUNCTION="rndis.usb0"
-            CONFIG_LABEL_PARTS+=("RNDIS")
-        else
-            # ECM/CDC-Ether function for Linux/macOS (default)
+        if [ "${ENABLE_ECM}" = "1" ]; then
             mkdir -p functions/ecm.usb0
             echo ${HOST_MAC} > functions/ecm.usb0/host_addr
             echo ${DEVICE_MAC} > functions/ecm.usb0/dev_addr
-
-            NETWORK_FUNCTION="ecm.usb0"
             CONFIG_LABEL_PARTS+=("CDC-Ether/ECM")
+        fi
+
+        if [ "${ENABLE_RNDIS}" = "1" ]; then
+            mkdir -p functions/rndis.usb0
+            echo ${HOST_MAC_RNDIS} > functions/rndis.usb0/host_addr
+            echo ${DEVICE_MAC_RNDIS} > functions/rndis.usb0/dev_addr
+            CONFIG_LABEL_PARTS+=("RNDIS")
+
+            # Windows auto-binds RNDIS when MS OS descriptors are present
+            echo 1 > os_desc/use
+            echo 0xcd > os_desc/b_vendor_code
+            echo MSFT100 > os_desc/qw_sign
         fi
     fi
     
@@ -258,15 +271,18 @@ setup_gadget() {
     fi
 
     # Link functions to configuration
-    if [ -n "${NETWORK_FUNCTION}" ]; then
-        ln -s functions/${NETWORK_FUNCTION} configs/c.1/
+    if [ "${ENABLE_ECM}" = "1" ]; then
+        ln -s functions/ecm.usb0 configs/c.1/
+    fi
+    if [ "${ENABLE_RNDIS}" = "1" ]; then
+        ln -s functions/rndis.usb0 configs/c.1/
     fi
     if [ "${ENABLE_SERIAL_CONSOLE}" = "1" ]; then
         ln -s functions/acm.usb0 configs/c.1/
     fi
-    
-    # Link OS descriptors (only needed for RNDIS)
-    if [ "${ENABLE_NETWORK}" = "1" ] && [ "${USB_PROTOCOL}" = "rndis" ]; then
+
+    # Link OS descriptors when RNDIS is included
+    if [ "${ENABLE_RNDIS}" = "1" ]; then
         ln -s configs/c.1 os_desc/
     fi
     
@@ -332,14 +348,15 @@ case "$1" in
             # The usb0.network file handles both DHCP (for network sharing) and static IP (for manual connection)
             sleep 2
             
-            echo "USB gadget configured - network interface usb0 will be managed by systemd-networkd"
+            echo "USB gadget configured - usb* interfaces managed by systemd-networkd"
         fi
         ;;
     stop)
-        # Bring down interface
-        if ip link show usb0 > /dev/null 2>&1; then
-            ip link set usb0 down
-        fi
+        # Bring down gadget network interfaces (usb0=ECM, usb1=RNDIS when both enabled)
+        for iface in /sys/class/net/usb*; do
+            [ -e "${iface}" ] || continue
+            ip link set "$(basename "${iface}")" down 2>/dev/null || true
+        done
         
         cleanup_gadget
         

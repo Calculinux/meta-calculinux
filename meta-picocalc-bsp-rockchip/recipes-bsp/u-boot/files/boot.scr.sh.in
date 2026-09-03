@@ -4,9 +4,7 @@ if test "x${{BOOT_ORDER}}" = "x"; then
     saveenv;
 fi;
 test -n "${{BOOT_A_LEFT}}" || setenv BOOT_A_LEFT 1;
-test "${{BOOT_A_LEFT}}" = 3 && setenv BOOT_A_LEFT 1;
 test -n "${{BOOT_B_LEFT}}" || setenv BOOT_B_LEFT 1;
-test "${{BOOT_B_LEFT}}" = 3 && setenv BOOT_B_LEFT 1;
 
 setenv rauc_slot;
 
@@ -55,15 +53,61 @@ saveenv;
 saveenv;
 
 setenv fit_image "zboot.img"
-
 test -n "${{baudrate}}" || setenv baudrate 1500000;
 test -n "${{consoleblank}}" || setenv consoleblank 300;
+test -n "${{console}}" || setenv console ttyFIQ0;
 
-setenv bootargs "console=${{console}} earlycon=uart8250,mmio32,0xff0a0000,${{baudrate}} console=ttyFIQ0,${{baudrate}} consoleblank=${{consoleblank}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
+setenv bootargs "earlycon=uart8250,mmio32,0xff0a0000 console=${{console}},${{baudrate}} consoleblank=${{consoleblank}} rockchip.fiq_debugger_baudrate=${{baudrate}} ro rootwait root=PARTLABEL=ROOT_${{rauc_slot}} rauc.slot=${{rauc_slot}} fsck.mode=skip noinitrd init=/sbin/preinit regulator.debug=1";
 echo Setting bootargs to ${{bootargs}};
 
-echo Loading FIT image <${{fit_image}}> from ${{devtype}} ${{devnum}}:${{mmcpart}};
-load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/${{fit_image}};
+setenv filesize 0;
+setenv fit_loaded 0;
+setenv overlay_part;
+setenv overlay_part_hex;
+part number ${{devtype}} ${{devnum}} OVERLAY_DATA overlay_part_hex;
+if test -n "${{overlay_part_hex}}"; then
+    setexpr overlay_part fmt %d ${{overlay_part_hex}};
+fi;
+if test "${{FIT_LAST_TRIED}}" = "data"; then
+    setenv fit_try "boot";
+else
+    setenv fit_try "data";
+fi;
 
+# This RAUC slot's merged FIT only - never the other slot (different kernel).
+# Skip data FIT if OVERLAY_DATA partition lookup failed.
+# Failed /data read must not abort the script before the /boot fallback.
+if test "${{fit_try}}" = "data"; then
+    if test -n "${{overlay_part}}"; then
+        if test "${{rauc_slot}}" = "A"; then
+            if load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} /fit/zboot_merged_a.img; then
+                setenv fit_loaded 1;
+                setenv FIT_LAST_TRIED data;
+            fi;
+        else
+            if load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} /fit/zboot_merged_b.img; then
+                setenv fit_loaded 1;
+                setenv FIT_LAST_TRIED data;
+            fi;
+        fi;
+    fi;
+fi;
+
+# Same-slot /boot fallback (correct kernel; default or no user overlays)
+if test ${{fit_loaded}} -eq 0; then
+    if load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img; then
+        setenv fit_loaded 1;
+        setenv FIT_LAST_TRIED boot;
+    fi;
+fi;
+
+if test ${{fit_loaded}} -eq 1; then
+    echo Booting FIT ${{FIT_LAST_TRIED}};
+    saveenv;
+    bootm ${{ramdisk_addr_r}};
+fi;
+
+echo Loading unmerged zboot from ROOT;
+load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/${{fit_image}};
 echo Booting from address <${{ramdisk_addr_r}}>;
 bootm ${{ramdisk_addr_r}}

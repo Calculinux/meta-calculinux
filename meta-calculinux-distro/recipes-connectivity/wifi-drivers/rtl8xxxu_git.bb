@@ -1,17 +1,13 @@
 SUMMARY = "RTL8XXXU kernel driver for RTL8xxxU"
 DESCRIPTION = "Out-of-tree Realtek USB Wi-Fi driver for RTL8188EU/FU chipset"
-HOMEPAGE = "https://github.com/aesteryck/rtl8xxxu"
+HOMEPAGE = "https://github.com/Calculinux/rtl8xxxu"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://firmware/LICENCE.rtlwifi_firmware.txt;md5=00d06cfd3eddd5a2698948ead2ad54a5"
 
 PV = "1.0-git"
 
-SRC_URI = "\
-    git://github.com/aesteryck/rtl8xxxu.git;protocol=https;branch=main \
-    file://rtl8188ftv-solution-d.patch \
-    file://rtl8188ftv-block-size.patch \
-    "
-SRCREV = "7cb5b73796b19b460af835144e604595083ca60d"
+SRC_URI = "git://github.com/Calculinux/rtl8xxxu.git;protocol=https;branch=main"
+SRCREV = "113070098a4028d7a77734683677c55ea2b7ae93"
 
 S = "${UNPACKDIR}/git"
 DEPENDS += "virtual/kernel"

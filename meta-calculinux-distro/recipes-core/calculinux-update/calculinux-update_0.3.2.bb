@@ -7,7 +7,8 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protocol=https"
-SRCREV = "6432684ec80c06d93c9dba58902c4feef889bbda"
+SRCREV = "fa03f43bc52b46795a67178b8d465b8e12224440"
+PV = "0.7.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
@@ -15,6 +16,7 @@ inherit python3-dir python3native
 
 RDEPENDS:${PN} += " \
     python3-core \
+    python3-difflib \
     python3-httpx \
     python3-mmap \
     python3-rich \
@@ -22,6 +24,7 @@ RDEPENDS:${PN} += " \
     python3-typer \
     python3-typing-extensions \
     rauc \
+    squashfs-tools \
 "
 
 FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${sysconfdir}/calculinux-update"

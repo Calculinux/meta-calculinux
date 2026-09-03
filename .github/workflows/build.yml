@@ -16,8 +16,8 @@ on:
 
 env:
   # Yocto build directories that need persistent storage
-  DL_DIR: ${{ github.workspace }}/../yocto-cache/downloads
-  SSTATE_DIR: ${{ github.workspace }}/../yocto-cache/sstate-cache
+  DL_DIR: /mnt/runner-cache/yocto-cache/downloads
+  SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
   # Package repository storage
   OPKG_REPO_DIR: /mnt/opkg-repo
   UPDATE_BASE_URL: https://opkg.calculinux.org
@@ -166,8 +166,8 @@ jobs:
         path: |
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz.sha256
           ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
           ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
           ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
@@ -240,7 +240,7 @@ jobs:
         set -euo pipefail
         bash .github/scripts/load-script-output.sh --env-all --from-file "$SHARED_ARTIFACTS_DIR/workflow-metadata.env"
 
-    - name: Publish PR RAUC bundle
+    - name: Publish PR RAUC bundle and WIC image
       if: github.event_name == 'pull_request'
       run: |
         set -euo pipefail
@@ -308,8 +308,8 @@ jobs:
         files: |
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb.sha256
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz
-          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}.rootfs-*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ matrix.machine }}*.wic.gz.sha256
           ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ matrix.machine }}-*.bin
           ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ matrix.machine }}-*
           ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
@@ -363,4 +363,4 @@ jobs:
         fi
 
         # Clean up old artifacts directories (older than 7 days)
-        find /mnt/opkg-repo/.build-artifacts -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; 2>/dev/null || true
+        find /mnt/opkg-repo/.build-artifacts -mindepth 1 -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; 2>/dev/null || true

@@ -1,0 +1,32 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] depmod.sh: skip when DEPMOD=echo (Yocto build)
+
+When the kernel build uses DEPMOD=echo (as Yocto does via kernel.bbclass),
+the depmod wrapper should exit immediately without running the symlink hack
+or invoking depmod. Otherwise the hack tries to create
+$INSTALL_MOD_PATH/lib/modules/99.98.$KERNELRELEASE, and with empty
+INSTALL_MOD_PATH this becomes /lib/modules/... which fails with
+"No such file or directory".
+
+Signed-off-by: Calculinux <noreply@calculinux.org>
+
+---
+ scripts/depmod.sh | 6 ++++++
+ 1 file changed, 6 insertions (+)
+
+diff --git a/scripts/depmod.sh b/scripts/depmod.sh
+--- a/scripts/depmod.sh
++++ b/scripts/depmod.sh
+@@ -15,6 +15,12 @@
+ 	exit 0
+ fi
+ 
++
++# Yocto and similar builds use DEPMOD=echo to skip depmod entirely
++if [ "$DEPMOD" = "echo" ]; then
++	exit 0
++fi
++
+ # legacy behavior: "depmod" in /sbin, no /sbin in PATH
+ PATH="$PATH:/sbin"
+ if [ -z $(command -v $DEPMOD) ]; then

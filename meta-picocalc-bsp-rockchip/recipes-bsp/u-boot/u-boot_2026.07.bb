@@ -31,6 +31,7 @@ SRC_URI = " \
     file://v2026.07-rk3506/rockchip-rk3506-clk-Fix-CLK_SARADC-set-rate-issues.patch \
     file://v2026.07-rk3506/rockchip-rk3506-clk-Fix-trivial-clock-configuration-errors.patch \
     file://v2026.07-rk3506/rockchip-rk3506-saradc-Add-driver-data.patch \
+    file://v2026.07-rk3506/rockchip-rk3506-Allow-1500000-baudrate.patch \
     file://v2026.07-rk3506/0004-video-Add-ILI9488-SPI-DM_VIDEO-driver.patch \
     file://v2026.07-rk3506/0005-pinctrl-rk3506-Add-RMIO-remux-support.patch \
     file://v2026.07-rk3506/0006-rockchip-rk3506-Default-stdout-to-serial-vidconsole.patch \
@@ -104,5 +105,29 @@ out.write_text("\n".join(lines))
 print(f"Wrote {out} ({len(data)} bytes)")
 PY
 }
+
+# Blob at 32 KiB must end before ubootenv at 6 MiB (OTA + WIC share this ceiling).
+UBOOT_OTA_MAX_BYTES = "6258688"
+
+do_install:append() {
+    install -d ${D}${libdir}/calculinux
+    install -m 0644 ${B}/${UBOOT_BINARY} ${D}${libdir}/calculinux/${UBOOT_BINARY}
+}
+
+do_deploy:append() {
+    bin="${DEPLOYDIR}/${UBOOT_BINARY}"
+    if [ ! -f "$bin" ]; then
+        bin="${B}/${UBOOT_BINARY}"
+    fi
+    if [ -f "$bin" ]; then
+        size=$(stat -c%s "$bin")
+        if [ "$size" -gt "${UBOOT_OTA_MAX_BYTES}" ]; then
+            bbfatal "${UBOOT_BINARY} is ${size} bytes; must be <= ${UBOOT_OTA_MAX_BYTES} (6 MiB - 32 KiB)"
+        fi
+    fi
+}
+
+PACKAGES =+ "${PN}-ota"
+FILES:${PN}-ota = "${libdir}/calculinux/${UBOOT_BINARY}"
 
 COMPATIBLE_MACHINE = "luckfox-lyra"

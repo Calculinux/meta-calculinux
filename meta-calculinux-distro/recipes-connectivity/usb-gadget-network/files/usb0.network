@@ -1,5 +1,5 @@
 [Match]
-Name=usb0
+Name=usb*
 
 [Network]
 Address=192.168.7.2/24
@@ -7,6 +7,16 @@ Address=192.168.7.2/24
 LinkLocalAddressing=yes
 # Optional: Enable DHCP client if host provides DHCP
 DHCP=yes
+
+# Prefer this default route over iwd WLAN (RoutePriorityOffset default is 300)
+[DHCPv4]
+RouteMetric=100
+
+[DHCPv6]
+RouteMetric=100
+
+[IPv6AcceptRA]
+RouteMetric=100
 
 [Link]
 RequiredForOnline=no

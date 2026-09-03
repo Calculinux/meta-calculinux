@@ -2,7 +2,7 @@
 """
 Generate artifact index JSON for published images and update bundles.
 This provides a machine-readable catalog of available artifacts.
-Used for both PR channels (RAUC bundles only) and release channels (RAUC + images).
+Used for both PR channels and release channels (RAUC + images).
 """
 
 import argparse
@@ -29,6 +29,20 @@ def read_digest(path: Path) -> str:
                 break
             hasher.update(chunk)
     return hasher.hexdigest()
+
+
+def load_version_manifest(path: Path) -> dict:
+    """Parse KEY=VALUE / KEY=\"VALUE\" from a version-manifest.env."""
+    out = {}
+    if not path or not path.exists():
+        return out
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        out[key.strip()] = value.strip().strip('"').strip("'")
+    return out
 
 
 def collect_entries(root: Path, pattern: str, url_prefix: str, machine: str):
@@ -61,7 +75,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate artifact index JSON")
     parser.add_argument("--base-url", required=True, help="Base URL for artifacts (e.g. https://opkg.calculinux.org)")
     parser.add_argument("--update-dir", required=True, type=Path, help="Directory containing RAUC bundles")
-    parser.add_argument("--image-dir", type=Path, default=None, help="Directory containing WIC images (optional, PR channels have none)")
+    parser.add_argument("--image-dir", type=Path, default=None, help="Directory containing WIC images")
     parser.add_argument("--output", required=True, type=Path, help="Output JSON file path")
     parser.add_argument("--feed-name", required=True, help="Feed name")
     parser.add_argument("--subfolder", required=True, help="Subfolder (pr/continuous/release)")
@@ -69,6 +83,12 @@ def main():
     parser.add_argument("--distro-version", default=None, help="Distro version (optional for PR channels)")
     parser.add_argument("--git-sha", default=None, help="Git commit SHA (optional for PR channels)")
     parser.add_argument("--is-pr-channel", action="store_true", help="Mark as PR channel in index metadata")
+    parser.add_argument(
+        "--version-manifest",
+        type=Path,
+        default=None,
+        help="version-manifest.env from the image (min-version fields for cup)",
+    )
     
     args = parser.parse_args()
     
@@ -109,6 +129,30 @@ def main():
         index["git_sha"] = args.git_sha
     if args.is_pr_channel:
         index["is_pr_channel"] = True
+
+    manifest = load_version_manifest(args.version_manifest) if args.version_manifest else {}
+    calculinux_version = manifest.get("CALCULINUX_VERSION") or args.distro_version
+    min_version = manifest.get("MIN_CALCULINUX_VERSION", "")
+    min_timestamp = manifest.get("MIN_BUILD_TIMESTAMP", "")
+    build_timestamp = manifest.get("BUILD_TIMESTAMP", "")
+    if calculinux_version:
+        index["calculinux_version"] = calculinux_version
+        index["distro_version"] = calculinux_version
+    if min_version:
+        index["min_calculinux_version"] = min_version
+    if min_timestamp:
+        index["min_build_timestamp"] = min_timestamp
+    if build_timestamp:
+        index["build_timestamp"] = build_timestamp
+    for entry in rauc_bundles:
+        if calculinux_version:
+            entry["calculinux_version"] = calculinux_version
+        if min_version:
+            entry["min_calculinux_version"] = min_version
+        if min_timestamp:
+            entry["min_build_timestamp"] = min_timestamp
+        if build_timestamp:
+            entry["build_timestamp"] = build_timestamp
     
     # Write output
     args.output.parent.mkdir(parents=True, exist_ok=True)
