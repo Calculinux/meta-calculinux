@@ -103,15 +103,26 @@ sha256_file() {
 
 read_range_to_file() {
 	# Read $3 bytes from $1 at offset $2 into $4 (offset must be 4096-aligned).
+	# BusyBox: no head -c, dd rejects status=none/conv= — use block dd + bs=1 trim.
 	disk=$1
 	seek=$2
 	count=$3
 	dest=$4
 	bs=4096
 	skip=$((seek / bs))
-	dd if="$disk" bs="$bs" skip="$skip" status=none 2>/dev/null \
-		| head -c "$count" >"$dest"
+	blocks=$(( (count + bs - 1) / bs ))
+	if ! dd if="$disk" bs="$bs" skip="$skip" count="$blocks" of="$dest" 2>/dev/null; then
+		return 1
+	fi
 	got=$(stat -c%s "$dest")
+	if [ "$got" -gt "$count" ]; then
+		if ! dd if="$dest" bs=1 count="$count" of="${dest}.trim" 2>/dev/null; then
+			rm -f "$dest" "${dest}.trim"
+			return 1
+		fi
+		mv "${dest}.trim" "$dest"
+		got=$(stat -c%s "$dest")
+	fi
 	[ "$got" -eq "$count" ]
 }
 
@@ -136,7 +147,21 @@ write_range() {
 	src=$3
 	bs=4096
 	seek_blocks=$((seek / bs))
-	dd if="$src" of="$disk" bs="$bs" seek="$seek_blocks" conv=fsync,notrunc status=none
+	src_size=$(stat -c%s "$src")
+	full=$((src_size / bs))
+	rem=$((src_size % bs))
+	if [ "$full" -gt 0 ]; then
+		if ! dd if="$src" of="$disk" bs="$bs" seek="$seek_blocks" count="$full" 2>/dev/null; then
+			return 1
+		fi
+	fi
+	if [ "$rem" -gt 0 ]; then
+		if ! dd if="$src" bs=1 skip="$((full * bs))" count="$rem" \
+			of="$disk" seek="$((seek + full * bs))" 2>/dev/null; then
+			return 1
+		fi
+	fi
+	sync
 }
 
 reload_partition_table() {
@@ -145,7 +170,7 @@ reload_partition_table() {
 	udevadm settle --timeout=5 2>/dev/null || sleep 1
 }
 
-# Ensure GPT entry named ubootenv is 1 MiB at 12 MiB. Leaves other partitions alone.
+# Ensure GPT entry named ubootenv is 1 MiB at UBOOTENV_OFFSET_BYTES. Leaves other partitions alone.
 ensure_ubootenv_gpt() {
 	disk=$1
 	start=$(partlabel_start_bytes ubootenv "$disk" || true)
@@ -157,7 +182,7 @@ ensure_ubootenv_gpt() {
 		fi
 	fi
 
-	# Delete existing ubootenv partition number(s), then create at 12 MiB.
+	# Delete existing ubootenv partition number(s), then recreate at target offset.
 	nums=$(sgdisk -p "$disk" 2>/dev/null | awk '
 		$0 ~ /ubootenv/ && $1 ~ /^[0-9]+$/ { print $1 }
 	')
@@ -165,9 +190,10 @@ ensure_ubootenv_gpt() {
 		sgdisk -d "$n" "$disk" >/dev/null
 	done
 
-	# Absolute sector start: 12 MiB / 512 = 24576; size 1 MiB = 2048 sectors.
-	# Partition number 0 = first free.
-	sgdisk -n "0:24576:+2048" -c "0:ubootenv" "$disk" >/dev/null
+	# Absolute sector start/size from UBOOTENV_* constants (512-byte sectors).
+	env_start_sec=$((UBOOTENV_OFFSET_BYTES / 512))
+	env_size_sec=$((UBOOTENV_SIZE_BYTES / 512))
+	sgdisk -n "0:${env_start_sec}:+${env_size_sec}" -c "0:ubootenv" "$disk" >/dev/null
 	reload_partition_table "$disk"
 	i=0
 	while [ ! -e /dev/disk/by-partlabel/ubootenv ] && [ "$i" -lt 10 ]; do
@@ -334,26 +360,26 @@ slot_post_install() {
 		exit 0
 	fi
 
-	# Env: migrate vendor→12 MiB only when ubootenv is not already usable there.
+	# Env: migrate vendor→ubootenv only when partition env is not already usable.
 	# Later mainline blob bumps must leave BOOT_* alone.
-	env_at_12m=0
+	env_ready=0
 	start_env=$(partlabel_start_bytes ubootenv "$disk" || true)
 	if [ -n "$start_env" ] && [ "$start_env" -eq "$UBOOTENV_OFFSET_BYTES" ]; then
 		cfg=$(mktemp)
 		printf '%s\n' "$NEW_FW_ENV" >"$cfg"
 		if fw_printenv -c "$cfg" -n BOOT_ORDER >/dev/null 2>&1; then
-			env_at_12m=1
+			env_ready=1
 		fi
 		rm -f "$cfg"
 	fi
 
-	if [ "$env_at_12m" -eq 0 ]; then
+	if [ "$env_ready" -eq 0 ]; then
 		read_vendor_boot_vars "$disk"
 		if ! ensure_ubootenv_gpt "$disk"; then
-			flash_wic "Could not place GPT ubootenv at 12 MiB"
+			flash_wic "Could not place GPT ubootenv at $(bytes_mib "$UBOOTENV_OFFSET_BYTES") MiB"
 		fi
 		if ! write_migrated_env; then
-			flash_wic "Could not write migrated U-Boot environment at 12 MiB"
+			flash_wic "Could not write migrated U-Boot environment at $(bytes_mib "$UBOOTENV_OFFSET_BYTES") MiB"
 		fi
 	fi
 
