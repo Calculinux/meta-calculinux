@@ -16,56 +16,26 @@ The default I2C address for DS3231 is **0x68**.
 
 ## Enabling the DS3231 Overlay
 
-The compiled overlay is installed to `/lib/firmware/overlays/ds3231-rtc.dtbo`.
+The compiled overlay ships as `ds3231-rtc.dtbo` under `/boot/devicetree/` and `/lib/firmware/overlays/`.
 
-### Method 1: Runtime via ConfigFS (Temporary)
+### Method 1: FIT-at-boot (Persistent)
+
+Add `ds3231-rtc` to `/etc/device-tree-overlays.conf` and reboot. See [DEVICE-TREE-OVERLAYS.md](DEVICE-TREE-OVERLAYS.md).
+
+### Method 2: Runtime via ConfigFS (Temporary)
 
 To enable the DS3231 RTC at runtime (will not persist across reboots):
 
 ```bash
-# Create overlay directory
 mkdir -p /sys/kernel/config/device-tree/overlays/ds3231
-
-# Load the overlay
 cat /lib/firmware/overlays/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo
-
-# Apply the overlay
-echo 1 > /sys/kernel/config/device-tree/overlays/ds3231/status
+cat /sys/kernel/config/device-tree/overlays/ds3231/status   # expect: applied
 ```
 
 To remove the overlay:
 
 ```bash
-echo 0 > /sys/kernel/config/device-tree/overlays/ds3231/status
 rmdir /sys/kernel/config/device-tree/overlays/ds3231
-```
-
-### Method 2: Systemd Service (Persistent)
-
-To automatically load the overlay at boot, create a systemd service:
-
-```bash
-cat > /etc/systemd/system/ds3231-rtc.service << 'EOF'
-[Unit]
-Description=Load DS3231 RTC device tree overlay
-After=sys-kernel-config.mount
-Requires=sys-kernel-config.mount
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/sh -c 'mkdir -p /sys/kernel/config/device-tree/overlays/ds3231 && \
-  cat /lib/firmware/overlays/ds3231-rtc.dtbo > /sys/kernel/config/device-tree/overlays/ds3231/dtbo && \
-  echo 1 > /sys/kernel/config/device-tree/overlays/ds3231/status'
-ExecStop=/bin/sh -c 'echo 0 > /sys/kernel/config/device-tree/overlays/ds3231/status; \
-  rmdir /sys/kernel/config/device-tree/overlays/ds3231'
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl enable ds3231-rtc.service
-systemctl start ds3231-rtc.service
 ```
 
 ## Verifying the RTC
