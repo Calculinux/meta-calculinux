@@ -2,7 +2,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 LICENSE = "GPL-2.0-only"
 
-SRCREV = "815d6a4af7589b0da6cc765658913d05fe550965"
+SRCREV = "31300da39d37ec56b3df205519aaa9eb943fccfb"
 
 # Kernel config fragments: all .cfg files in files/ are auto-included.
 # Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).

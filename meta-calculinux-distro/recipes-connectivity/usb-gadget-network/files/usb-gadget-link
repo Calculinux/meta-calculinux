@@ -1,0 +1,9 @@
+#!/bin/sh
+# android_usb DISCONNECTED: bounce usb* so networkd drops a stale DHCP lease.
+for path in /sys/class/net/usb*; do
+    [ -e "$path" ] || continue
+    iface=${path##*/}
+    echo "usb-gadget-link: $iface host gone, bouncing"
+    networkctl down "$iface" 2>/dev/null || ip link set "$iface" down || true
+    networkctl up "$iface" 2>/dev/null || ip link set "$iface" up || true
+done
