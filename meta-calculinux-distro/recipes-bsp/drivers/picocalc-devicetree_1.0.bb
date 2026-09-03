@@ -7,9 +7,6 @@ PR = "r0"
 
 require picocalc-drivers-source.inc
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-SRC_URI += "file://vbus-always-on.dtsi.patch"
-
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
 do_configure[noexec] = "1"
