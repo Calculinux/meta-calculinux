@@ -1,4 +1,4 @@
-name: Cleanup PR RAUC Bundles
+name: Cleanup PR Artifacts
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   cleanup:
-    name: Remove PR RAUC artifacts
+    name: Remove PR RAUC and WIC artifacts
     runs-on: [self-hosted, Linux, X64]
     strategy:
       matrix:
@@ -40,7 +40,7 @@ jobs:
           "main" \
           "branch"
 
-    - name: Remove PR bundle and refresh index
+    - name: Remove PR bundle and WIC image and refresh index
       run: |
         set -euo pipefail
         bash .github/scripts/cleanup-pr-bundle.sh \
