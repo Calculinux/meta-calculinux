@@ -1,0 +1,11 @@
+[Unit]
+Description=Clear U-Boot FIT failover state after successful boot
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/fw_setenv FIT_LAST_TRIED 0
+
+[Install]
+WantedBy=multi-user.target

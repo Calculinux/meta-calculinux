@@ -2,7 +2,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 LICENSE = "GPL-2.0-only"
 
-SRCREV = "815d6a4af7589b0da6cc765658913d05fe550965"
+SRCREV = "31300da39d37ec56b3df205519aaa9eb943fccfb"
 
 # Kernel config fragments: all .cfg files in files/ are auto-included.
 # Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).
@@ -58,9 +58,9 @@ KERNEL_IMAGETYPES = "zboot.img"
 
 # --- Device Tree Overlay Symbol Support ---
 #
-# Runtime ConfigFS overlays need a __symbols__ node in the base DTB so the
-# kernel can resolve phandle label references (e.g. &i2c2, &pinctrl) at
-# overlay-apply time.
+# ConfigFS overlay apply and userspace fdtoverlay (merge-dt-overlays-boot /
+# default-merged-fit) need a __symbols__ node in the base DTB so phandle
+# label references (e.g. &i2c2, &pinctrl) resolve.
 #
 # However, compiling with DTC's -@ flag adds __symbols__ for EVERY labelled
 # node. On the RK3506, the RMIO pinctrl DTSI alone defines ~3,100 labels
@@ -254,8 +254,13 @@ do_install:append() {
 # Deploy the kernel blob and FDT that go into zboot.img so default-merged-fit
 # can build the merged FIT directly without extracting from zboot.img.
 # Must use DEPLOYDIR only: the deploy class copies DEPLOYDIR -> DEPLOY_DIR_IMAGE
-# and tracks the manifest.
+# and tracks the manifest. Remove any stale fit_* in DEPLOY_DIR_IMAGE (e.g. from
+# a previous build or sstate) so the deploy class does not fail with "files
+# already exist (not matched to any task)" when it copies.
 do_deploy:append() {
+    rm -f "${DEPLOY_DIR_IMAGE}/fit_fdt.dtb" \
+          "${DEPLOY_DIR_IMAGE}/fit_kernel" \
+          "${DEPLOY_DIR_IMAGE}/fit_compression.txt"
     install -m 0644 "${B}/arch/${ARCH}/boot/dts/${KERNEL_DEVICETREE}" "${DEPLOYDIR}/fit_fdt.dtb"
     # Same kernel blob that is packed into zboot.img (arm=zImage, arm64=Image.lz4)
     if [ "${ARCH}" = "arm64" ]; then

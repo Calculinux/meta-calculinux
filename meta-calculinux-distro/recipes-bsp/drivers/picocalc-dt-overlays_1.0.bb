@@ -1,5 +1,6 @@
 SUMMARY = "PicoCalc device tree overlays"
-DESCRIPTION = "Runtime device tree overlays for PicoCalc hardware"
+DESCRIPTION = "Device tree overlays for PicoCalc: ConfigFS at /lib/firmware/overlays \
+and FIT merge-at-boot at /boot/devicetree"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171dd6425610833a22dbe6"
 
@@ -17,7 +18,11 @@ do_compile[depends] += "virtual/kernel:do_shared_workdir"
 
 do_compile() {
     # Kernel include/ only (dt-bindings). Do not add arch/.../boot/dts so
+<<<<<<< HEAD
     # labels like &snd_pins stay as __fixups__ for ConfigFS apply.
+=======
+    # labels like &i2c2 stay as __fixups__ for ConfigFS and fdtoverlay.
+>>>>>>> origin/main
     KERNEL_INCLUDE="${STAGING_KERNEL_DIR}/include"
 
     found=0
@@ -41,11 +46,16 @@ do_compile() {
 
 do_install() {
     install -d ${D}${nonarch_base_libdir}/firmware/overlays
+    install -d ${D}/boot/devicetree
     for overlay in ${B}/*.dtbo; do
         [ -f "$overlay" ] || bbfatal "No compiled overlays found in ${B}"
         install -m 0644 "$overlay" ${D}${nonarch_base_libdir}/firmware/overlays/
+        install -m 0644 "$overlay" ${D}/boot/devicetree/
     done
 }
 
-FILES:${PN} = "${nonarch_base_libdir}/firmware/overlays/*.dtbo"
+FILES:${PN} = "${nonarch_base_libdir}/firmware/overlays/*.dtbo /boot/devicetree/*.dtbo"
 PACKAGES = "${PN}"
+
+# So default-merged-fit can see overlays at image build time
+SYSROOT_DIRS += "/boot"
