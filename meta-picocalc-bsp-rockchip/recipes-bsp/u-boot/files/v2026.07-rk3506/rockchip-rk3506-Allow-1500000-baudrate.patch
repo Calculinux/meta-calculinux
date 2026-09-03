@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Calculinux <dev@calculinux.org>
+Date: Thu, 3 Sep 2026 00:00:00 +0000
+Subject: rockchip: rk3506: allow 1500000 in CFG_SYS_BAUDRATE_TABLE
+
+Luckfox Lyra / PicoCalc use 1.5M on the debug UART (CONFIG_BAUDRATE).
+config_fallbacks.h only lists up to 115200, so setenv baudrate 1500000 fails
+and vendor env at 115200 breaks kernel cmdline when boot.scr uses ${baudrate}.
+
+Signed-off-by: Calculinux <dev@calculinux.org>
+---
+ include/configs/rk3506_common.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/configs/rk3506_common.h b/include/configs/rk3506_common.h
+index 111111111111..222222222222 100644
+--- a/include/configs/rk3506_common.h
++++ b/include/configs/rk3506_common.h
+@@ -8,6 +8,9 @@
+ 
+ #include "rockchip-common.h"
+ 
++/* Hardware UART speed; must match CONFIG_BAUDRATE and DT stdout-path */
++#define CFG_SYS_BAUDRATE_TABLE { 9600, 19200, 38400, 57600, 115200, 1500000 }
++
+ #define CFG_IRAM_BASE			0xfff80000
+ 
+ #define CFG_SYS_SDRAM_BASE		0
