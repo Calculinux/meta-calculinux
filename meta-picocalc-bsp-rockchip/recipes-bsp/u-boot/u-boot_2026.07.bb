@@ -67,8 +67,8 @@ do_configure:prepend() {
         ${S}/arch/arm/dts/
 }
 
-# Blob at 32 KiB must end before ubootenv at 12 MiB (OTA + WIC share this ceiling).
-UBOOT_OTA_MAX_BYTES = "12550144"
+# Blob at 32 KiB must end before ubootenv at 6 MiB (OTA + WIC share this ceiling).
+UBOOT_OTA_MAX_BYTES = "6258688"
 
 do_install:append() {
     install -d ${D}${libdir}/calculinux
@@ -83,7 +83,7 @@ do_deploy:append() {
     if [ -f "$bin" ]; then
         size=$(stat -c%s "$bin")
         if [ "$size" -gt "${UBOOT_OTA_MAX_BYTES}" ]; then
-            bbfatal "${UBOOT_BINARY} is ${size} bytes; must be <= ${UBOOT_OTA_MAX_BYTES} (12 MiB - 32 KiB)"
+            bbfatal "${UBOOT_BINARY} is ${size} bytes; must be <= ${UBOOT_OTA_MAX_BYTES} (6 MiB - 32 KiB)"
         fi
     fi
 }

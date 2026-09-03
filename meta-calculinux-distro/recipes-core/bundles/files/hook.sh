@@ -4,10 +4,10 @@
 set -eu
 
 UBOOT_SEEK_BYTES=32768
-UBOOTENV_OFFSET_BYTES=12582912   # 12 MiB
+UBOOTENV_OFFSET_BYTES=6291456    # 6 MiB (vendor + field GPT ubootenv)
 UBOOTENV_SIZE_BYTES=1048576      # 1 MiB
-ROOT_A_EXPECT_BYTES=16777216     # 16 MiB
-VENDOR_ENV_OFFSET=6291456        # 6 MiB
+ROOT_A_EXPECT_BYTES=8388608      # 8 MiB (field cards / new WIC)
+VENDOR_ENV_OFFSET=6291456        # 6 MiB (same as ubootenv)
 ENV_SIZE=32768                   # 0x8000
 BLOB_PATH_REL="usr/lib/calculinux/u-boot-rockchip.bin"
 BACKUP_PATH="/data/uboot-ota-backup.bin"
@@ -70,7 +70,7 @@ partlabel_start_bytes() {
 		'
 }
 
-# Preflight: ROOT_A must start at 16 MiB. Args: start_bytes. Echo ok|fail.
+# Preflight: ROOT_A must start at 8 MiB. Args: start_bytes. Echo ok|fail.
 preflight_root_a() {
 	start=$1
 	if [ -z "$start" ]; then
@@ -239,24 +239,24 @@ restore_backup() {
 
 run_self_check() {
 	fail=0
-	# ROOT_A at 16 MiB proceeds
+	# ROOT_A at 8 MiB proceeds
 	if ! out=$(preflight_root_a "$ROOT_A_EXPECT_BYTES"); then
-		echo "FAIL: 16 MiB ROOT_A should pass" >&2
+		echo "FAIL: 8 MiB ROOT_A should pass" >&2
 		fail=1
 	elif [ "$out" != ok ]; then
-		echo "FAIL: 16 MiB ROOT_A expected ok got $out" >&2
+		echo "FAIL: 8 MiB ROOT_A expected ok got $out" >&2
 		fail=1
 	else
-		echo "ok: ROOT_A at 16 MiB proceeds"
+		echo "ok: ROOT_A at 8 MiB proceeds"
 	fi
 
-	# Field-card layout (ROOT_A at 8 MiB) must abort — blob would overlap
-	field=$((8 * 1048576))
-	if out=$(preflight_root_a "$field"); then
-		echo "FAIL: 8 MiB ROOT_A should fail" >&2
+	# ROOT_A at 16 MiB (old mistaken layout) must abort
+	bad16=$((16 * 1048576))
+	if out=$(preflight_root_a "$bad16"); then
+		echo "FAIL: 16 MiB ROOT_A should fail" >&2
 		fail=1
 	else
-		echo "ok: ROOT_A at 8 MiB aborts"
+		echo "ok: ROOT_A at 16 MiB aborts"
 	fi
 
 	# ROOT_A at 24 MiB aborts
@@ -268,16 +268,16 @@ run_self_check() {
 		echo "ok: ROOT_A at 24 MiB aborts"
 	fi
 
-	# Blob that fits
-	if ! out=$(preflight_blob_size 9000000); then
-		echo "FAIL: 9 MiB blob should pass" >&2
+	# Blob that fits under 6 MiB env (e.g. 4 MiB)
+	if ! out=$(preflight_blob_size 4000000); then
+		echo "FAIL: 4 MiB blob should pass" >&2
 		fail=1
 	else
-		echo "ok: 9 MiB blob fits"
+		echo "ok: 4 MiB blob fits"
 	fi
 
-	# Blob too large
-	if out=$(preflight_blob_size 13000000); then
+	# Blob too large (would hit env at 6 MiB)
+	if out=$(preflight_blob_size 7000000); then
 		echo "FAIL: oversized blob should fail" >&2
 		fail=1
 	else
@@ -324,7 +324,7 @@ slot_post_install() {
 
 	root_a_start=$(partlabel_start_bytes ROOT_A "$disk" || true)
 	if ! preflight_root_a "${root_a_start:-}" >/dev/null; then
-		flash_wic "ROOT_A starts at ${root_a_start:-unknown} bytes ($(bytes_mib "${root_a_start:-0}") MiB); need $ROOT_A_EXPECT_BYTES (16 MiB) so the ~9 MiB U-Boot image fits below it"
+		flash_wic "ROOT_A starts at ${root_a_start:-unknown} bytes ($(bytes_mib "${root_a_start:-0}") MiB); need $ROOT_A_EXPECT_BYTES (8 MiB) so U-Boot at 2 MiB fits below it"
 	fi
 
 	blob_sha=$(sha256_file "$blob")
