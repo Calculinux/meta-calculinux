@@ -7,12 +7,12 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;nobranch=1;protocol=https"
-SRCREV = "f8b3f036fe1cd5f153c2d303f6e6b3d6ab50d0b6"
+SRCREV = "5c24c13197cc98431091c6fb469ba1c55b7a953e"
 
 S = "${WORKDIR}/git"
 
 # Use SRCPV for automatic git-based versioning (format: <base>+git<revision>)
-PV = "0.6.0+git${SRCPV}"
+PV = "0.7.1+git${SRCPV}"
 
 inherit python3-dir python3native systemd
 
