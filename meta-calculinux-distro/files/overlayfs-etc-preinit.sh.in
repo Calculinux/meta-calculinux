@@ -33,10 +33,14 @@ if [ "{OVERLAYFS_ETC_FSTYPE}" = "ext4" ]; then
 fi
 
 mkdir -p {OVERLAYFS_ETC_MOUNT_POINT}
-if mount -n -t {OVERLAYFS_ETC_FSTYPE} \
+DATA_MOUNTED=
+if [ -n "$PARTITION_NAME" ] && mount -n -t {OVERLAYFS_ETC_FSTYPE} \
     -o {OVERLAYFS_ETC_MOUNT_OPTIONS} \
     "/dev/$PARTITION_NAME" {OVERLAYFS_ETC_MOUNT_POINT}
 then
+    DATA_MOUNTED=1
+fi
+if [ -n "$DATA_MOUNTED" ]; then
     for overlay in $OVERLAYS; do
         echo ">> Mounting overlay for: $overlay"
 
@@ -66,6 +70,29 @@ then
             echo "PREINIT: Mounting $overlay failed!"
 
     done
+    # Drop a merged FIT whose kernel no longer matches this slot's /boot/fit_kernel
+    # (RAUC hook should already have done this; this recovers if the hook was skipped).
+    SLOT=A
+    if [ -r /proc/cmdline ]; then
+        for _arg in $(cat /proc/cmdline); do
+            [ "$_arg" = "rauc.slot=B" ] && SLOT=B
+            [ "$_arg" = "rauc.slot=A" ] && SLOT=A
+        done
+    fi
+    case "$SLOT" in B) FIT_NAME=zboot_merged_b.img ;; *) FIT_NAME=zboot_merged_a.img ;; esac
+    FIT_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/$FIT_NAME"
+    STAMP_FILE="{OVERLAYFS_ETC_MOUNT_POINT}/fit/kernel-${{SLOT}}.stamp"
+    if [ -f "$FIT_FILE" ] && [ -f /boot/fit_kernel ]; then
+        if [ -r /usr/lib/systemd/fit-stamp.sh ]; then
+            # shellcheck disable=SC1091
+            . /usr/lib/systemd/fit-stamp.sh
+            if stamp_should_drop /boot/fit_kernel "$STAMP_FILE"; then
+                echo "PREINIT: stale/unstamped merged FIT for slot $SLOT, removing (no reboot)"
+                rm -f "$FIT_FILE" "$STAMP_FILE"
+                sync
+            fi
+        fi
+    fi
 else
     echo "PREINIT: Mounting </data> failed!"
 fi

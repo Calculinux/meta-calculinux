@@ -3,6 +3,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append = "\
     file://system.conf.in \
     file://post-install-handler.sh \
+    file://invalidate-merged-fit \
 "
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
@@ -42,6 +43,7 @@ addtask create_system_config after do_configure before do_install
 do_install:append() {
     install -d ${D}${libdir}/rauc
     install -m 0755 ${UNPACKDIR}/post-install-handler.sh ${D}${libdir}/rauc/post-install-handler.sh
+    install -D -m 0755 ${UNPACKDIR}/invalidate-merged-fit ${D}${libdir}/rauc/invalidate-merged-fit
 }
 
-FILES:${PN} += "${libdir}/rauc/post-install-handler.sh"
+FILES:${PN} += "${libdir}/rauc/post-install-handler.sh ${libdir}/rauc/invalidate-merged-fit"
