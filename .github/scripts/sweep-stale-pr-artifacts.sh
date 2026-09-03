@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Remove PR RAUC/WIC artifacts whose PR is no longer open, then refresh indexes.
-# KEEP_PR_NUMBERS="1 2 3" skips GitHub (for tests). Otherwise uses `gh pr list`.
+# KEEP_PR_NUMBERS="1 2 3" skips GitHub (for tests). Otherwise lists open PRs via the API.
 set -euo pipefail
 
 if [ $# -lt 3 ]; then
@@ -16,25 +16,53 @@ REPO="${4:-${GITHUB_REPOSITORY:-}}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 declare -A KEEP=()
 
-if [ -n "${KEEP_PR_NUMBERS:-}" ]; then
+fetch_open_pr_numbers() {
+  local token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+  if [ -z "$token" ]; then
+    echo "GH_TOKEN or GITHUB_TOKEN is required to list open PRs" >&2
+    return 1
+  fi
+  if [ -z "$REPO" ]; then
+    echo "github-repo or GITHUB_REPOSITORY is required" >&2
+    return 1
+  fi
+  local page=1 body
+  while true; do
+    body="$(curl -fsS \
+      -H "Authorization: Bearer ${token}" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100&page=${page}")"
+    local nums
+    nums="$(python3 -c 'import json,sys; data=json.load(sys.stdin); print("\n".join(str(p["number"]) for p in data))' <<<"$body")"
+    if [ -z "$nums" ]; then
+      break
+    fi
+    local n
+    while IFS= read -r n; do
+      [ -n "$n" ] && KEEP["$n"]=1
+    done <<<"$nums"
+    if [ "$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' <<<"$body")" -lt 100 ]; then
+      break
+    fi
+    page=$((page + 1))
+  done
+}
+
+if [ -v KEEP_PR_NUMBERS ]; then
   for n in $KEEP_PR_NUMBERS; do
     KEEP["$n"]=1
   done
 else
-  if [ -z "$REPO" ]; then
-    echo "github-repo or GITHUB_REPOSITORY is required when KEEP_PR_NUMBERS is unset" >&2
-    exit 1
-  fi
-  while IFS= read -r n; do
-    [ -n "$n" ] && KEEP["$n"]=1
-  done < <(gh pr list --repo "$REPO" --state open --limit 1000 --json number --jq '.[].number')
+  fetch_open_pr_numbers
 fi
 
 if [ ${#KEEP[@]} -eq 0 ]; then
-  echo "Keeping PR artifacts for: none"
-else
-  echo "Keeping PR artifacts for: ${!KEEP[*]}"
+  echo "Refusing to sweep: open-PR list is empty (that would delete every PR artifact)" >&2
+  exit 1
 fi
+
+echo "Keeping PR artifacts for: ${!KEEP[*]}"
 
 pr_number() {
   local name="$1"

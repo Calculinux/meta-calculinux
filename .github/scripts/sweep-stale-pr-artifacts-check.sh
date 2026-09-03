@@ -26,6 +26,13 @@ printf 'stale\n' > "$repo/update/walnascar/pr/calculinux-pr71.raucb"
 printf 'stale-wry\n' > "$repo/update/wrynose/pr/luckfox-lyra-pr162.raucb"
 printf 'keep-wry\n' > "$repo/update/wrynose/pr/luckfox-lyra-pr149.raucb"
 
+if KEEP_PR_NUMBERS= bash .github/scripts/sweep-stale-pr-artifacts.sh \
+    luckfox-lyra "$repo" https://opkg.example.test 2>/dev/null; then
+  echo "FAIL: empty KEEP_PR_NUMBERS should refuse to sweep" >&2
+  exit 1
+fi
+assert "[ -f '$repo/update/walnascar/pr/luckfox-lyra-pr99.raucb' ]" "empty keep list did not delete"
+
 KEEP_PR_NUMBERS="42 149" \
   bash .github/scripts/sweep-stale-pr-artifacts.sh \
     luckfox-lyra "$repo" https://opkg.example.test
