@@ -75,21 +75,30 @@ fi;
 
 # This RAUC slot's merged FIT only — never the other slot (different kernel).
 # Skip data FIT if OVERLAY_DATA partition lookup failed.
+# Use `if load` so a failed /data read cannot leave filesize unset and abort
+# the script before the /boot fallback.
 if test "${{fit_try}}" = "data"; then
     if test -n "${{overlay_part}}"; then
         if test "${{rauc_slot}}" = "A"; then
-            load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_a.img;
+            if load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} /fit/zboot_merged_a.img; then
+                setenv fit_loaded 1;
+                setenv FIT_LAST_TRIED data;
+            fi;
         else
-            load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} fit/zboot_merged_b.img;
+            if load ${{devtype}} ${{devnum}}:${{overlay_part}} ${{ramdisk_addr_r}} /fit/zboot_merged_b.img; then
+                setenv fit_loaded 1;
+                setenv FIT_LAST_TRIED data;
+            fi;
         fi;
-        if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED data; fi;
     fi;
 fi;
 
 # Same-slot /boot fallback (correct kernel; default or no user overlays)
 if test ${{fit_loaded}} -eq 0; then
-    load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img;
-    if test ${{filesize}} -gt 0; then setenv fit_loaded 1; setenv FIT_LAST_TRIED boot; fi;
+    if load ${{devtype}} ${{devnum}}:${{mmcpart}} ${{ramdisk_addr_r}} /boot/zboot_merged.img; then
+        setenv fit_loaded 1;
+        setenv FIT_LAST_TRIED boot;
+    fi;
 fi;
 
 if test ${{fit_loaded}} -eq 1; then
