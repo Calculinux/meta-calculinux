@@ -31,6 +31,7 @@ SRC_URI = " \
     file://v2026.07-rk3506/rockchip-rk3506-clk-Fix-CLK_SARADC-set-rate-issues.patch \
     file://v2026.07-rk3506/rockchip-rk3506-clk-Fix-trivial-clock-configuration-errors.patch \
     file://v2026.07-rk3506/rockchip-rk3506-saradc-Add-driver-data.patch \
+    file://v2026.07-rk3506/rockchip-rk3506-Allow-1500000-baudrate.patch \
     file://v2026.07-rk3506/defconfig/luckfox-lyra-rk3506_defconfig \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra.dts \
     file://v2026.07-rk3506/dt/rk3506-luckfox-lyra.dtsi \

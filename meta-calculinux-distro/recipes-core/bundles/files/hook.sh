@@ -230,7 +230,27 @@ write_migrated_env() {
 	fw_setenv -c "$cfg" BOOT_ORDER "$order" || { rm -f "$cfg"; return 1; }
 	fw_setenv -c "$cfg" BOOT_A_LEFT "$a_left" || { rm -f "$cfg"; return 1; }
 	fw_setenv -c "$cfg" BOOT_B_LEFT "$b_left" || { rm -f "$cfg"; return 1; }
+	clear_vendor_uboot_env_vars "$cfg" || { rm -f "$cfg"; return 1; }
 	rm -f "$cfg"
+	return 0
+}
+
+# fw_setenv NAME (no value) deletes; only when the variable is present.
+delete_uboot_env_var() {
+	cfg=$1
+	name=$2
+	if fw_printenv -c "$cfg" -n "$name" >/dev/null 2>&1; then
+		fw_setenv -c "$cfg" "$name" || return 1
+	fi
+	return 0
+}
+
+# Vendor distro sets fdt_high=~0; mainline bootm rejects it.
+clear_vendor_uboot_env_vars() {
+	cfg=$1
+	for v in fdt_high initrd_high; do
+		delete_uboot_env_var "$cfg" "$v" || return 1
+	done
 	return 0
 }
 
@@ -381,6 +401,14 @@ slot_post_install() {
 		if ! write_migrated_env; then
 			flash_wic "Could not write migrated U-Boot environment at $(bytes_mib "$UBOOTENV_OFFSET_BYTES") MiB"
 		fi
+	else
+		cfg=$(mktemp)
+		printf '%s\n' "$NEW_FW_ENV" >"$cfg"
+		if ! clear_vendor_uboot_env_vars "$cfg"; then
+			rm -f "$cfg"
+			flash_wic "Could not clear vendor U-Boot environment variables"
+		fi
+		rm -f "$cfg"
 	fi
 
 	retarget_fw_env_config
