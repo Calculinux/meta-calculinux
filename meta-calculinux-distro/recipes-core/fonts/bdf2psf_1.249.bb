@@ -13,7 +13,7 @@ LIC_FILES_CHKSUM = "file://debian/copyright;md5=6fdba635ca4be614fab872320fcb2220
 SRC_URI = "${DEBIAN_MIRROR}/main/c/console-setup/console-setup_${PV}.tar.xz"
 SRC_URI[sha256sum] = "2042e268b085ad900f2f9863715d67fadb95b8994554f10d407fc14f224b73ae"
 
-S = "${WORKDIR}/console-setup"
+S = "${UNPACKDIR}/console-setup"
 
 inherit allarch
 
