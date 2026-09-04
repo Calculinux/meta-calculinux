@@ -20,6 +20,7 @@ repo="$tmpdir/opkg"
 
 mkdir -p \
   "$repo/update/walnascar/pr" "$repo/image/walnascar/pr" "$repo/update/wrynose/pr" \
+  "$repo/image/imageonly/pr" \
   "$repo/update/walnascar/continuous" "$repo/image/walnascar/continuous"
 
 printf 'keep\n' > "$repo/update/walnascar/pr/luckfox-lyra-pr42.raucb"
@@ -28,6 +29,8 @@ printf 'stale\n' > "$repo/update/walnascar/pr/luckfox-lyra-pr99.raucb"
 printf 'stale\n' > "$repo/update/walnascar/pr/calculinux-pr71.raucb"
 printf 'stale-wry\n' > "$repo/update/wrynose/pr/luckfox-lyra-pr162.raucb"
 printf 'keep-wry\n' > "$repo/update/wrynose/pr/luckfox-lyra-pr149.raucb"
+printf 'keep-img\n' > "$repo/image/imageonly/pr/luckfox-lyra-pr42.wic.gz"
+printf 'stale-img\n' > "$repo/image/imageonly/pr/luckfox-lyra-pr99.wic.gz"
 
 # Dated continuous builds (newest last) plus unversioned "latest"
 for ts in 20260101000000 20260201000000 20260301000000 20260401000000 20260501000000 20260601000000; do
@@ -64,6 +67,13 @@ assert "[ -f '$repo/update/wrynose/pr/luckfox-lyra-pr149.raucb' ]" "sweep kept o
 assert "grep -q 'luckfox-lyra-pr42.raucb' '$walnascar_index'" "walnascar index still lists open PR"
 assert "! grep -q 'pr99' '$walnascar_index'" "walnascar index dropped closed PR"
 assert "grep -q 'luckfox-lyra-pr149.raucb' '$wrynose_index'" "wrynose index lists kept PR"
+
+imageonly_index="$repo/update/imageonly/pr/index.json"
+assert "[ -f '$repo/image/imageonly/pr/luckfox-lyra-pr42.wic.gz' ]" "sweep kept open PR on image-only feed"
+assert "[ ! -f '$repo/image/imageonly/pr/luckfox-lyra-pr99.wic.gz' ]" "sweep removed closed PR on image-only feed"
+assert "[ -f '$imageonly_index' ]" "image-only feed got update/.../pr/index.json"
+assert "grep -q 'luckfox-lyra-pr42.wic.gz' '$imageonly_index'" "image-only index lists kept WIC"
+assert "! grep -q 'pr99' '$imageonly_index'" "image-only index dropped closed WIC"
 
 assert "[ -f '$repo/update/walnascar/continuous/calculinux-bundle-luckfox-lyra.raucb' ]" "kept unversioned latest RAUC"
 assert "[ -f '$repo/image/walnascar/continuous/calculinux-image-luckfox-lyra.rootfs.wic.gz' ]" "kept unversioned latest WIC"

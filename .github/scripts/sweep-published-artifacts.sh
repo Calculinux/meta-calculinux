@@ -94,7 +94,12 @@ reindex_pr() {
   local feed="$1"
   local pr_dir="$OPKG_REPO_DIR/update/${feed}/pr"
   local image_dir="$OPKG_REPO_DIR/image/${feed}/pr"
-  [ -d "$pr_dir" ] || return 0
+  # Index always lives under update/<feed>/pr (same as publish-pr-bundle.sh).
+  # Image-only feeds still need that dir so WIC entries are indexed after a sweep.
+  if [ ! -d "$pr_dir" ] && [ ! -d "$image_dir" ]; then
+    return 0
+  fi
+  mkdir -p "$pr_dir"
   python3 "$SCRIPT_DIR/generate-artifact-index.py" \
     --base-url "$UPDATE_BASE_URL" \
     --update-dir "$pr_dir" \
