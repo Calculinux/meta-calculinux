@@ -16,5 +16,6 @@ do_install:append() {
 }
 
 FILES:${PN} += "\
+    ${systemd_unitdir}/network \
     ${systemd_unitdir}/system/getty@tty1.service.d \
 "
