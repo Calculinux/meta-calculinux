@@ -19,3 +19,7 @@ CONSOLE_TTYS="1 2 3 4 5 6"
 # After changing CONSOLE_FONT: `console-mode apply`, then log out/in on each VT
 # (systemd restarts that VT's cruft; a logout is enough — no reboot needed).
 CONSOLE_FONT=default
+
+# Optional kernel fbcon font (CONSOLE=kernel only): install terminus-font, then
+# put e.g. FONT=ter-u12n.psf.gz in /etc/vconsole.conf and reboot (or
+# systemctl restart systemd-vconsole-setup). Default image uses built-in fonts.
