@@ -1,6 +1,6 @@
 #!/bin/sh
 # systemd generator: wire VTs to yaft or leave kernel gettys alone.
-# Reads /etc/default/console (CONSOLE=yaft|kernel, CONSOLE_TTYS=...).
+# Reads /etc/default/console (CONSOLE, CONSOLE_TTYS, CONSOLE_FONT / YAFT_FONT).
 #
 # Usage (systemd): yaft-generator <normal-dir> [early-dir] [late-dir]
 # Self-check:      yaft-generator --self-check
@@ -9,6 +9,8 @@ set -eu
 
 CONSOLE=yaft
 CONSOLE_TTYS="1 2 3 4 5 6"
+CONSOLE_FONT=default
+YAFT_FONT=
 UNITDIR="@SYSTEMD_SYSTEM_UNITDIR@"
 
 self_check=0
@@ -21,6 +23,7 @@ if [ "${1:-}" = "--self-check" ]; then
 	trap 'rm -rf "$normal_dir"' EXIT
 	CONSOLE=yaft
 	CONSOLE_TTYS="1 2"
+	CONSOLE_FONT=miniwi
 elif [ -z "$normal_dir" ]; then
 	echo "yaft-generator: missing output directory" >&2
 	exit 1
@@ -46,8 +49,24 @@ kernel)
 	;;
 esac
 
+# Resolve font path: explicit YAFT_FONT wins, else CONSOLE_FONT profile.
+if [ -z "${YAFT_FONT:-}" ]; then
+	case "${CONSOLE_FONT:-default}" in
+	default|console|"") YAFT_FONT=/usr/share/yaft/console.yaftfont ;;
+	miniwi) YAFT_FONT=/usr/share/yaft/miniwi.yaftfont ;;
+	unifont) YAFT_FONT=/usr/share/yaft/unifont.yaftfont ;;
+	*)
+		echo "yaft-generator: unknown CONSOLE_FONT='$CONSOLE_FONT' (default|miniwi|unifont)" >&2
+		exit 1
+		;;
+	esac
+fi
+
 wants="$normal_dir/getty.target.wants"
 mkdir -p "$wants"
+mkdir -p "$normal_dir/yaft@.service.d"
+printf '%s\n' '[Service]' "Environment=YAFT_FONT=$YAFT_FONT" \
+	> "$normal_dir/yaft@.service.d/10-font.conf"
 
 for n in $CONSOLE_TTYS; do
 	ln -sf "$UNITDIR/yaft@.service" "$wants/yaft@tty${n}.service"
@@ -63,6 +82,11 @@ if [ "$self_check" -eq 1 ]; then
 		exit 1
 	}
 	[ ! -e "$wants/yaft@tty3.service" ] || { echo "unexpected tty3" >&2; exit 1; }
+	grep -q 'YAFT_FONT=/usr/share/yaft/miniwi.yaftfont' \
+		"$normal_dir/yaft@.service.d/10-font.conf" || {
+		echo "font drop-in missing miniwi path" >&2
+		exit 1
+	}
 	echo "yaft-generator: self-check ok"
 fi
 

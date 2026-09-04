@@ -1,7 +1,8 @@
 SUMMARY = "Yet another framebuffer terminal with mmap fonts"
 DESCRIPTION = "Lightweight VT-compatible framebuffer terminal for Calculinux. \
-Uses demand-paged .yaftfont blobs with runtime cell metrics (6x12 default, \
-optional 8x16 Unifont via YAFT_FONT). Opens the kernel framebuffer already \
+Uses demand-paged .yaftfont blobs with runtime cell metrics (4x8 miniwi, \
+6x12 default, 8x16 Unifont). Font is selected via CONSOLE_FONT in \
+/etc/default/console (or YAFT_FONT). Opens the kernel framebuffer already \
 set up by TinyDRM/fbcon — does not re-init the panel. Local VTs are wired \
 via a systemd generator controlled by /etc/default/console (CONSOLE=yaft|kernel)."
 
@@ -16,13 +17,14 @@ SRC_URI = "git://github.com/Calculinux/yaft.git;protocol=https;branch=main \
            file://yaft-generator \
            file://console-mode \
            "
-SRCREV = "350c5b674f52efcd2db2cc00fd1ff3f2e953e790"
+SRCREV = "f4b629fd2837f933acbc6244d80ba8323c30f9ff"
 PV = "0.2.9+calculinux${SRCPV}"
 
 S = "${WORKDIR}/git"
 
 DEPENDS = "ncurses-native"
 RDEPENDS:${PN} = "console-font"
+RRECOMMENDS:${PN} = "miniwi-console unifont-console"
 
 inherit systemd
 

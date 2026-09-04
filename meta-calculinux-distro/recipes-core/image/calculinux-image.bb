@@ -92,6 +92,7 @@ IMAGE_INSTALL += " \
     u-boot-ota \
     u-boot-rockchip-bootscript \
     console-font \
+    miniwi-console \
     unifont-console \
     unzip \
     usb-gadget-network \

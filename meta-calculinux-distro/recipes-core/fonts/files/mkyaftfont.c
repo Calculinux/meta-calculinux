@@ -128,20 +128,22 @@ static int glyph_add(struct glyph_table *t, const struct glyph_disk *g)
 	return 0;
 }
 
-/* BDF row (MSB-left) -> yaft LSB-right row in cell_w * glyph_width bits */
-static uint16_t bdf_row_to_bits(const uint8_t *bytes, int nbytes, int bbw, int target_bits)
+/* BDF row (MSB-left) -> yaft LSB-right row; x_off shifts into the cell. */
+static uint16_t bdf_row_to_bits(const uint8_t *bytes, int nbytes, int bbw, int x_off, int target_bits)
 {
 	uint16_t bits = 0;
-	int n = bbw < target_bits ? bbw : target_bits;
 
-	for (int x = 0; x < n; x++) {
+	for (int x = 0; x < bbw; x++) {
+		int cell_x = x + x_off;
 		int bi = x / 8;
 		int bp = x % 8;
 
+		if (cell_x < 0 || cell_x >= target_bits)
+			continue;
 		if (bi >= nbytes)
 			break;
 		if (bytes[bi] & (0x80u >> bp))
-			bits |= (uint16_t)(1u << (target_bits - 1 - x));
+			bits |= (uint16_t)(1u << (target_bits - 1 - cell_x));
 	}
 	return bits;
 }
@@ -150,8 +152,9 @@ static int load_bdf(const char *path, struct glyph_table *t)
 {
 	FILE *fp = fopen(path, "r");
 	char line[512];
-	int encoding = -1, dwidth = 0, bbw = 0, bbh = 0;
-	int in_bitmap = 0, row = 0, glyph_width = 1;
+	int encoding = -1, dwidth = 0, bbw = 0, bbh = 0, bbx = 0, bby = 0;
+	int font_ascent = t->cell_h; /* baseline at bottom if FONT_ASCENT absent */
+	int in_bitmap = 0, row = 0, y_start = 0, glyph_width = 1;
 	struct glyph_disk g;
 	size_t before = t->n;
 
@@ -167,17 +170,20 @@ static int load_bdf(const char *path, struct glyph_table *t)
 			*nl = '\0';
 
 		if (!in_bitmap) {
-			if (!strncmp(line, "ENCODING ", 9))
+			if (!strncmp(line, "FONT_ASCENT ", 12))
+				font_ascent = atoi(line + 12);
+			else if (!strncmp(line, "ENCODING ", 9))
 				encoding = atoi(line + 9);
 			else if (!strncmp(line, "DWIDTH ", 7))
 				dwidth = atoi(line + 7);
 			else if (!strncmp(line, "BBX ", 4))
-				sscanf(line + 4, "%d %d %*d %*d", &bbw, &bbh);
+				sscanf(line + 4, "%d %d %d %d", &bbw, &bbh, &bbx, &bby);
 			else if (!strcmp(line, "BITMAP")) {
 				memset(&g, 0, sizeof(g));
 				g.code = (uint32_t)encoding;
 				glyph_width = (dwidth > t->cell_w) ? 2 : 1;
 				g.width = (uint8_t)glyph_width;
+				y_start = font_ascent - (bby + bbh);
 				in_bitmap = 1;
 				row = 0;
 			} else if (!strcmp(line, "ENDCHAR")) {
@@ -194,13 +200,15 @@ static int load_bdf(const char *path, struct glyph_table *t)
 			continue;
 		}
 
-		if (row >= t->cell_h)
-			continue;
-
 		{
 			uint8_t bytes[4] = {0};
 			int nbytes = 0;
+			int dst = y_start + row;
 			const char *p = line;
+
+			row++;
+			if (dst < 0 || dst >= t->cell_h)
+				continue;
 
 			while (*p && nbytes < (int)sizeof(bytes)) {
 				if (!isxdigit((unsigned char)p[0]) || !isxdigit((unsigned char)p[1]))
@@ -213,7 +221,7 @@ static int load_bdf(const char *path, struct glyph_table *t)
 			if (nbytes == 0)
 				continue;
 
-			g.bitmap[row++] = bdf_row_to_bits(bytes, nbytes, bbw,
+			g.bitmap[dst] = bdf_row_to_bits(bytes, nbytes, bbw, bbx,
 				t->cell_w * glyph_width);
 		}
 	}
@@ -315,20 +323,24 @@ static int parse_cell(const char *spec, int *w, int *h)
 {
 	if (sscanf(spec, "%dx%d", w, h) != 2 || *w <= 0 || *h <= 0 || *h > GLYPH_MAX_H)
 		return -1;
-	if ((*w == 6 && *h == 12) || (*w == 8 && *h == 16))
+	/* half-width bits fit in uint16 when 2*cell_w <= 16 */
+	if (*w > 8)
+		return -1;
+	if ((*w == 4 && *h == 8) || (*w == 6 && *h == 12) || (*w == 8 && *h == 16))
 		return 0;
-	fprintf(stderr, "unsupported cell size %dx%d (want 6x12 or 8x16)\n", *w, *h);
+	fprintf(stderr, "unsupported cell size %dx%d (want 4x8, 6x12, or 8x16)\n", *w, *h);
 	return -1;
 }
 
 static int self_check(void)
 {
+	struct glyph_table t48 = { .cell_w = 4, .cell_h = 8 };
 	struct glyph_table t612 = { .cell_w = 6, .cell_h = 12 };
 	struct glyph_table t816 = { .cell_w = 8, .cell_h = 16 };
 	struct glyph_disk g;
 	uint8_t raw[16];
 
-	if (glyph_record_bytes(12) != 32 || glyph_record_bytes(16) != 40)
+	if (glyph_record_bytes(8) != 24 || glyph_record_bytes(12) != 32 || glyph_record_bytes(16) != 40)
 		return 1;
 
 	memset(raw, 0, sizeof(raw));
@@ -337,23 +349,29 @@ static int self_check(void)
 	if (g.bitmap[4] != 0x08)
 		return 2;
 
+	t48.have = calloc(UCS2_CHARS, sizeof(int));
 	t612.have = calloc(UCS2_CHARS, sizeof(int));
 	t816.have = calloc(UCS2_CHARS, sizeof(int));
-	if (!t612.have || !t816.have)
+	if (!t48.have || !t612.have || !t816.have)
 		return 3;
+
+	tofu_box(&t48, &g, 0x3f, 1);
+	if (g.bitmap[0] != 0x0f)
+		return 4;
 
 	tofu_box(&t612, &g, 0x3f, 1);
 	if (g.bitmap[0] != 0x3f)
-		return 4;
+		return 5;
 
 	tofu_box(&t816, &g, 0x3000, 2);
 	if (g.bitmap[0] != 0xffff)
-		return 5;
+		return 6;
 
+	free(t48.have);
 	free(t612.have);
 	free(t816.have);
-	fprintf(stderr, "mkyaftfont: self-check ok (6x12=%zu B, 8x16=%zu B records)\n",
-		glyph_record_bytes(12), glyph_record_bytes(16));
+	fprintf(stderr, "mkyaftfont: self-check ok (4x8=%zu B, 6x12=%zu B, 8x16=%zu B records)\n",
+		glyph_record_bytes(8), glyph_record_bytes(12), glyph_record_bytes(16));
 	return 0;
 }
 

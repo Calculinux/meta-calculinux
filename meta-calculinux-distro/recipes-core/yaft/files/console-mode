@@ -7,6 +7,7 @@ set -eu
 DEFAULTS=/etc/default/console
 CONSOLE=yaft
 CONSOLE_TTYS="1 2 3 4 5 6"
+CONSOLE_FONT=default
 
 if [ -f "$DEFAULTS" ]; then
 	# shellcheck disable=SC1090
@@ -15,7 +16,7 @@ fi
 
 usage() {
 	echo "Usage: $0 apply" >&2
-	echo "  Reads $DEFAULTS (CONSOLE=yaft|kernel) and restarts local VTs." >&2
+	echo "  Reads $DEFAULTS (CONSOLE=yaft|kernel, CONSOLE_FONT=...) and restarts local VTs." >&2
 	exit 1
 }
 
@@ -29,6 +30,7 @@ yaft|kernel) ;;
 	;;
 esac
 
+# daemon-reload re-runs yaft-generator (font drop-in + VT wiring).
 systemctl daemon-reload
 
 for n in $CONSOLE_TTYS; do
@@ -43,4 +45,4 @@ for n in $CONSOLE_TTYS; do
 	fi
 done
 
-echo "console-mode: CONSOLE=$CONSOLE on tty$(echo $CONSOLE_TTYS | tr ' ' ',')"
+echo "console-mode: CONSOLE=$CONSOLE CONSOLE_FONT=${CONSOLE_FONT:-default} on tty$(echo $CONSOLE_TTYS | tr ' ' ',')"

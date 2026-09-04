@@ -7,3 +7,10 @@ CONSOLE=yaft
 
 # Space-separated VT numbers to manage (matches systemd NAutoVTs default).
 CONSOLE_TTYS="1 2 3 4 5 6"
+
+# yaft font profile (ignored when CONSOLE=kernel):
+#   default — 6x12 Terminus+Fairfax  (/usr/share/yaft/console.yaftfont)  ~53x26
+#   miniwi  — 4x8  geekmaster/miniwi (/usr/share/yaft/miniwi.yaftfont)   ~80x40
+#   unifont — 8x16 GNU Unifont       (/usr/share/yaft/unifont.yaftfont)  ~40x20
+# Or set YAFT_FONT=/path/to/file.yaftfont to override.
+CONSOLE_FONT=default

@@ -3,8 +3,8 @@
 #
 # Usage (on device, as root on the LCD console or over SSH):
 #   yaft-budget-check
-# For full BMP/CJK (Han ideographs), restart yaft with:
-#   YAFT_FONT=/usr/share/yaft/unifont.yaftfont
+# Font profiles (also via /etc/default/console CONSOLE_FONT=...):
+#   default / miniwi / unifont — or set YAFT_FONT=/path/to.yaftfont
 set -eu
 
 MAX_RSS_KB_IDLE=${MAX_RSS_KB_IDLE:-2560}
@@ -37,7 +37,7 @@ if [ "$magic" != "YAFTFNT1" ]; then
 	exit 1
 fi
 case "$cw:$ch:$gs" in
-6:12:32|8:16:40) ;;
+4:8:24|6:12:32|8:16:40) ;;
 *)
 	echo "yaft-budget-check: unexpected metrics ${cw}x${ch} glyph=${gs}" >&2
 	exit 1
@@ -69,7 +69,9 @@ printf 'budget-check: CJK 漢字カナ한글\n'
 printf 'budget-check: box ┌─┐│└─┘\n'
 
 echo "yaft-budget-check: ok"
-if [ "$FONT" = "/usr/share/yaft/console.yaftfont" ]; then
-	echo "note: Han ideographs may tofu on default 6x12; use YAFT_FONT=/usr/share/yaft/unifont.yaftfont for full BMP"
-fi
+case "$FONT" in
+*/console.yaftfont|*/miniwi.yaftfont)
+	echo "note: Han ideographs may tofu; set CONSOLE_FONT=unifont (or YAFT_FONT=.../unifont.yaftfont) for full BMP"
+	;;
+esac
 echo "Manual on Lyra: kill yaft (fbcon returns); run picocalc-kbd-test and switch back"
