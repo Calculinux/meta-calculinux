@@ -31,6 +31,7 @@ IMAGE_INSTALL += " \
     bash-completion \
     btrfs-tools \
     busybox \
+    calculinux-config \
     calculinux-update \
     cloud-utils-growpart \
     curl \

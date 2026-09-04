@@ -4,6 +4,9 @@ This package configures the PicoCalc device to act as a USB network device, allo
 
 ## Device Configuration
 
+Prefer `sudo calculinux-config` → Hardware → USB for interactive edits, or
+edit `/etc/default/usb-gadget-network` directly.
+
 The device is configured with:
 - **Device IP**: 192.168.7.2
 - **Network**: 192.168.7.0/24
