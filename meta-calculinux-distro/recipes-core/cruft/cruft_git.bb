@@ -17,7 +17,7 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main \
            file://cruft-generator \
            file://console-mode \
            "
-SRCREV = "e2f2df70dd85e7a962d18f747539b76d148c440b"
+SRCREV = "d4a83c30caa33de9c11f145a8fe362ee025ea4c1"
 PV = "0.1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"

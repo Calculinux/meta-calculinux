@@ -8,7 +8,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
 SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main"
 # Keep in sync with recipes-core/cruft/cruft_git.bb SRCREV (bump both together).
-SRCREV = "e2f2df70dd85e7a962d18f747539b76d148c440b"
+SRCREV = "d4a83c30caa33de9c11f145a8fe362ee025ea4c1"
 PV = "0.1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
