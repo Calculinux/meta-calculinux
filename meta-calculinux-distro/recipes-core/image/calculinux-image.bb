@@ -48,7 +48,6 @@ IMAGE_INSTALL += " \
     gptfdisk \
     grep \
     groff \
-    hoard-of-bitfonts-commodore \
     htop \
     i2c-tools \
     iw \
@@ -69,7 +68,6 @@ IMAGE_INSTALL += " \
     notcurses \
     notcurses-tools \
     ntp \
-    oldschool-console-fonts \
     openssh \
     opkg \
     overlayfs-tools \
