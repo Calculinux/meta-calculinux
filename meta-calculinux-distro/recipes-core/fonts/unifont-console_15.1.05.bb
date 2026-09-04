@@ -19,6 +19,8 @@ SRC_URI[sha256sum] = "e2b2e2c3c85a26e76afec499d27be66f2ebb356be6634cc2f3339e6a41
 S = "${UNPACKDIR}"
 B = "${WORKDIR}/build"
 
+DEPENDS = "python3-native"
+
 do_configure[noexec] = "1"
 
 do_compile() {

@@ -364,6 +364,28 @@ static int write_u32(FILE *fp, uint32_t v)
 	return fwrite(b, 1, 4, fp) == 4 ? 0 : -1;
 }
 
+static int write_u16(FILE *fp, uint16_t v)
+{
+	uint8_t b[2] = { v & 0xff, (v >> 8) & 0xff };
+
+	return fwrite(b, 1, 2, fp) == 2 ? 0 : -1;
+}
+
+static int write_glyph(FILE *fp, const struct glyph_disk *g, int cell_h)
+{
+	if (write_u32(fp, g->code))
+		return -1;
+	if (fputc(g->width, fp) == EOF)
+		return -1;
+	if (fputc(0, fp) == EOF || fputc(0, fp) == EOF || fputc(0, fp) == EOF)
+		return -1;
+	for (int i = 0; i < cell_h; i++) {
+		if (write_u16(fp, g->bitmap[i]))
+			return -1;
+	}
+	return 0;
+}
+
 static int write_blob(const char *outpath, struct glyph_table *t)
 {
 	uint32_t *offsets;
@@ -388,15 +410,22 @@ static int write_blob(const char *outpath, struct glyph_table *t)
 
 	if (fwrite(MAGIC, 1, 8, out) != 8 ||
 	    write_u32(out, (uint32_t)t->cell_w) || write_u32(out, (uint32_t)t->cell_h) ||
-	    write_u32(out, (uint32_t)rec_bytes) || write_u32(out, 0) ||
-	    fwrite(offsets, sizeof(uint32_t), UCS2_CHARS, out) != UCS2_CHARS) {
+	    write_u32(out, (uint32_t)rec_bytes) || write_u32(out, 0)) {
 		fclose(out);
 		free(offsets);
 		return -1;
 	}
 
+	for (size_t i = 0; i < UCS2_CHARS; i++) {
+		if (write_u32(out, offsets[i])) {
+			fclose(out);
+			free(offsets);
+			return -1;
+		}
+	}
+
 	for (size_t i = 0; i < t->n; i++) {
-		if (fwrite(&t->glyphs[i], rec_bytes, 1, out) != 1) {
+		if (write_glyph(out, &t->glyphs[i], t->cell_h)) {
 			fclose(out);
 			free(offsets);
 			return -1;

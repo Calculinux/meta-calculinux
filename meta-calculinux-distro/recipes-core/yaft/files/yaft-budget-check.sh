@@ -21,16 +21,29 @@ if [ ! -r "$FONT" ]; then
 	exit 1
 fi
 
-python3 - "$FONT" <<'PY'
-import struct, sys
-path = sys.argv[1]
-with open(path, "rb") as f:
-    hdr = f.read(24)
-magic, cw, ch, gs, _ = struct.unpack("<8sIIII", hdr)
-assert magic == b"YAFTFNT1", magic
-assert (cw, ch, gs) in ((6, 12, 32), (8, 16, 40)), (cw, ch, gs)
-print("font header ok:", path, f"{cw}x{ch}", f"glyph={gs}")
-PY
+# Header: magic[8] + cell_w/cell_h/glyph_bytes/reserved (u32 LE each)
+u32le_at() {
+	# $1=offset $2=file
+	set -- $(od -An -t u1 -N 4 -j "$1" -v "$2")
+	echo $(( $1 + ($2 << 8) + ($3 << 16) + ($4 << 24) ))
+}
+
+magic=$(dd if="$FONT" bs=1 count=8 2>/dev/null)
+cw=$(u32le_at 8 "$FONT")
+ch=$(u32le_at 12 "$FONT")
+gs=$(u32le_at 16 "$FONT")
+if [ "$magic" != "YAFTFNT1" ]; then
+	echo "yaft-budget-check: bad magic '$magic'" >&2
+	exit 1
+fi
+case "$cw:$ch:$gs" in
+6:12:32|8:16:40) ;;
+*)
+	echo "yaft-budget-check: unexpected metrics ${cw}x${ch} glyph=${gs}" >&2
+	exit 1
+	;;
+esac
+echo "font header ok: $FONT ${cw}x${ch} glyph=${gs}"
 
 rss_of() {
 	awk '/^VmRSS:/ {print $2; exit}' "/proc/$1/status" 2>/dev/null || echo 0

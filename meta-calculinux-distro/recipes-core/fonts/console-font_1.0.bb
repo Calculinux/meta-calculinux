@@ -23,7 +23,7 @@ SRC_URI[fairfax.sha256sum] = "439247d7e783bf4a2cf5912bc914fc64c025d53edbfa79ea1d
 S = "${UNPACKDIR}"
 B = "${WORKDIR}/build"
 
-DEPENDS = "kbitx2bdf-native"
+DEPENDS = "kbitx2bdf-native python3-native"
 
 do_configure[noexec] = "1"
 
