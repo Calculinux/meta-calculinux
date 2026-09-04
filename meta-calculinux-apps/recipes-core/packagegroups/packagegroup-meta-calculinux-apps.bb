@@ -80,7 +80,6 @@ RDEPENDS:${PN} = " \
     strace \
     sysstat \
     tcpdump \
-    terminus-font \
     tic-80 \
     tmux \
     tree \
