@@ -5,7 +5,7 @@
 set -eu
 
 DEFAULTS=/etc/default/console
-CONSOLE=yaft
+CONSOLE=cruft
 CONSOLE_TTYS="1 2 3 4 5 6"
 CONSOLE_FONT=default
 
@@ -16,30 +16,33 @@ fi
 
 usage() {
 	echo "Usage: $0 apply" >&2
-	echo "  Reads $DEFAULTS (CONSOLE=yaft|kernel, CONSOLE_FONT=...) and restarts local VTs." >&2
+	echo "  Reads $DEFAULTS (CONSOLE=cruft|kernel, CONSOLE_FONT=...) and restarts local VTs." >&2
 	exit 1
 }
 
 [ "${1:-}" = "apply" ] || usage
 
 case "$CONSOLE" in
-yaft|kernel) ;;
+yaft) CONSOLE=cruft ;;
+esac
+
+case "$CONSOLE" in
+cruft|kernel) ;;
 *)
 	echo "console-mode: unknown CONSOLE='$CONSOLE'" >&2
 	exit 1
 	;;
 esac
 
-# daemon-reload re-runs yaft-generator (font drop-in + VT wiring).
 systemctl daemon-reload
 
 for n in $CONSOLE_TTYS; do
-	systemctl stop "yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
+	systemctl stop "cruft@tty${n}.service" "yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
 done
 
 for n in $CONSOLE_TTYS; do
-	if [ "$CONSOLE" = "yaft" ]; then
-		systemctl start "yaft@tty${n}.service"
+	if [ "$CONSOLE" = "cruft" ]; then
+		systemctl start "cruft@tty${n}.service"
 	else
 		systemctl start "getty@tty${n}.service"
 	fi

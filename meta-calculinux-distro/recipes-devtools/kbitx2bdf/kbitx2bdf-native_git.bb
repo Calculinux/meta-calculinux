@@ -1,6 +1,6 @@
 SUMMARY = "Native kbitx to BDF converter"
 DESCRIPTION = "Converts BitsNPicas .kbitx bitmap fonts to BDF without Java. \
-Used when building Calculinux yaft console fonts from Fairfax.kbitx."
+Used when building Calculinux cruft console fonts from Fairfax.kbitx."
 HOMEPAGE = "https://github.com/Calculinux/kbitx2bdf"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${WORKDIR}/git/LICENSE;md5=0c1ca00017fe02adea99b8b709ff179b"

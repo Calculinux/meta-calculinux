@@ -1,16 +1,16 @@
 /*
- * Build demand-paged yaft .yaftfont blobs from BDF layers or GNU Unifont hex.
+ * Build demand-paged cruft .cruftfont blobs from BDF layers or GNU Unifont hex.
  *
  * File layout (little-endian):
- *   magic[8]         "YAFTFNT1"
- *   uint32 cell_w, cell_h, glyph_bytes, reserved
- *   uint32 offset[65536]
- *   glyph records: uint32 code; uint8 width; uint8 pad[3]; uint16 bitmap[cell_h]
+ *   magic[8]         "CRUFTFN1"
+ *   uint32 cell_w, cell_h, glyph_bytes, page_shift (must be 8)
+ *   uint32 page_off[256]   — 0 empty, else file offset of uint32[256] subtable
+ *   page tables + glyph records: uint32 code; uint8 width; uint8 pad[3]; uint16 bitmap[cell_h]
  *
  * Usage:
- *   mkyaftfont --self-check
- *   mkyaftfont --cell WxH primary.bdf [secondary.bdf ...] out.yaftfont
- *   mkyaftfont --cell 8x16 unifont.hex out.yaftfont
+ *   mkcruftfont --self-check
+ *   mkcruftfont --cell WxH primary.bdf [secondary.bdf ...] out.cruftfont
+ *   mkcruftfont --cell 8x16 unifont.hex out.cruftfont
  */
 #include <ctype.h>
 #include <errno.h>
@@ -21,7 +21,10 @@
 
 #define UCS2_CHARS 0x10000
 #define GLYPH_MAX_H 16
-#define MAGIC "YAFTFNT1"
+#define MAGIC "CRUFTFN1"
+#define PAGE_SHIFT 8
+#define PAGE_COUNT 256
+#define PAGE_MASK  (PAGE_COUNT - 1)
 
 struct glyph_disk {
 	uint32_t code;
@@ -128,7 +131,7 @@ static int glyph_add(struct glyph_table *t, const struct glyph_disk *g)
 	return 0;
 }
 
-/* BDF row (MSB-left) -> yaft LSB-right row; x_off shifts into the cell. */
+/* BDF row (MSB-left) -> cruft LSB-right row; x_off shifts into the cell. */
 static uint16_t bdf_row_to_bits(const uint8_t *bytes, int nbytes, int bbw, int x_off, int target_bits)
 {
 	uint16_t bits = 0;
@@ -370,7 +373,7 @@ static int self_check(void)
 	free(t48.have);
 	free(t612.have);
 	free(t816.have);
-	fprintf(stderr, "mkyaftfont: self-check ok (4x8=%zu B, 6x12=%zu B, 8x16=%zu B records)\n",
+	fprintf(stderr, "mkcruftfont: self-check ok (4x8=%zu B, 6x12=%zu B, 8x16=%zu B records)\n",
 		glyph_record_bytes(8), glyph_record_bytes(12), glyph_record_bytes(16));
 	return 0;
 }
@@ -406,70 +409,104 @@ static int write_glyph(FILE *fp, const struct glyph_disk *g, int cell_h)
 
 static int write_blob(const char *outpath, struct glyph_table *t)
 {
-	uint32_t *offsets;
+	uint32_t *glyph_off;
+	uint32_t page_off[PAGE_COUNT];
 	uint32_t header_size;
+	uint32_t cursor;
+	int page_used[PAGE_COUNT];
 	size_t rec_bytes = glyph_record_bytes(t->cell_h);
+	size_t page_table_bytes = PAGE_COUNT * sizeof(uint32_t);
 	FILE *out;
+	int pages = 0;
 
-	offsets = calloc(UCS2_CHARS, sizeof(uint32_t));
-	if (!offsets)
+	glyph_off = calloc(UCS2_CHARS, sizeof(uint32_t));
+	if (!glyph_off)
 		return -1;
 
-	header_size = 8 + 16 + UCS2_CHARS * 4;
+	memset(page_off, 0, sizeof(page_off));
+	memset(page_used, 0, sizeof(page_used));
+
 	for (size_t i = 0; i < t->n; i++)
-		offsets[t->glyphs[i].code] = header_size + (uint32_t)(i * rec_bytes);
+		page_used[t->glyphs[i].code >> PAGE_SHIFT] = 1;
+
+	header_size = 8 + 16 + PAGE_COUNT * 4;
+	cursor = header_size;
+	for (int p = 0; p < PAGE_COUNT; p++) {
+		if (!page_used[p])
+			continue;
+		page_off[p] = cursor;
+		cursor += (uint32_t)page_table_bytes;
+		pages++;
+	}
+
+	for (size_t i = 0; i < t->n; i++) {
+		glyph_off[t->glyphs[i].code] = cursor;
+		cursor += (uint32_t)rec_bytes;
+	}
 
 	out = fopen(outpath, "wb");
 	if (!out) {
 		perror(outpath);
-		free(offsets);
+		free(glyph_off);
 		return -1;
 	}
 
 	if (fwrite(MAGIC, 1, 8, out) != 8 ||
 	    write_u32(out, (uint32_t)t->cell_w) || write_u32(out, (uint32_t)t->cell_h) ||
-	    write_u32(out, (uint32_t)rec_bytes) || write_u32(out, 0)) {
+	    write_u32(out, (uint32_t)rec_bytes) || write_u32(out, PAGE_SHIFT)) {
 		fclose(out);
-		free(offsets);
+		free(glyph_off);
 		return -1;
 	}
 
-	for (size_t i = 0; i < UCS2_CHARS; i++) {
-		if (write_u32(out, offsets[i])) {
+	for (int p = 0; p < PAGE_COUNT; p++) {
+		if (write_u32(out, page_off[p])) {
 			fclose(out);
-			free(offsets);
+			free(glyph_off);
 			return -1;
+		}
+	}
+
+	for (int p = 0; p < PAGE_COUNT; p++) {
+		if (!page_used[p])
+			continue;
+		for (int i = 0; i < PAGE_COUNT; i++) {
+			uint32_t code = ((uint32_t)p << PAGE_SHIFT) | (uint32_t)i;
+
+			if (write_u32(out, glyph_off[code])) {
+				fclose(out);
+				free(glyph_off);
+				return -1;
+			}
 		}
 	}
 
 	for (size_t i = 0; i < t->n; i++) {
 		if (write_glyph(out, &t->glyphs[i], t->cell_h)) {
 			fclose(out);
-			free(offsets);
+			free(glyph_off);
 			return -1;
 		}
 	}
 
 	fclose(out);
-	fprintf(stderr, "wrote %zu glyphs (~%zu KiB, cell %dx%d, record %zu B)\n",
-		t->n, (header_size + t->n * rec_bytes) / 1024,
-		t->cell_w, t->cell_h, rec_bytes);
-	free(offsets);
+	fprintf(stderr, "wrote %zu glyphs (%d pages, ~%u KiB, cell %dx%d, record %zu B)\n",
+		t->n, pages, cursor / 1024, t->cell_w, t->cell_h, rec_bytes);
+	free(glyph_off);
 	return 0;
 }
 
 static void usage(const char *prog)
 {
 	fprintf(stderr, "usage: %s --self-check\n", prog);
-	fprintf(stderr, "       %s --cell WxH a.bdf [b.bdf ...] out.yaftfont\n", prog);
-	fprintf(stderr, "       %s --cell 8x16 unifont.hex out.yaftfont\n", prog);
+	fprintf(stderr, "       %s --cell WxH a.bdf [b.bdf ...] out.cruftfont\n", prog);
+	fprintf(stderr, "       %s --cell 8x16 unifont.hex out.cruftfont\n", prog);
 }
 
 int main(int argc, char **argv)
 {
 	struct glyph_table t = {0};
 	static const uint32_t need[] = { 0x20, 0x3f, 0x3000 };
-	int cell_arg = 2;
 	int hex_mode;
 
 	if (argc == 2 && !strcmp(argv[1], "--self-check"))

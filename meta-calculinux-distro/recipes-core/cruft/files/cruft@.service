@@ -1,13 +1,13 @@
 [Unit]
-Description=Yaft Unicode Framebuffer Console on %I
-Documentation=man:yaft(1)
+Description=Cruft Unicode Framebuffer Console on %I
+Documentation=man:cruft(1)
 After=systemd-user-sessions.service systemd-vconsole-setup.service
 Before=getty.target
 Conflicts=getty@%i.service
 ConditionPathExists=/dev/fb0
 
 [Service]
-ExecStart=-/usr/bin/yaft /bin/login
+ExecStart=-/usr/bin/cruft /bin/login
 Type=idle
 Restart=always
 RestartSec=1
@@ -18,7 +18,6 @@ TTYVHangup=yes
 StandardInput=tty
 StandardOutput=tty
 StandardError=journal
-# Match previous getty@tty1 blanking behaviour
 ExecStartPost=-/bin/sh -c 'setterm --blank 5 >/dev/%I 2>/dev/null || true'
 
 [Install]

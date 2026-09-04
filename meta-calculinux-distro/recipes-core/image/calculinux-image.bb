@@ -100,7 +100,7 @@ IMAGE_INSTALL += " \
     wget \
     which \
     wireless-regdb-static \
-    yaft \
+    cruft \
     zip \
 "
 
