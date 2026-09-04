@@ -90,7 +90,6 @@ pkg_postinst:${PN}() {
 #!/bin/sh
 # Drop legacy yaft wiring and any short-lived /etc/default/yaft.
 rm -f $D${sysconfdir}/systemd/system/getty.target.wants/yaft@tty1.service
-rm -f $D${sysconfdir}/systemd/system/getty.target.wants/cruft@tty1.service
 rm -f $D${sysconfdir}/systemd/system/getty@tty1.service
 if [ -f $D${sysconfdir}/default/yaft ] && [ ! -e $D${sysconfdir}/default/console ]; then
     mv $D${sysconfdir}/default/yaft $D${sysconfdir}/default/console
