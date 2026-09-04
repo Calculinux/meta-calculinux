@@ -9,7 +9,7 @@ LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0c1ca00017fe02adea99b8b709ff179b"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-config.git;protocol=https;branch=main"
-SRCREV = "dc3523384ee28baffb7b48d915f532d706ac8160"
+SRCREV = "0e5298f7e6658219362e76f63c3d66a0178bdc06"
 PV = "1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
