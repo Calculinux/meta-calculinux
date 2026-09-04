@@ -18,7 +18,8 @@ fi
 
 usage() {
 	echo "Usage: $0 apply" >&2
-	echo "  Reads $DEFAULTS (CONSOLE=cruft|kernel, CONSOLE_FONT=...) and restarts local VTs." >&2
+	echo "  Reads $DEFAULTS (CONSOLE=cruft|kernel, CONSOLE_FONT=...)." >&2
+	echo "  Font changes take effect on logout (systemd restarts cruft@ttyN)." >&2
 	exit 1
 }
 
@@ -55,6 +56,30 @@ resolve_font() {
 	esac
 }
 
+# What is currently running on the managed TTYs?
+running_cruft=0
+running_getty=0
+for n in $CONSOLE_TTYS; do
+	if systemctl is-active --quiet "cruft@tty${n}.service" 2>/dev/null; then
+		running_cruft=1
+	fi
+	if systemctl is-active --quiet "getty@tty${n}.service" 2>/dev/null; then
+		running_getty=1
+	fi
+done
+
+need_backend_switch=0
+if [ "$CONSOLE" = "cruft" ] && [ "$running_getty" -eq 1 ]; then
+	need_backend_switch=1
+fi
+if [ "$CONSOLE" = "kernel" ] && [ "$running_cruft" -eq 1 ]; then
+	need_backend_switch=1
+fi
+# Fresh boot / nothing up yet: start the requested backend.
+if [ "$running_cruft" -eq 0 ] && [ "$running_getty" -eq 0 ]; then
+	need_backend_switch=1
+fi
+
 if [ "$CONSOLE" = "cruft" ]; then
 	resolve_font
 	if [ ! -r "$CRUFT_FONT" ]; then
@@ -64,40 +89,50 @@ if [ "$CONSOLE" = "cruft" ]; then
 	fi
 fi
 
-# Regenerate cruft@.service.d drop-in (CRUFT_FONT / TERM) from $DEFAULTS.
+# Regenerate generator drop-in (CRUFT_FONT / TERM) and unit wants.
 systemctl daemon-reload
 
 failed=0
-for n in $CONSOLE_TTYS; do
-	systemctl stop "cruft@tty${n}.service" "yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
-done
 
-for n in $CONSOLE_TTYS; do
-	if [ "$CONSOLE" = "cruft" ]; then
-		if ! systemctl start "cruft@tty${n}.service"; then
-			echo "console-mode: failed to start cruft@tty${n}" >&2
-			systemctl --no-pager -l status "cruft@tty${n}.service" 2>&1 | tail -n 20 >&2 || true
-			failed=1
+if [ "$need_backend_switch" -eq 1 ]; then
+	# Switching cruft ↔ kernel (or first bring-up): must stop/start units.
+	for n in $CONSOLE_TTYS; do
+		systemctl stop "cruft@tty${n}.service" "yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
+	done
+	for n in $CONSOLE_TTYS; do
+		if [ "$CONSOLE" = "cruft" ]; then
+			if ! systemctl start "cruft@tty${n}.service"; then
+				echo "console-mode: failed to start cruft@tty${n}" >&2
+				systemctl --no-pager -l status "cruft@tty${n}.service" 2>&1 | tail -n 20 >&2 || true
+				failed=1
+			fi
+		else
+			if ! systemctl start "getty@tty${n}.service"; then
+				echo "console-mode: failed to start getty@tty${n}" >&2
+				failed=1
+			fi
 		fi
-	else
-		if ! systemctl start "getty@tty${n}.service"; then
-			echo "console-mode: failed to start getty@tty${n}" >&2
-			failed=1
-		fi
-	fi
-done
+	done
+	echo "console-mode: switched backend to CONSOLE=$CONSOLE"
+else
+	# Same backend (typical font change): do not kill active sessions.
+	echo "console-mode: updated config (daemon-reload); not restarting active VTs"
+fi
 
 if [ "$CONSOLE" = "cruft" ]; then
 	env_line=$(systemctl show -p Environment "cruft@tty1.service" 2>/dev/null || true)
-	echo "console-mode: CONSOLE=$CONSOLE CONSOLE_FONT=${CONSOLE_FONT:-default}"
-	echo "console-mode: font file $CRUFT_FONT"
+	echo "console-mode: CONSOLE_FONT=${CONSOLE_FONT:-default} → $CRUFT_FONT"
 	echo "console-mode: tty1 $env_line"
+	if [ "$need_backend_switch" -eq 0 ]; then
+		echo "console-mode: log out and back in on each VT to load the new font"
+		echo "console-mode: (logout ends agetty → cruft exits → systemd Restart=always starts a new cruft with CRUFT_FONT)"
+	fi
 	for n in $CONSOLE_TTYS; do
 		state=$(systemctl is-active "cruft@tty${n}.service" 2>/dev/null || echo unknown)
 		echo "console-mode: cruft@tty${n} is-active=$state"
 	done
 else
-	echo "console-mode: CONSOLE=$CONSOLE on tty$(echo $CONSOLE_TTYS | tr ' ' ',')"
+	echo "console-mode: CONSOLE=kernel on tty$(echo $CONSOLE_TTYS | tr ' ' ',')"
 fi
 
 exit "$failed"
