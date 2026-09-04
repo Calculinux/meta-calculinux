@@ -52,7 +52,6 @@ IMAGE_INSTALL += " \
     i2c-tools \
     iw \
     iwd \
-    kbd-consolefonts \
     kbd-keymaps \
     kernel-modules \
     less \
@@ -82,7 +81,6 @@ IMAGE_INSTALL += " \
     systemd-analyze \
     default-merged-fit \
     merge-dt-overlays-boot \
-    terminus-font \
     tmux \
     tree \
     tzdata \
@@ -100,7 +98,7 @@ IMAGE_INSTALL += " \
     wget \
     which \
     wireless-regdb-static \
-    yaft \
+    cruft \
     zip \
 "
 
