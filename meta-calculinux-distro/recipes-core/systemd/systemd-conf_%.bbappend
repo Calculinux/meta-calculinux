@@ -1,12 +1,12 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
+# FILESEXTRAPATHS replaces poky's journald.conf; base do_install ships it.
 SRC_URI += " \
-    file://journald.conf \
     file://wlan.network \
     file://ttyblank.conf \
 "
 
-do_install() {
+do_install:append() {
     install -d ${D}${systemd_unitdir}/network
     install -m 644 ${UNPACKDIR}/wlan.network ${D}${systemd_unitdir}/network
 
@@ -16,5 +16,5 @@ do_install() {
 }
 
 FILES:${PN} += "\
-    ${systemd_unitdir} \
+    ${systemd_unitdir}/system/getty@tty1.service.d \
 "
