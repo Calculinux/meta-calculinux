@@ -48,7 +48,6 @@ IMAGE_INSTALL += " \
     gptfdisk \
     grep \
     groff \
-    hoard-of-bitfonts-commodore \
     htop \
     i2c-tools \
     iw \
@@ -69,7 +68,6 @@ IMAGE_INSTALL += " \
     notcurses \
     notcurses-tools \
     ntp \
-    oldschool-console-fonts \
     openssh \
     opkg \
     overlayfs-tools \
@@ -91,6 +89,9 @@ IMAGE_INSTALL += " \
     u-boot-fw-config \
     u-boot-ota \
     u-boot-rockchip-bootscript \
+    console-font \
+    miniwi-console \
+    unifont-console \
     unzip \
     usb-gadget-network \
     usbutils \
@@ -99,6 +100,7 @@ IMAGE_INSTALL += " \
     wget \
     which \
     wireless-regdb-static \
+    yaft \
     zip \
 "
 
