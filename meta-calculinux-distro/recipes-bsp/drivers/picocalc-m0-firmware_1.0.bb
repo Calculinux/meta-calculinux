@@ -20,8 +20,7 @@ CROSS_COMPILE_M0 ?= "arm-none-eabi-"
 FIRMWARE_DIR = "luckfox-lyra/picocalc_m0_audio_fw"
 
 do_compile() {
-	cd ${S}/${FIRMWARE_DIR}
-	make CROSS_COMPILE="${CROSS_COMPILE_M0}"
+	oe_runmake -C ${S}/${FIRMWARE_DIR} CROSS_COMPILE="${CROSS_COMPILE_M0}"
 }
 
 do_install() {
