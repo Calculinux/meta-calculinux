@@ -7,8 +7,11 @@ Conflicts=getty@%i.service
 ConditionPathExists=/dev/fb0
 
 [Service]
+# Do not pass systemd's $TERM (usually "linux") to agetty — that overrides
+# cruft's TERM=cruft-256color and breaks curses apps (vi keys, Esc,:).
+Environment=TERM=cruft-256color
 # agetty on "-" uses the PTY cruft already attached; prints /etc/issue like getty@.service.
-ExecStart=-/usr/bin/cruft /sbin/agetty --noreset --noclear --issue-file=/etc/issue:/etc/issue.d:/run/issue.d:/usr/lib/issue.d - $TERM
+ExecStart=-/usr/bin/cruft /sbin/agetty --noreset --noclear --issue-file=/etc/issue:/etc/issue.d:/run/issue.d:/usr/lib/issue.d - cruft-256color
 Type=idle
 Restart=always
 RestartSec=1

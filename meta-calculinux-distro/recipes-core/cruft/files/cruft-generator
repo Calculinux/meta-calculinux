@@ -73,7 +73,9 @@ fi
 wants="$normal_dir/getty.target.wants"
 mkdir -p "$wants"
 mkdir -p "$normal_dir/cruft@.service.d"
-printf '%s\n' '[Service]' "Environment=CRUFT_FONT=$CRUFT_FONT" \
+printf '%s\n' '[Service]' \
+	"Environment=TERM=cruft-256color" \
+	"Environment=CRUFT_FONT=$CRUFT_FONT" \
 	> "$normal_dir/cruft@.service.d/10-font.conf"
 
 for n in $CONSOLE_TTYS; do
@@ -92,6 +94,11 @@ if [ "$self_check" -eq 1 ]; then
 	grep -q 'CRUFT_FONT=/usr/share/cruft/miniwi.cruftfont' \
 		"$normal_dir/cruft@.service.d/10-font.conf" || {
 		echo "font drop-in missing miniwi path" >&2
+		exit 1
+	}
+	grep -q 'TERM=cruft-256color' \
+		"$normal_dir/cruft@.service.d/10-font.conf" || {
+		echo "font drop-in missing TERM=cruft-256color" >&2
 		exit 1
 	}
 	echo "cruft-generator: self-check ok"
