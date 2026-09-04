@@ -12,7 +12,7 @@ SRC_URI = "git://github.com/Calculinux/yaft.git;protocol=https;branch=main \
            file://yaft@.service \
            file://yaft-budget-check.sh \
            "
-SRCREV = "3c4a430cc896332410f3741334ec59728694422d"
+SRCREV = "350c5b674f52efcd2db2cc00fd1ff3f2e953e790"
 PV = "0.2.9+calculinux${SRCPV}"
 
 S = "${WORKDIR}/git"
@@ -53,8 +53,10 @@ do_install() {
     install -m 0644 ${UNPACKDIR}/yaft@.service ${D}${systemd_system_unitdir}/yaft@.service
 
     install -d ${D}${sysconfdir}/systemd/system/getty.target.wants
+    # Instance name required: a bare yaft@.service wants link becomes yaft@getty
+    # (TTYPath=/dev/getty) and fails STDIN setup in a restart loop.
     ln -sf ${systemd_system_unitdir}/yaft@.service \
-        ${D}${sysconfdir}/systemd/system/getty.target.wants/yaft@.service
+        ${D}${sysconfdir}/systemd/system/getty.target.wants/yaft@tty1.service
     ln -sf /dev/null ${D}${sysconfdir}/systemd/system/getty@tty1.service
 }
 
@@ -63,6 +65,6 @@ SYSTEMD_AUTO_ENABLE:${PN} = "disable"
 
 FILES:${PN} += "${datadir}/terminfo \
                 ${systemd_system_unitdir}/yaft@.service \
-                ${sysconfdir}/systemd/system/getty.target.wants \
+                ${sysconfdir}/systemd/system/getty.target.wants/yaft@tty1.service \
                 ${sysconfdir}/systemd/system/getty@tty1.service \
 "
