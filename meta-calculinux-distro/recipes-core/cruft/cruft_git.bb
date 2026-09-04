@@ -17,7 +17,7 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main \
            file://cruft-generator \
            file://console-mode \
            "
-SRCREV = "7b598bc6e528af4d4561dd92c7eb27f956586131"
+SRCREV = "e2f2df70dd85e7a962d18f747539b76d148c440b"
 PV = "0.1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
@@ -49,7 +49,7 @@ do_compile() {
     ${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS} -std=c99 -O0 -g -I${S} \
         -o ${WORKDIR}/cruft-selftest \
         ${S}/tests/selftest.c ${S}/cell_pixmap.c ${S}/drcs.c \
-        ${S}/sixel_canvas.c ${S}/glyph_mmap.c
+        ${S}/sixel_canvas.c ${S}/glyph_mmap.c ${S}/terminal_cell.c
     ${WORKDIR}/cruft-selftest
 
     ${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS} -std=c99 -O2 \

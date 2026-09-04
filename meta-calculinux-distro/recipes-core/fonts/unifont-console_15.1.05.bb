@@ -9,26 +9,20 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-or-later;md5=fed5435554
 
 PV = "15.1.05"
 
-FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
-
-SRC_URI = "https://unifoundry.com/pub/unifont/unifont-${PV}/font-builds/unifont-${PV}.hex.gz;downloadfilename=unifont-${PV}.hex.gz \
-           file://mkcruftfont.c \
-           "
+SRC_URI = "https://unifoundry.com/pub/unifont/unifont-${PV}/font-builds/unifont-${PV}.hex.gz;downloadfilename=unifont-${PV}.hex.gz"
 SRC_URI[sha256sum] = "e2b2e2c3c85a26e76afec499d27be66f2ebb356be6634cc2f3339e6a41026eeb"
 
 S = "${UNPACKDIR}"
 B = "${WORKDIR}/build"
 
-DEPENDS = "python3-native"
+DEPENDS = "python3-native mkcruftfont-native"
 
 do_configure[noexec] = "1"
 
 do_compile() {
     mkdir -p ${B}
 
-    ${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS} -std=c11 -O2 \
-        -o ${B}/mkcruftfont ${UNPACKDIR}/mkcruftfont.c
-    ${B}/mkcruftfont --self-check
+    ${STAGING_BINDIR_NATIVE}/mkcruftfont --self-check
 
     if [ -f ${UNPACKDIR}/unifont-${PV}.hex ]; then
         HEX=${UNPACKDIR}/unifont-${PV}.hex
@@ -39,7 +33,7 @@ do_compile() {
         bbfatal "unifont-${PV}.hex not found in UNPACKDIR"
     fi
 
-    ${B}/mkcruftfont --cell 8x16 "$HEX" ${B}/unifont.cruftfont
+    ${STAGING_BINDIR_NATIVE}/mkcruftfont --cell 8x16 "$HEX" ${B}/unifont.cruftfont
 
     python3 - <<'PY' ${B}/unifont.cruftfont
 import struct, sys
