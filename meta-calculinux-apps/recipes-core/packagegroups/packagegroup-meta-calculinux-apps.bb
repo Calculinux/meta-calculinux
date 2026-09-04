@@ -5,8 +5,8 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Disable GTK GUI and sound for vim so we don't pull in an entire desktop stack
-PACKAGECONFIG:remove:pn-vim = "gtkgui sound"
+# Terminal vim only (see distro.conf). x11 must stay off with DISTRO_FEATURES.
+PACKAGECONFIG:remove:pn-vim = "gtkgui sound x11"
 
 PACKAGES = "${PN}"
 
