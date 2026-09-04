@@ -1,5 +1,5 @@
 PV = "1.0+git${SRCPV}"
 SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobranch=1"
-# Includes vbus-always-on (#29) and CMA disabled (#30)
-SRCREV = "fff02f377980b54cba0aa254d8fabcd4125daa34"
+# CMA disabled (#30) + PL330 mcbufsz for SPI fb without CMA (#31)
+SRCREV = "f2e0d5a4d12a8140b430ea9dcb93ecf49f0319de"
 S = "${WORKDIR}/git"
