@@ -19,7 +19,7 @@ fi
 usage() {
 	echo "Usage: $0 apply" >&2
 	echo "  Reads $DEFAULTS (CONSOLE=cruft|kernel, CONSOLE_FONT=...)." >&2
-	echo "  Font changes take effect on logout (systemd restarts cruft@ttyN)." >&2
+	echo "  Font changes take effect on logout (systemd restarts the VT's cruft)." >&2
 	exit 1
 }
 
@@ -36,6 +36,10 @@ cruft|kernel) ;;
 	exit 1
 	;;
 esac
+
+# shellcheck disable=SC2086
+set -- $CONSOLE_TTYS
+boot_tty=${1:-1}
 
 resolve_font() {
 	if [ -n "${CRUFT_FONT:-}" ]; then
@@ -56,11 +60,23 @@ resolve_font() {
 	esac
 }
 
+vt_unit() {
+	# Boot VT is cruft@ttyN; on-demand VTs are autovt@ttyN (→ cruft@).
+	n=$1
+	if [ "$n" = "$boot_tty" ]; then
+		echo "cruft@tty${n}.service"
+	else
+		echo "autovt@tty${n}.service"
+	fi
+}
+
 # What is currently running on the managed TTYs?
 running_cruft=0
 running_getty=0
 for n in $CONSOLE_TTYS; do
-	if systemctl is-active --quiet "cruft@tty${n}.service" 2>/dev/null; then
+	u=$(vt_unit "$n")
+	if systemctl is-active --quiet "$u" 2>/dev/null || \
+	   systemctl is-active --quiet "cruft@tty${n}.service" 2>/dev/null; then
 		running_cruft=1
 	fi
 	if systemctl is-active --quiet "getty@tty${n}.service" 2>/dev/null; then
@@ -95,41 +111,52 @@ systemctl daemon-reload
 failed=0
 
 if [ "$need_backend_switch" -eq 1 ]; then
-	# Switching cruft ↔ kernel (or first bring-up): must stop/start units.
+	# Switching cruft ↔ kernel (or first bring-up).
 	for n in $CONSOLE_TTYS; do
-		systemctl stop "cruft@tty${n}.service" "yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
+		systemctl stop "cruft@tty${n}.service" "autovt@tty${n}.service" \
+			"yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
 	done
-	for n in $CONSOLE_TTYS; do
-		if [ "$CONSOLE" = "cruft" ]; then
-			if ! systemctl start "cruft@tty${n}.service"; then
-				echo "console-mode: failed to start cruft@tty${n}" >&2
-				systemctl --no-pager -l status "cruft@tty${n}.service" 2>&1 | tail -n 20 >&2 || true
-				failed=1
-			fi
-		else
+	if [ "$CONSOLE" = "cruft" ]; then
+		# Only the boot VT — others start on first Alt-Fn via logind/autovt@.
+		if ! systemctl start "cruft@tty${boot_tty}.service"; then
+			echo "console-mode: failed to start cruft@tty${boot_tty}" >&2
+			systemctl --no-pager -l status "cruft@tty${boot_tty}.service" 2>&1 | tail -n 20 >&2 || true
+			failed=1
+		fi
+	else
+		for n in $CONSOLE_TTYS; do
 			if ! systemctl start "getty@tty${n}.service"; then
 				echo "console-mode: failed to start getty@tty${n}" >&2
 				failed=1
 			fi
-		fi
-	done
+		done
+	fi
 	echo "console-mode: switched backend to CONSOLE=$CONSOLE"
 else
-	# Same backend (typical font change): do not kill active sessions.
 	echo "console-mode: updated config (daemon-reload); not restarting active VTs"
 fi
 
 if [ "$CONSOLE" = "cruft" ]; then
-	env_line=$(systemctl show -p Environment "cruft@tty1.service" 2>/dev/null || true)
+	env_line=$(systemctl show -p Environment "cruft@tty${boot_tty}.service" 2>/dev/null || true)
 	echo "console-mode: CONSOLE_FONT=${CONSOLE_FONT:-default} → $CRUFT_FONT"
-	echo "console-mode: tty1 $env_line"
+	echo "console-mode: tty${boot_tty} $env_line"
+	echo "console-mode: boot VT=tty${boot_tty}; tty2+ start on first switch (autovt@ → cruft@)"
 	if [ "$need_backend_switch" -eq 0 ]; then
-		echo "console-mode: log out and back in on each VT to load the new font"
-		echo "console-mode: (logout ends agetty → cruft exits → systemd Restart=always starts a new cruft with CRUFT_FONT)"
+		echo "console-mode: log out and back in on a VT to load the new font there"
+		echo "console-mode: (logout ends agetty → cruft exits → systemd restarts with CRUFT_FONT)"
 	fi
 	for n in $CONSOLE_TTYS; do
-		state=$(systemctl is-active "cruft@tty${n}.service" 2>/dev/null || echo unknown)
-		echo "console-mode: cruft@tty${n} is-active=$state"
+		u=$(vt_unit "$n")
+		state=$(systemctl is-active "$u" 2>/dev/null || echo inactive)
+		# Legacy name if someone still has an old wants symlink.
+		if [ "$state" = "inactive" ] || [ "$state" = "unknown" ]; then
+			alt=$(systemctl is-active "cruft@tty${n}.service" 2>/dev/null || true)
+			if [ "$alt" = "active" ]; then
+				u="cruft@tty${n}.service"
+				state=active
+			fi
+		fi
+		echo "console-mode: $u is-active=$state"
 	done
 else
 	echo "console-mode: CONSOLE=kernel on tty$(echo $CONSOLE_TTYS | tr ' ' ',')"

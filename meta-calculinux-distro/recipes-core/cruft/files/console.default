@@ -7,6 +7,8 @@
 CONSOLE=cruft
 
 # Space-separated VT numbers to manage (matches systemd NAutoVTs default).
+# Only the first entry is started at boot; the rest start on first Alt-Fn
+# via logind's autovt@ttyN (wired to cruft@ by the generator).
 CONSOLE_TTYS="1 2 3 4 5 6"
 
 # cruft font profile (ignored when CONSOLE=kernel):
@@ -15,5 +17,5 @@ CONSOLE_TTYS="1 2 3 4 5 6"
 #   unifont — 8x16 GNU Unifont       (/usr/share/cruft/unifont.cruftfont)  ~40x20
 # Or set CRUFT_FONT=/path/to/file.cruftfont to override (YAFT_FONT still accepted).
 # After changing CONSOLE_FONT: `console-mode apply`, then log out/in on each VT
-# (systemd restarts cruft@ttyN; a logout is enough — you do not need a reboot).
+# (systemd restarts that VT's cruft; a logout is enough — no reboot needed).
 CONSOLE_FONT=default

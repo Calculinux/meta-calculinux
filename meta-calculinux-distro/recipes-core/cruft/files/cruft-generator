@@ -2,6 +2,9 @@
 # systemd generator: wire VTs to cruft or leave kernel gettys alone.
 # Reads /etc/default/console (CONSOLE, CONSOLE_TTYS, CONSOLE_FONT / CRUFT_FONT).
 #
+# Boot: only the first CONSOLE_TTYS entry (usually tty1) is started.
+# Further VTs are started on demand by logind as autovt@ttyN (symlink → cruft@).
+#
 # Usage (systemd): cruft-generator <normal-dir> [early-dir] [late-dir]
 # Self-check:      cruft-generator --self-check
 
@@ -70,30 +73,63 @@ if [ -z "${CRUFT_FONT:-}" ]; then
 	esac
 fi
 
+# shellcheck disable=SC2086
+set -- $CONSOLE_TTYS
+boot_tty=$1
+if [ -z "$boot_tty" ]; then
+	echo "cruft-generator: CONSOLE_TTYS is empty" >&2
+	exit 1
+fi
+
 wants="$normal_dir/getty.target.wants"
 mkdir -p "$wants"
-mkdir -p "$normal_dir/cruft@.service.d"
-printf '%s\n' '[Service]' \
-	"Environment=TERM=cruft-256color" \
-	"Environment=CRUFT_FONT=$CRUFT_FONT" \
-	> "$normal_dir/cruft@.service.d/10-font.conf"
+
+font_dropin() {
+	mkdir -p "$1"
+	printf '%s\n' '[Service]' \
+		"Environment=TERM=cruft-256color" \
+		"Environment=CRUFT_FONT=$CRUFT_FONT" \
+		> "$1/10-font.conf"
+}
+
+# Drop-ins for both names: boot uses cruft@ttyN; on-demand uses autovt@ttyN
+# (autovt@.service → cruft@.service, but drop-in lookup follows the job name).
+font_dropin "$normal_dir/cruft@.service.d"
+font_dropin "$normal_dir/autovt@.service.d"
+
+# On-demand VTs: logind starts autovt@ttyN when the user switches to that VT.
+ln -sf "$UNITDIR/cruft@.service" "$normal_dir/autovt@.service"
+
+# Boot VT only — do not pull tty2+ into getty.target.
+ln -sf "$UNITDIR/cruft@.service" "$wants/cruft@tty${boot_tty}.service"
 
 for n in $CONSOLE_TTYS; do
-	ln -sf "$UNITDIR/cruft@.service" "$wants/cruft@tty${n}.service"
 	ln -sf /dev/null "$normal_dir/getty@tty${n}.service"
 done
 
 if [ "$self_check" -eq 1 ]; then
 	[ -L "$wants/cruft@tty1.service" ] || { echo "missing cruft@tty1 wants" >&2; exit 1; }
-	[ -L "$wants/cruft@tty2.service" ] || { echo "missing cruft@tty2 wants" >&2; exit 1; }
+	[ ! -e "$wants/cruft@tty2.service" ] || { echo "tty2 should be on-demand, not in wants" >&2; exit 1; }
+	[ "$(readlink "$normal_dir/autovt@.service")" = "$UNITDIR/cruft@.service" ] || {
+		echo "autovt@.service should point at cruft@.service" >&2
+		exit 1
+	}
 	[ "$(readlink "$normal_dir/getty@tty1.service")" = "/dev/null" ] || {
 		echo "getty@tty1 not masked" >&2
 		exit 1
 	}
-	[ ! -e "$wants/cruft@tty3.service" ] || { echo "unexpected tty3" >&2; exit 1; }
+	[ "$(readlink "$normal_dir/getty@tty2.service")" = "/dev/null" ] || {
+		echo "getty@tty2 not masked" >&2
+		exit 1
+	}
 	grep -q 'CRUFT_FONT=/usr/share/cruft/miniwi.cruftfont' \
 		"$normal_dir/cruft@.service.d/10-font.conf" || {
-		echo "font drop-in missing miniwi path" >&2
+		echo "cruft@.service.d missing miniwi path" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_FONT=/usr/share/cruft/miniwi.cruftfont' \
+		"$normal_dir/autovt@.service.d/10-font.conf" || {
+		echo "autovt@.service.d missing miniwi path" >&2
 		exit 1
 	}
 	grep -q 'TERM=cruft-256color' \
