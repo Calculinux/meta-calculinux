@@ -29,8 +29,6 @@ do_install() {
     install -m 0644 "$(picocalc_dt_src picocalc-luckfox-lyra.dtsi)" ${D}${datadir}/picocalc/
     install -m 0644 "$(picocalc_dt_src linux-rk3506-luckfox-lyra.dtsi)" ${D}${datadir}/picocalc/rk3506-luckfox-lyra.dtsi
     install -m 0644 "$(picocalc_dt_src linux-rk3506g-luckfox-lyra.dts)" ${D}${datadir}/picocalc/rk3506g-luckfox-lyra.dts
-    install -m 0644 "$(picocalc_dt_src uboot-rk3506-luckfox.dtsi)" ${D}${datadir}/picocalc/rk3506-luckfox.dtsi
-    install -m 0644 "$(picocalc_dt_src uboot-rk3506-luckfox.dts)" ${D}${datadir}/picocalc/rk3506-luckfox.dts
 
     # Overlay symbol whitelist – consumed by the kernel recipe to inject only
     # the needed __symbols__ entries into the base DTB.
@@ -54,8 +52,6 @@ FILES:${PN} = "\
     ${datadir}/picocalc/picocalc-luckfox-lyra.dtsi \
     ${datadir}/picocalc/rk3506-luckfox-lyra.dtsi \
     ${datadir}/picocalc/rk3506g-luckfox-lyra.dts \
-    ${datadir}/picocalc/rk3506-luckfox.dtsi \
-    ${datadir}/picocalc/rk3506-luckfox.dts \
     ${datadir}/picocalc/overlay-symbols.txt \
 "
 SYSROOT_DIRS += "${datadir}/picocalc"

@@ -2,7 +2,7 @@
 """
 Generate artifact index JSON for published images and update bundles.
 This provides a machine-readable catalog of available artifacts.
-Used for both PR channels (RAUC bundles only) and release channels (RAUC + images).
+Used for both PR channels and release channels (RAUC + images).
 """
 
 import argparse
@@ -75,7 +75,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate artifact index JSON")
     parser.add_argument("--base-url", required=True, help="Base URL for artifacts (e.g. https://opkg.calculinux.org)")
     parser.add_argument("--update-dir", required=True, type=Path, help="Directory containing RAUC bundles")
-    parser.add_argument("--image-dir", type=Path, default=None, help="Directory containing WIC images (optional, PR channels have none)")
+    parser.add_argument("--image-dir", type=Path, default=None, help="Directory containing WIC images")
     parser.add_argument("--output", required=True, type=Path, help="Output JSON file path")
     parser.add_argument("--feed-name", required=True, help="Feed name")
     parser.add_argument("--subfolder", required=True, help="Subfolder (pr/continuous/release)")
