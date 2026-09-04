@@ -1,0 +1,9 @@
+# Local console backend for virtual terminals (tty1..N).
+# Does not affect serial/USB consoles or SSH (pts).
+#
+#   yaft   — userspace framebuffer terminal (Unicode, .yaftfont)
+#   kernel — kernel fbcon + agetty
+CONSOLE=yaft
+
+# Space-separated VT numbers to manage (matches systemd NAutoVTs default).
+CONSOLE_TTYS="1 2 3 4 5 6"

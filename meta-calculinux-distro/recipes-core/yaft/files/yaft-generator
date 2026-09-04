@@ -1,0 +1,69 @@
+#!/bin/sh
+# systemd generator: wire VTs to yaft or leave kernel gettys alone.
+# Reads /etc/default/console (CONSOLE=yaft|kernel, CONSOLE_TTYS=...).
+#
+# Usage (systemd): yaft-generator <normal-dir> [early-dir] [late-dir]
+# Self-check:      yaft-generator --self-check
+
+set -eu
+
+CONSOLE=yaft
+CONSOLE_TTYS="1 2 3 4 5 6"
+UNITDIR="@SYSTEMD_SYSTEM_UNITDIR@"
+
+self_check=0
+normal_dir="${1:-}"
+
+if [ "${1:-}" = "--self-check" ]; then
+	self_check=1
+	normal_dir=$(mktemp -d)
+	# shellcheck disable=SC2064
+	trap 'rm -rf "$normal_dir"' EXIT
+	CONSOLE=yaft
+	CONSOLE_TTYS="1 2"
+elif [ -z "$normal_dir" ]; then
+	echo "yaft-generator: missing output directory" >&2
+	exit 1
+fi
+
+if [ "$self_check" -eq 0 ] && [ -f /etc/default/console ]; then
+	# shellcheck disable=SC1091
+	. /etc/default/console
+fi
+
+case "$CONSOLE" in
+yaft) ;;
+kernel)
+	if [ "$self_check" -eq 1 ]; then
+		echo "yaft-generator: --self-check expects CONSOLE=yaft" >&2
+		exit 1
+	fi
+	exit 0
+	;;
+*)
+	echo "yaft-generator: unknown CONSOLE='$CONSOLE' (use yaft or kernel)" >&2
+	exit 1
+	;;
+esac
+
+wants="$normal_dir/getty.target.wants"
+mkdir -p "$wants"
+
+for n in $CONSOLE_TTYS; do
+	ln -sf "$UNITDIR/yaft@.service" "$wants/yaft@tty${n}.service"
+	# Mask getty@ttyN so systemd-getty-generator's wants are inert.
+	ln -sf /dev/null "$normal_dir/getty@tty${n}.service"
+done
+
+if [ "$self_check" -eq 1 ]; then
+	[ -L "$wants/yaft@tty1.service" ] || { echo "missing yaft@tty1 wants" >&2; exit 1; }
+	[ -L "$wants/yaft@tty2.service" ] || { echo "missing yaft@tty2 wants" >&2; exit 1; }
+	[ "$(readlink "$normal_dir/getty@tty1.service")" = "/dev/null" ] || {
+		echo "getty@tty1 not masked" >&2
+		exit 1
+	}
+	[ ! -e "$wants/yaft@tty3.service" ] || { echo "unexpected tty3" >&2; exit 1; }
+	echo "yaft-generator: self-check ok"
+fi
+
+exit 0

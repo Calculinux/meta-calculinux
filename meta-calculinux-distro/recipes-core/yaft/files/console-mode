@@ -1,0 +1,46 @@
+#!/bin/sh
+# Apply /etc/default/console without a reboot.
+# Usage: console-mode apply
+
+set -eu
+
+DEFAULTS=/etc/default/console
+CONSOLE=yaft
+CONSOLE_TTYS="1 2 3 4 5 6"
+
+if [ -f "$DEFAULTS" ]; then
+	# shellcheck disable=SC1090
+	. "$DEFAULTS"
+fi
+
+usage() {
+	echo "Usage: $0 apply" >&2
+	echo "  Reads $DEFAULTS (CONSOLE=yaft|kernel) and restarts local VTs." >&2
+	exit 1
+}
+
+[ "${1:-}" = "apply" ] || usage
+
+case "$CONSOLE" in
+yaft|kernel) ;;
+*)
+	echo "console-mode: unknown CONSOLE='$CONSOLE'" >&2
+	exit 1
+	;;
+esac
+
+systemctl daemon-reload
+
+for n in $CONSOLE_TTYS; do
+	systemctl stop "yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
+done
+
+for n in $CONSOLE_TTYS; do
+	if [ "$CONSOLE" = "yaft" ]; then
+		systemctl start "yaft@tty${n}.service"
+	else
+		systemctl start "getty@tty${n}.service"
+	fi
+done
+
+echo "console-mode: CONSOLE=$CONSOLE on tty$(echo $CONSOLE_TTYS | tr ' ' ',')"
