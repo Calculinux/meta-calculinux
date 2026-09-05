@@ -12,12 +12,10 @@ inherit go-mod
 
 # Clone into path matching go.mod module (github.com/makeworld-the-better-one/amfora)
 SRC_URI = "\
-    git://github.com/makew0rld/amfora;destsuffix=git/src/github.com/makeworld-the-better-one/amfora;nobranch=1;name=${BPN};protocol=https \
+    git://github.com/makew0rld/amfora;destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/src/github.com/makeworld-the-better-one/amfora;nobranch=1;name=${BPN};protocol=https \
 "
 
 SRCREV = "4d9a5c56c88f7bec2938968182c88130b923fbba"
-
-S = "${WORKDIR}/git"
 
 # go.mod declares module github.com/makeworld-the-better-one/amfora
 GO_IMPORT = "github.com/makeworld-the-better-one/amfora"

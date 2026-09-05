@@ -9,12 +9,11 @@ PV = "1.0-git"
 SRC_URI = "git://github.com/Calculinux/rtl8xxxu.git;protocol=https;branch=main"
 SRCREV = "113070098a4028d7a77734683677c55ea2b7ae93"
 
-S = "${UNPACKDIR}/git"
 DEPENDS += "virtual/kernel"
 
 inherit module
 
-MODULE_DIR="${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"
+MODULE_DIR = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless/"
 
 EXTRA_OEMAKE += "\
     MODULE_NAME=rtl8xxxu \

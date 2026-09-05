@@ -4,7 +4,7 @@ bootloader=uboot
 statusfile=/etc/rauc/rauc-slots.status
 
 [keyring]
-path=/etc/rauc/ca.cert.pem
+path=/usr/lib/rauc/ca.cert.pem
 
 [handlers]
 post-install=/usr/lib/rauc/invalidate-merged-fit

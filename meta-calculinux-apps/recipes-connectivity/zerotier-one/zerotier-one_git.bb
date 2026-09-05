@@ -15,8 +15,6 @@ SRC_URI = "\
 LICENSE = "BUSL-1.1"
 LIC_FILES_CHKSUM = "file://LICENSE.txt;md5=33322cad2f266673d999241243910f44"
 
-S = "${WORKDIR}/git"
-
 COMPATIBLE_HOST = '(x86_64.*|arm.*|aarch64.*)-linux'
 
 RDEPENDS:${PN} += "kernel-module-tun"
@@ -44,7 +42,7 @@ do_install() {
     ln -s ../../..${sbindir}/zerotier-cli ${D}/${localstatedir}/lib/zerotier-one/zerotier-cli
     ln -s ../../..${sbindir}/zerotier-idtool ${D}/${localstatedir}/lib/zerotier-one/zerotier-idtool
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/zerotier.service ${D}${systemd_system_unitdir}
+    install -m 0644 ${UNPACKDIR}/zerotier.service ${D}${systemd_system_unitdir}
     install -d ${D}/var/lib/zerotier-one/networks.d/
 }
 
