@@ -31,6 +31,8 @@ inherit python3native systemd pkgconfig
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SYSTEMD_SERVICE:${PN} = "meshtasticd.service"
+# Feed/opkg package — do not enable on install; user starts when hardware is present.
+SYSTEMD_AUTO_ENABLE:${PN} = "disable"
 
 # Skip QA checks to ignore TMPDIR references in binaries from PlatformIO builds
 INSANE_SKIP:${PN} += "buildpaths"

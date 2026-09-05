@@ -14,6 +14,7 @@ inherit python3-dir python3native
 
 RDEPENDS:${PN} += " \
     python3-core \
+    python3-difflib \
     python3-httpx \
     python3-mmap \
     python3-rich \
