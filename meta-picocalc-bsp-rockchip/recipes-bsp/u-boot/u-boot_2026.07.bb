@@ -7,9 +7,8 @@ LICENSE = "GPL-2.0-or-later"
 LIC_FILES_CHKSUM = "file://Licenses/README;md5=2ca5f2c35c8cc335f0a19756634782f1"
 
 require recipes-bsp/u-boot/u-boot.inc
-# Pin v2026.07 + Armbian overlays. u-boot.inc's devupstream variant
-# replaces SRC_URI and never unpacks the file:// tree.
-BBCLASSEXTEND = ""
+# u-boot.inc adds this after parse; "=" does not stick.
+BBCLASSEXTEND:remove = "devupstream:target"
 
 DEPENDS += "bc-native bison-native dtc-native flex-native gnutls-native python3-pyelftools-native python3-setuptools-native"
 
@@ -21,7 +20,7 @@ SRCREV = "ece349ade2973e220f524ce59e59711cc919263f"
 SRCREV_rkbin = "1d3c61008fa823936ae7a59615393f8294b64456"
 
 SRC_URI = " \
-    git://source.denx.de/u-boot/u-boot.git;protocol=https;branch=master;name=default \
+    git://source.denx.de/u-boot/u-boot.git;protocol=https;branch=master;name=default;destsuffix=${BP} \
     git://github.com/armbian/rkbin.git;protocol=https;branch=master;name=rkbin;destsuffix=rkbin \
     file://v2026.07-rk3506/0001-rockchip-spl-Allow-use-of-ROCKCHIP_SPL_RESERVE_IRAM-on-ARMv7.patch \
     file://v2026.07-rk3506/0002-rockchip-rk3506-Add-WIP-device-trees.patch \
@@ -46,6 +45,7 @@ SRC_URI = " \
 
 SRCREV_FORMAT = "default_rkbin"
 
+S = "${UNPACKDIR}/${BP}"
 B = "${WORKDIR}/build"
 
 UBOOT_BINARY = "u-boot-rockchip.bin"
