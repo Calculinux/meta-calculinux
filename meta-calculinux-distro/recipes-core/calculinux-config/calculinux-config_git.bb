@@ -20,14 +20,14 @@ DEPENDS = "ncurses"
 
 EXTRA_OEMAKE = "\
     CC='${CC}' \
-    CFLAGS='${CFLAGS} `pkg-config --cflags ncurses`' \
-    LIBS='${LDFLAGS} `pkg-config --libs ncurses`' \
     PREFIX=${prefix} \
     SYSTEMD_DIR=${systemd_system_unitdir} \
 "
 
 do_compile() {
-    oe_runmake
+    oe_runmake \
+        CFLAGS="${CFLAGS} $(${PKG_CONFIG} --cflags ncurses)" \
+        LIBS="${LDFLAGS} $(${PKG_CONFIG} --libs ncurses)"
 }
 
 do_install() {

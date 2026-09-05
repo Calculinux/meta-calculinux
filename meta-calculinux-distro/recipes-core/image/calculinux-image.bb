@@ -22,7 +22,6 @@ IMAGE_FEATURES += "\
 "
 
 IMAGE_INSTALL += " \
-    acpid \
     alsa-lib \
     alsa-plugins \
     alsa-tools \
@@ -67,7 +66,6 @@ IMAGE_INSTALL += " \
     nano \
     notcurses \
     notcurses-tools \
-    ntp \
     openssh \
     opkg \
     overlayfs-tools \

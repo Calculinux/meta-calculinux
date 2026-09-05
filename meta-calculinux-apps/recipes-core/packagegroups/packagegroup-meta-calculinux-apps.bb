@@ -5,21 +5,25 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Disable GTK GUI and sound for vim so we don't pull in an entire desktop stack
-PACKAGECONFIG:remove:pn-vim = "gtkgui sound"
+# Terminal vim only (see distro.conf). x11 must stay off with DISTRO_FEATURES.
+PACKAGECONFIG:remove:pn-vim = "gtkgui sound x11"
 
 PACKAGES = "${PN}"
 
 # Add packages that should be available in the apps layer
 # These will be built as IPKs and made available in the package feed
+# Optional / large packages stay in this group so CI publishes IPKs to the
+# feed (opkg install …) without putting them in calculinux-image.
 RDEPENDS:${PN} = " \
     amfora \
     autoconf \
     automake \
+    avahi-daemon \
     basilisk-ii \
     beetle-pce-fast-libretro \
     binutils \
     bison \
+    bluez5 \
     bombadillo \
     cargo \
     circumflex \
@@ -37,6 +41,7 @@ RDEPENDS:${PN} = " \
     gettext \
     glkcli \
     glkterm \
+    gpm \
     iotop \
     jq \
     kiwix-tools \
@@ -53,6 +58,8 @@ RDEPENDS:${PN} = " \
     nodejs-npm \
     notcurses \
     notcurses-demos \
+    nfs-utils \
+    ntp \
     patch \
     patchelf \
     pcsx-rearmed-libretro \
@@ -64,6 +71,7 @@ RDEPENDS:${PN} = " \
     python3-wik \
     reddit-tui \
     retro8-libretro \
+    rpcbind \
     rsync \
     rust \
     screen \
