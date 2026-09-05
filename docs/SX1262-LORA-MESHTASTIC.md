@@ -175,7 +175,7 @@ cat /sys/kernel/config/device-tree/overlays/sx1262/status   # expect: applied
 If you see `rockchip-pinctrl ... unable to find group for node sx1262-pins`, use the merged-boot workflow
 and reboot, or use the runtime-friendly overlay `sx1262-lora-runtime.dtbo`.
 
-### 4. Verify Meshtastic Operation
+### 5. Verify Meshtastic Operation
 
 ```bash
 # Check meshtasticd is running

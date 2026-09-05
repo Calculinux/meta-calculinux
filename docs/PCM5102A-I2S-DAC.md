@@ -61,14 +61,11 @@ picocalc-drivers/luckfox-lyra/overlays/pcm5102a-i2s-overlay.dts
 ```
 
 ### 2. Kernel Configuration
-The kernel config fragment has been added:
-```
-meta-picocalc-bsp-rockchip/recipes-kernel/linux/files/audio-i2s.cfg
-```
 
-This enables:
-- `CONFIG_SND_SOC_PCM5102A=y` (codec driver)
-- `CONFIG_SND_SIMPLE_CARD=y` (simple audio card framework)
+Required options:
+
+- `CONFIG_SND_SOC_PCM5102A=y` (codec driver; lands via the kernel-config PR, not this docs-only change)
+- `CONFIG_SND_SIMPLE_CARD=y` (already enabled in `zz-slim.cfg`)
 - `CONFIG_SND_SOC_ROCKCHIP_SAI=y` (already enabled)
 
 ### 3. Build and Deploy

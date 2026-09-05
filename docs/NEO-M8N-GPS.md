@@ -40,9 +40,11 @@ To remove the overlay:
 rmdir /sys/kernel/config/device-tree/overlays/neo-m8n
 ```
 
-### Method 2: Systemd Service (Persistent)
+### Method 2: Systemd + ConfigFS (development/runtime only)
 
-To automatically load the overlay at boot, create a systemd service:
+ConfigFS — including a oneshot unit that writes it — does not persist across reboot.
+Persistent enable is `/etc/device-tree-overlays.conf` (FIT-at-boot) above. Use this
+only while iterating without a reboot:
 
 ```bash
 cat > /etc/systemd/system/neo-m8n-gps.service << 'EOF'
