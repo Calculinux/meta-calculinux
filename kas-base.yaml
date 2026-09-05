@@ -11,9 +11,9 @@ repos:
   bitbake:
     url: https://git.openembedded.org/bitbake
     tag: yocto-6.0.2
-    # Clone only — not a layer. kas adds repo root when layers: is omitted.
     layers:
       .: disabled
+  openembedded-core:
     url: https://git.openembedded.org/openembedded-core
     tag: yocto-6.0.2
     patches:
