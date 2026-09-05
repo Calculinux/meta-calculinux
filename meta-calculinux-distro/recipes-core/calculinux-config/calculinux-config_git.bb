@@ -25,9 +25,8 @@ EXTRA_OEMAKE = "\
 "
 
 do_compile() {
-    pkgcfg="${PKG_CONFIG}"
-    ncurses_cflags="$($pkgcfg --cflags ncurses)"
-    ncurses_libs="$($pkgcfg --libs ncurses)"
+    ncurses_cflags="$(${STAGING_BINDIR_NATIVE}/pkg-config --cflags ncurses)"
+    ncurses_libs="$(${STAGING_BINDIR_NATIVE}/pkg-config --libs ncurses)"
     oe_runmake \
         CFLAGS="${CFLAGS} $ncurses_cflags" \
         LIBS="${LDFLAGS} $ncurses_libs"
