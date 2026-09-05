@@ -1,0 +1,25 @@
+# Local console backend for virtual terminals (tty1..N).
+# Does not affect serial/USB consoles or SSH (pts).
+#
+#   cruft  — userspace framebuffer terminal (Unicode, .cruftfont)
+#   kernel — kernel fbcon + agetty
+#   yaft   — accepted as an alias for cruft (upgrade compat)
+CONSOLE=cruft
+
+# Space-separated VT numbers to manage (matches systemd NAutoVTs default).
+# Only the first entry is started at boot; the rest start on first Alt-Fn
+# via logind's autovt@ttyN (wired to cruft@ by the generator).
+CONSOLE_TTYS="1 2 3 4 5 6"
+
+# cruft font profile (ignored when CONSOLE=kernel):
+#   default — 6x12 Terminus+Fairfax  (/usr/share/cruft/console.cruftfont)  ~53x26
+#   miniwi  — 4x8  geekmaster/miniwi (/usr/share/cruft/miniwi.cruftfont)   ~80x40
+#   unifont — 8x16 GNU Unifont       (/usr/share/cruft/unifont.cruftfont)  ~40x20
+# Or set CRUFT_FONT=/path/to/file.cruftfont to override (YAFT_FONT still accepted).
+# After changing CONSOLE_FONT: `console-mode apply`, then log out/in on each VT
+# (systemd restarts that VT's cruft; a logout is enough — no reboot needed).
+CONSOLE_FONT=default
+
+# Optional kernel fbcon font (CONSOLE=kernel only): install terminus-font, then
+# put e.g. FONT=ter-u12n.psf.gz in /etc/vconsole.conf and reboot (or
+# systemctl restart systemd-vconsole-setup). Default image uses built-in fonts.
