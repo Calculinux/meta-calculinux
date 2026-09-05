@@ -22,7 +22,6 @@ IMAGE_FEATURES += "\
 "
 
 IMAGE_INSTALL += " \
-    acpid \
     alsa-lib \
     alsa-plugins \
     alsa-tools \
@@ -32,6 +31,7 @@ IMAGE_INSTALL += " \
     bash-completion \
     btrfs-tools \
     busybox \
+    calculinux-config \
     calculinux-update \
     cloud-utils-growpart \
     curl \
@@ -48,12 +48,10 @@ IMAGE_INSTALL += " \
     gptfdisk \
     grep \
     groff \
-    hoard-of-bitfonts-commodore \
     htop \
     i2c-tools \
     iw \
     iwd \
-    kbd-consolefonts \
     kbd-keymaps \
     kernel-modules \
     less \
@@ -68,8 +66,6 @@ IMAGE_INSTALL += " \
     nano \
     notcurses \
     notcurses-tools \
-    ntp \
-    oldschool-console-fonts \
     openssh \
     opkg \
     overlayfs-tools \
@@ -84,12 +80,15 @@ IMAGE_INSTALL += " \
     systemd-analyze \
     default-merged-fit \
     merge-dt-overlays-boot \
-    terminus-font \
     tmux \
     tree \
     tzdata \
     u-boot-fw-config \
+    u-boot-ota \
     u-boot-rockchip-bootscript \
+    console-font \
+    miniwi-console \
+    unifont-console \
     unzip \
     usb-gadget-network \
     usbutils \
@@ -98,10 +97,27 @@ IMAGE_INSTALL += " \
     wget \
     which \
     wireless-regdb-static \
+    cruft \
     zip \
 "
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
+
+# rockchip-image.bbclass do_fixup_wks only greps *.img. Mainline U-Boot deploys
+# u-boot-rockchip.bin; an empty grep exits 1 under set -e and aborts the image.
+# Also treat .bin blobs as optional the same way .img was.
+do_fixup_wks() {
+	[ -f "${WKS_FULL_PATH}" ] || return 0
+
+	IMAGES=$(grep -oE '[^=[:space:]]+\.(img|bin)' "${WKS_FULL_PATH}" || true)
+
+	for image in ${IMAGES}; do
+		if [ ! -f "${DEPLOY_DIR_IMAGE}/${image}" ]; then
+			echo "${image} not provided, ignoring it."
+			sed -i "/file=${image}/d" "${WKS_FULL_PATH}"
+		fi
+	done
+}
 
 ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest;"
 IMAGE_POSTPROCESS_COMMAND += " calculinux_export_bundle_extras;"

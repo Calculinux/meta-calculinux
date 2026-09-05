@@ -10,6 +10,8 @@ SRC_URI = " \
     file://boot.scr.sh.in \
 "
 
+DEPENDS += "u-boot-tools-native"
+
 inherit kernel-arch deploy
 
 S = "${UNPACKDIR}"
@@ -19,12 +21,8 @@ UBOOT_BOOTSCR_TEMPLATE = "${THISDIR}/files/boot.scr.sh.in"
 UBOOT_BOOTSCR = "${S}/boot.scr.sh"
 UBOOT_BOOTSCR_IMG = "${B}/boot.scr"
 
-#PROD_BOOT_ARGS = "${@bb.utils.contains('IMAGE_FEATURES','debug-tweaks','','quiet loglevel=0',d)}"
-
 # This task creates boot.scr.sh in the UNPACKDIR from the boot.scr.sh.in template
 python do_create_boot_scr_sh() {
-    # prodBootArgs = d.getVar("PROD_BOOT_ARGS")
-
     with open(d.getVar("UBOOT_BOOTSCR_TEMPLATE"), "r") as f:
         bootScrTemplate = f.read()
 
@@ -38,18 +36,8 @@ python do_create_boot_scr_sh() {
     os.chmod(bootScrPath, 0o755)
 }
 
-# we cannot depend on the normal mkimage since rockchip uses special patches
-# for their version.
-do_compile[depends] += "u-boot-rockchip:do_prepare_host_tools"
-
-python do_configure() {
-    mkimage = d.getVar("DEPLOY_DIR_IMAGE") + "/rockchip-mkimage-2017.09"
-    d.setVarFlag("do_configure", "file-checksums", mkimage)
-}
-
 do_compile() {
-    MKIMAGE="${DEPLOY_DIR_IMAGE}/rockchip-mkimage-2017.09"
-    ${MKIMAGE} -C none -A ${UBOOT_ARCH} -T script -d ${UBOOT_BOOTSCR} ${UBOOT_BOOTSCR_IMG}
+    mkimage -C none -A ${UBOOT_ARCH} -T script -d ${UBOOT_BOOTSCR} ${UBOOT_BOOTSCR_IMG}
 }
 
 do_install() {
