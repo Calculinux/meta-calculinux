@@ -5,21 +5,25 @@ LICENSE = "MIT"
 
 inherit packagegroup
 
-# Disable GTK GUI and sound for vim so we don't pull in an entire desktop stack
-PACKAGECONFIG:remove:pn-vim = "gtkgui sound"
+# Terminal vim only (see distro.conf). x11 must stay off with DISTRO_FEATURES.
+PACKAGECONFIG:remove:pn-vim = "gtkgui sound x11"
 
 PACKAGES = "${PN}"
 
 # Add packages that should be available in the apps layer
 # These will be built as IPKs and made available in the package feed
+# Optional / large packages stay in this group so CI publishes IPKs to the
+# feed (opkg install …) without putting them in calculinux-image.
 RDEPENDS:${PN} = " \
     amfora \
     autoconf \
     automake \
+    avahi-daemon \
     basilisk-ii \
     beetle-pce-fast-libretro \
     binutils \
     bison \
+    bluez5 \
     bombadillo \
     cargo \
     circumflex \
@@ -37,47 +41,7 @@ RDEPENDS:${PN} = " \
     gettext \
     glkcli \
     glkterm \
-    hoard-of-bitfonts-acorn \
-    hoard-of-bitfonts-amiga \
-    hoard-of-bitfonts-amstrad \
-    hoard-of-bitfonts-apple \
-    hoard-of-bitfonts-atari \
-    hoard-of-bitfonts-banner \
-    hoard-of-bitfonts-commodore \
-    hoard-of-bitfonts-crt8002 \
-    hoard-of-bitfonts-custom \
-    hoard-of-bitfonts-datapoint \
-    hoard-of-bitfonts-dec \
-    hoard-of-bitfonts-elan-enterprise \
-    hoard-of-bitfonts-elektronika \
-    hoard-of-bitfonts-epson \
-    hoard-of-bitfonts-fujitsu \
-    hoard-of-bitfonts-gem \
-    hoard-of-bitfonts-geos \
-    hoard-of-bitfonts-hellschreiber \
-    hoard-of-bitfonts-hp \
-    hoard-of-bitfonts-jupiter-cantab \
-    hoard-of-bitfonts-kyotronic \
-    hoard-of-bitfonts-msx \
-    hoard-of-bitfonts-ncr7250 \
-    hoard-of-bitfonts-nec-pc \
-    hoard-of-bitfonts-next \
-    hoard-of-bitfonts-oric \
-    hoard-of-bitfonts-os2 \
-    hoard-of-bitfonts-palm \
-    hoard-of-bitfonts-pc \
-    hoard-of-bitfonts-pc-geos \
-    hoard-of-bitfonts-rk86 \
-    hoard-of-bitfonts-robotron \
-    hoard-of-bitfonts-sharp \
-    hoard-of-bitfonts-sinclair \
-    hoard-of-bitfonts-teletext \
-    hoard-of-bitfonts-texas-instruments \
-    hoard-of-bitfonts-trs80 \
-    hoard-of-bitfonts-various \
-    hoard-of-bitfonts-videoton-tvc \
-    hoard-of-bitfonts-windows \
-    hoard-of-bitfonts-xerox \
+    gpm \
     iotop \
     jq \
     kiwix-tools \
@@ -94,7 +58,8 @@ RDEPENDS:${PN} = " \
     nodejs-npm \
     notcurses \
     notcurses-demos \
-    oldschool-console-fonts \
+    nfs-utils \
+    ntp \
     patch \
     patchelf \
     pcsx-rearmed-libretro \
@@ -106,6 +71,7 @@ RDEPENDS:${PN} = " \
     python3-wik \
     reddit-tui \
     retro8-libretro \
+    rpcbind \
     rsync \
     rust \
     screen \
@@ -114,7 +80,6 @@ RDEPENDS:${PN} = " \
     strace \
     sysstat \
     tcpdump \
-    terminus-font \
     tic-80 \
     tmux \
     tree \
