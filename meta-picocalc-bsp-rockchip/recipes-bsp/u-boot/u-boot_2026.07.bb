@@ -55,15 +55,16 @@ EXTRA_OEMAKE += " \
     TEE=${UNPACKDIR}/rkbin/rk35/${RKBIN_TEE} \
 "
 
-# Armbian overlay dirs (defconfig + board DTs) — not git patches
+# Armbian overlay dirs (defconfig + board DTs) — not git patches.
+# Wrynose file:// unpack is flat (basename in UNPACKDIR), not the SRC_URI subdir.
 do_configure:prepend() {
     install -d ${S}/configs ${S}/arch/arm/dts
-    cp ${UNPACKDIR}/v2026.07-rk3506/defconfig/luckfox-lyra-rk3506_defconfig ${S}/configs/
-    cp ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra.dts \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra.dtsi \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-u-boot.dtsi \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus.dts \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
+    cp ${UNPACKDIR}/luckfox-lyra-rk3506_defconfig ${S}/configs/
+    cp ${UNPACKDIR}/rk3506-luckfox-lyra.dts \
+       ${UNPACKDIR}/rk3506-luckfox-lyra.dtsi \
+       ${UNPACKDIR}/rk3506-luckfox-lyra-u-boot.dtsi \
+       ${UNPACKDIR}/rk3506-luckfox-lyra-plus.dts \
+       ${UNPACKDIR}/rk3506-luckfox-lyra-plus-u-boot.dtsi \
         ${S}/arch/arm/dts/
 }
 
