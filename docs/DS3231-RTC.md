@@ -18,6 +18,9 @@ The default I2C address for DS3231 is **0x68**.
 
 The compiled overlay is installed to `/lib/firmware/overlays/ds3231-rtc.dtbo`.
 
+Prefer `sudo calculinux-config` → Hardware → Overlays to enable it (reboot to apply),
+or use one of the manual methods below.
+
 ### Method 1: Runtime via ConfigFS (Temporary)
 
 To enable the DS3231 RTC at runtime (will not persist across reboots):

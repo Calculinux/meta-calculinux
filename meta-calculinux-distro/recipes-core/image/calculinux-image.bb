@@ -22,7 +22,6 @@ IMAGE_FEATURES += "\
 "
 
 IMAGE_INSTALL += " \
-    acpid \
     alsa-lib \
     alsa-plugins \
     alsa-tools \
@@ -32,6 +31,7 @@ IMAGE_INSTALL += " \
     bash-completion \
     btrfs-tools \
     busybox \
+    calculinux-config \
     calculinux-update \
     cloud-utils-growpart \
     curl \
@@ -52,7 +52,6 @@ IMAGE_INSTALL += " \
     i2c-tools \
     iw \
     iwd \
-    kbd-consolefonts \
     kbd-keymaps \
     kernel-modules \
     less \
@@ -67,7 +66,6 @@ IMAGE_INSTALL += " \
     nano \
     notcurses \
     notcurses-tools \
-    ntp \
     openssh \
     opkg \
     overlayfs-tools \
@@ -84,7 +82,6 @@ IMAGE_INSTALL += " \
     systemd-analyze \
     default-merged-fit \
     merge-dt-overlays-boot \
-    terminus-font \
     tmux \
     tree \
     tzdata \
@@ -102,7 +99,7 @@ IMAGE_INSTALL += " \
     wget \
     which \
     wireless-regdb-static \
-    yaft \
+    cruft \
     zip \
 "
 

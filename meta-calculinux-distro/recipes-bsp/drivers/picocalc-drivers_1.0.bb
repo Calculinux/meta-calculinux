@@ -101,8 +101,7 @@ RDEPENDS:${PN}:remove = "${PICOCALC_ALL_MODULE_VIRTUALS}"
 # Note: We allow both legacy keyboard and MFD keyboard packages to be installed simultaneously.
 # Device tree 'compatible' selection and driver probe order determine which driver binds at runtime.
 
-# Main package pulls in all driver packages for convenience
-# Users can still install individual packages if they want specific drivers only
+# Main package pulls in default drivers; users can still install PWM sound packages.
 RDEPENDS:${PN} = " \
     ${PN}-lcd-fb \
     ${PN}-lcd-drm \
@@ -116,7 +115,7 @@ RDEPENDS:${PN}-snd-m0 = "${PN}-rproc picocalc-m0-firmware"
 FILES:${PN} = ""
 ALLOW_EMPTY:${PN} = "1"
 
-# Build all drivers individually
+# Build all drivers individually (O= required so modpost sees remoteproc Module.symvers)
 do_compile() {
     if [ ! -f ${S}/Makefile ]; then
         bbfatal "Top-level Makefile not found in ${S}"
@@ -147,8 +146,7 @@ do_compile() {
 
 do_install() {
     install -d ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra
-    
-    # Install all kernel modules (generic + luckfox-lyra)
+
     install -m 0644 ${S}/drivers/picocalc_mfd/picocalc_mfd.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/drivers/picocalc_mfd_bms/picocalc_mfd_bms.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/drivers/picocalc_mfd_bkl/picocalc_mfd_bkl.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/

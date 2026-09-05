@@ -24,7 +24,8 @@ Reduces the I2C2 bus clock from 400 kHz to 100 kHz.
 
 ## Persistent: merge for next boot
 
-Edit `/etc/device-tree-overlays.conf` (one name or absolute `.dtbo` path per line):
+Use `sudo calculinux-config` → Hardware → Overlays to toggle entries, or edit
+`/etc/device-tree-overlays.conf` by hand (one name or absolute `.dtbo` path per line):
 
 ```
 ds3231-rtc
