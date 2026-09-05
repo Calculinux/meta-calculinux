@@ -7,6 +7,9 @@ LICENSE = "GPL-2.0-or-later"
 LIC_FILES_CHKSUM = "file://Licenses/README;md5=2ca5f2c35c8cc335f0a19756634782f1"
 
 require recipes-bsp/u-boot/u-boot.inc
+# Pin v2026.07 + Armbian overlays. u-boot.inc's devupstream variant
+# replaces SRC_URI and never unpacks the file:// tree.
+BBCLASSEXTEND = ""
 
 DEPENDS += "bc-native bison-native dtc-native flex-native gnutls-native python3-pyelftools-native python3-setuptools-native"
 
@@ -56,15 +59,17 @@ EXTRA_OEMAKE += " \
 "
 
 # Armbian overlay dirs (defconfig + board DTs) — not git patches.
-# Wrynose file:// unpack is flat (basename in UNPACKDIR), not the SRC_URI subdir.
+# Copy from the recipe files/ tree; Wrynose unpack dest for nested file://
+# is not the walnascar UNPACKDIR/subdir layout.
+RK3506_OVERLAY = "${THISDIR}/files/v2026.07-rk3506"
 do_configure:prepend() {
     install -d ${S}/configs ${S}/arch/arm/dts
-    cp ${UNPACKDIR}/luckfox-lyra-rk3506_defconfig ${S}/configs/
-    cp ${UNPACKDIR}/rk3506-luckfox-lyra.dts \
-       ${UNPACKDIR}/rk3506-luckfox-lyra.dtsi \
-       ${UNPACKDIR}/rk3506-luckfox-lyra-u-boot.dtsi \
-       ${UNPACKDIR}/rk3506-luckfox-lyra-plus.dts \
-       ${UNPACKDIR}/rk3506-luckfox-lyra-plus-u-boot.dtsi \
+    cp ${RK3506_OVERLAY}/defconfig/luckfox-lyra-rk3506_defconfig ${S}/configs/
+    cp ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra.dts \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra.dtsi \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra-u-boot.dtsi \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra-plus.dts \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
         ${S}/arch/arm/dts/
 }
 
