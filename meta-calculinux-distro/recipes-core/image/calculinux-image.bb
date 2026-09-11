@@ -71,7 +71,9 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
+    picocalc-drivers \
     picocalc-dt-overlays \
+    picocalc-m0-firmware \
     picocalc-kbd-test \
     rauc \
     sdl2-test \

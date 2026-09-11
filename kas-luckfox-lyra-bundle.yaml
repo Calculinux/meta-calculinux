@@ -78,6 +78,9 @@ local_conf_header:
       picocalc-drivers-snd-pwm \
       picocalc-drivers-snd-softpwm \
       picocalc-drivers-mfd \
+      picocalc-drivers-rproc \
+      picocalc-drivers-snd-m0 \
+      picocalc-m0-firmware \
       picocalc-dt-overlays \
     "
 
