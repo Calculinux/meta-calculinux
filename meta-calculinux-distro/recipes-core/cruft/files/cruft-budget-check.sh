@@ -9,7 +9,7 @@ set -eu
 
 MAX_RSS_KB_IDLE=${MAX_RSS_KB_IDLE:-1536}
 MAX_RSS_KB_CJK=${MAX_RSS_KB_CJK:-4096}
-FONT=${CRUFT_FONT:-${YAFT_FONT:-/usr/share/cruft/console.cruftfont}}
+FONT=${CRUFT_FONT:-/usr/share/cruft/console.cruftfont}
 
 if ! command -v cruft >/dev/null; then
 	echo "cruft-budget-check: cruft not installed" >&2
