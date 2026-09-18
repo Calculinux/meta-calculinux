@@ -26,8 +26,6 @@ SRC_URI = " \
     file://config.d/luckfox_pico-lora-rfsw-ebyte_e22.yaml \
 "
 
-S = "${WORKDIR}/git"
-
 inherit python3native systemd pkgconfig
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
@@ -94,7 +92,7 @@ do_compile() {
 
     rm -rf ${PLATFORMIO_PLATFORMS_DIR}/platform-native
     install -d ${PLATFORMIO_PLATFORMS_DIR}/platform-native
-    cp -r ${WORKDIR}/sources-unpack/platform-native/* ${PLATFORMIO_PLATFORMS_DIR}/platform-native/
+    cp -r ${UNPACKDIR}/platform-native/* ${PLATFORMIO_PLATFORMS_DIR}/platform-native/
 
     export TARGET_CC="${CC}"
     export TARGET_CXX="${CXX}"
@@ -131,14 +129,14 @@ do_install() {
     install -m 0644 ${S}/bin/config-dist.yaml ${D}${sysconfdir}/meshtasticd/config.yaml
     cp -r ${S}/bin/config.d/* ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
     find ${D}${sysconfdir}/meshtasticd/available.d -type f -exec chmod 0644 {} \;
-    install -m 0644 ${WORKDIR}/config.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
+    install -m 0644 ${UNPACKDIR}/config.d/*.yaml ${D}${sysconfdir}/meshtasticd/available.d/ 2>/dev/null || true
 
     install -d ${D}${systemd_system_unitdir}
-    install -m 0644 ${WORKDIR}/sources-unpack/meshtasticd.service ${D}${systemd_system_unitdir}/
+    install -m 0644 ${UNPACKDIR}/meshtasticd.service ${D}${systemd_system_unitdir}/
 
     if ${@bb.utils.contains('PACKAGECONFIG', 'avahi', 'true', 'false', d)}; then
         install -d ${D}${sysconfdir}/avahi/services
-        install -m 0644 ${WORKDIR}/sources-unpack/meshtasticd.avahi.xml ${D}${sysconfdir}/avahi/services/meshtasticd.service
+        install -m 0644 ${UNPACKDIR}/meshtasticd.avahi.xml ${D}${sysconfdir}/avahi/services/meshtasticd.service
     fi
 
     if ${@bb.utils.contains('PACKAGECONFIG', 'web', 'true', 'false', d)}; then

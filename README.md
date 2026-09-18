@@ -41,7 +41,15 @@ Other CI builds are available from the [packages server](https://opkg.calculinux
 
 Make sure you have the following installed on your build host:
 
-- Docker
+- **Docker** (or Podman; set `KAS_CONTAINER_ENGINE=podman` to use Podman)
+- **kas-container** (included in this repo; builds run inside the container)
+
+**Host requirements** (Yocto 6.0 Wrynose LTS):
+- **Disk**: 140GB free (for build directory, downloads, sstate)
+- **RAM**: 32GB recommended
+- **KAS_WORK_DIR**: For rootless Docker, use a distinct work directory outside the repo, e.g. `export KAS_WORK_DIR=/path/to/kas-work`
+
+**Reproducible builds**: Set `KAS_CONTAINER_IMAGE_DISTRO=debian-bookworm` (or e.g. `debian-trixie`) to pin the container base image. Layer checkouts are pinned to Yocto 6.0.2 tags / companion commits in the kas YAML files.
 
 ---
 

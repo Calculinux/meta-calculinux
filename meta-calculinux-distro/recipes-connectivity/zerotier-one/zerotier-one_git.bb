@@ -15,8 +15,6 @@ SRC_URI = "\
 LICENSE = "BUSL-1.1"
 LIC_FILES_CHKSUM = "file://LICENSE.txt;md5=33322cad2f266673d999241243910f44"
 
-S = "${UNPACKDIR}/git"
-
 COMPATIBLE_HOST = '(x86_64.*|arm.*|aarch64.*)-linux'
 
 RDEPENDS:${PN} += "kernel-module-tun"

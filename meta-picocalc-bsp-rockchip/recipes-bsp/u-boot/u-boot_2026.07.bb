@@ -7,6 +7,8 @@ LICENSE = "GPL-2.0-or-later"
 LIC_FILES_CHKSUM = "file://Licenses/README;md5=2ca5f2c35c8cc335f0a19756634782f1"
 
 require recipes-bsp/u-boot/u-boot.inc
+# u-boot.inc adds this after parse; "=" does not stick.
+BBCLASSEXTEND:remove = "devupstream:target"
 
 DEPENDS += "bc-native bison-native dtc-native flex-native gnutls-native python3-pyelftools-native python3-setuptools-native"
 
@@ -18,7 +20,7 @@ SRCREV = "ece349ade2973e220f524ce59e59711cc919263f"
 SRCREV_rkbin = "1d3c61008fa823936ae7a59615393f8294b64456"
 
 SRC_URI = " \
-    git://source.denx.de/u-boot/u-boot.git;protocol=https;branch=master;name=default \
+    git://source.denx.de/u-boot/u-boot.git;protocol=https;branch=master;name=default;destsuffix=${BP} \
     git://github.com/armbian/rkbin.git;protocol=https;branch=master;name=rkbin;destsuffix=rkbin \
     file://v2026.07-rk3506/0001-rockchip-spl-Allow-use-of-ROCKCHIP_SPL_RESERVE_IRAM-on-ARMv7.patch \
     file://v2026.07-rk3506/0002-rockchip-rk3506-Add-WIP-device-trees.patch \
@@ -43,7 +45,7 @@ SRC_URI = " \
 
 SRCREV_FORMAT = "default_rkbin"
 
-S = "${WORKDIR}/git"
+S = "${UNPACKDIR}/${BP}"
 B = "${WORKDIR}/build"
 
 UBOOT_BINARY = "u-boot-rockchip.bin"
@@ -56,15 +58,18 @@ EXTRA_OEMAKE += " \
     TEE=${UNPACKDIR}/rkbin/rk35/${RKBIN_TEE} \
 "
 
-# Armbian overlay dirs (defconfig + board DTs) — not git patches
+# Armbian overlay dirs (defconfig + board DTs) — not git patches.
+# Copy from the recipe files/ tree; Wrynose unpack dest for nested file://
+# is not the walnascar UNPACKDIR/subdir layout.
+RK3506_OVERLAY = "${THISDIR}/files/v2026.07-rk3506"
 do_configure:prepend() {
     install -d ${S}/configs ${S}/arch/arm/dts
-    cp ${UNPACKDIR}/v2026.07-rk3506/defconfig/luckfox-lyra-rk3506_defconfig ${S}/configs/
-    cp ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra.dts \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra.dtsi \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-u-boot.dtsi \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus.dts \
-       ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
+    cp ${RK3506_OVERLAY}/defconfig/luckfox-lyra-rk3506_defconfig ${S}/configs/
+    cp ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra.dts \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra.dtsi \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra-u-boot.dtsi \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra-plus.dts \
+       ${RK3506_OVERLAY}/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
         ${S}/arch/arm/dts/
 }
 

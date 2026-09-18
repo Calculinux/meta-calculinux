@@ -7,6 +7,7 @@ inherit packagegroup
 
 # Terminal vim only (see distro.conf). x11 must stay off with DISTRO_FEATURES.
 PACKAGECONFIG:remove:pn-vim = "gtkgui sound x11"
+# meta-oe emacs is already --with-x=no; install the TTY split, not emacs-full icons
 
 PACKAGES = "${PN}"
 
@@ -30,7 +31,7 @@ RDEPENDS:${PN} = " \
     criu \
     diffutils \
     dosbox-pure-libretro \
-    emacs-full \
+    emacs \
     fceumm-libretro \
     file \
     flex \

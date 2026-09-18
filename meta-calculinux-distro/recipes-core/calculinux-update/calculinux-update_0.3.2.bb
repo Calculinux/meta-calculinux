@@ -10,8 +10,6 @@ SRC_URI = "git://github.com/Calculinux/calculinux-update.git;branch=main;protoco
 SRCREV = "fa03f43bc52b46795a67178b8d465b8e12224440"
 PV = "0.7.0+git${SRCPV}"
 
-S = "${WORKDIR}/git"
-
 inherit python3-dir python3native
 
 RDEPENDS:${PN} += " \

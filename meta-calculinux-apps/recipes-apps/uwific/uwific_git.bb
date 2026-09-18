@@ -13,8 +13,6 @@ SRCREV = "961bc1dd0358f61aadd7ca6a0a5f76b9856ce80d"
 
 PV = "1.0+git${SRCPV}"
 
-S = "${WORKDIR}/git"
-
 inherit pkgconfig
 
 DEPENDS = "systemd ncurses"

@@ -1,0 +1,30 @@
+include/mount-api-utils.h: fix LSMT_ROOT definition
+
+The fallback for LSMT_ROOT is guarded with #ifdef instead of #ifndef,
+so it never defines the constant on older kernel headers (or musl,
+which does not expose it). util-linux 2.41.3 then fails to compile
+libmount/src/tab_listmount.c with "'LSMT_ROOT' undeclared".
+
+Upstream-Status: Backport [https://github.com/util-linux/util-linux/commit/4caa4707285580f003de44a8caf0d0c9852e9be5]
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ include/mount-api-utils.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/mount-api-utils.h b/include/mount-api-utils.h
+index a916f99..87e173e 100644
+--- a/include/mount-api-utils.h
++++ b/include/mount-api-utils.h
+@@ -339,7 +339,7 @@ struct ul_statmount {
+ /*
+  * Special @mnt_id values that can be passed to listmount
+  */
+-#ifdef LSMT_ROOT
++#ifndef LSMT_ROOT
+ # define LSMT_ROOT              0xffffffffffffffff    /* root mount */
+ #endif
+ 
+--
+2.53.0

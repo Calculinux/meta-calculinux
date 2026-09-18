@@ -10,7 +10,6 @@ SRC_URI = "git://github.com/geekmaster/miniwi.git;protocol=https;branch=master"
 SRCREV = "32b4633bdb1cdedc9b472804cea085ddb7c7da60"
 PV = "1.0+git${SRCPV}"
 
-S = "${WORKDIR}/git"
 B = "${WORKDIR}/build"
 
 DEPENDS = "python3-native mkcruftfont-native"
