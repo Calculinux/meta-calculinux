@@ -17,7 +17,7 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main \
            file://cruft-generator \
            file://console-mode \
            "
-SRCREV = "d4a83c30caa33de9c11f145a8fe362ee025ea4c1"
+SRCREV = "e71cda64f51e1e9a9a90ae9bab8b9c92bb418e52"
 PV = "0.1.0+git${SRCPV}"
 
 DEPENDS = "ncurses-native"
