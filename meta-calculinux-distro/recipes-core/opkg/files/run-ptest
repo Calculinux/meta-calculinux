@@ -1,0 +1,7 @@
+#!/bin/sh
+
+OPKG_PATH=$(which opkg)
+
+# The Calculinux opkg fork's tests/Makefile exposes the regression suite as
+# the 'regress' target (upstream 0.7.0 used 'run-tests').
+make OPKG_PATH=$OPKG_PATH regress
