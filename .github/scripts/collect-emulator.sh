@@ -6,16 +6,9 @@ set -euo pipefail
 
 ARTIFACTS_DIR="${1:?Usage: $0 <artifacts_dir>}"
 
-BUILD_DIR=$(bash "$(dirname "$0")/build-dir.sh" --optional)
-DEPLOY_SDK_DIR="${BUILD_DIR:+$BUILD_DIR/}deploy/sdk"
-if [ -z "$BUILD_DIR" ] || [ ! -d "$DEPLOY_SDK_DIR" ]; then
-    echo "No SDK deploy directory found; no emulator AppImages to collect"
-    exit 0
-fi
-
+# Look for the files directly (build/tmp/deploy/sdk or build/<x>/tmp/deploy/sdk).
 found=0
-for appimage in "$DEPLOY_SDK_DIR"/calculinux-emulator-*.AppImage; do
-    [ -f "$appimage" ] || continue
+for appimage in $(find build -maxdepth 5 -path '*/deploy/sdk/calculinux-emulator-*.AppImage' 2>/dev/null); do
     name=$(basename "$appimage")
     arch=${name#calculinux-emulator-}
     arch=${arch%%-*}
