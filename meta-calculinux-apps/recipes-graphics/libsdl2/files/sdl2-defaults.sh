@@ -14,6 +14,11 @@ export SDL_VIDEODRIVER=kmsdrm
 # Use software rendering backend by default
 export SDL_RENDER_DRIVER=software
 
+# Windows larger than the panel are scaled down to fit. "box" (default)
+# averages pixels, which keeps thin lines and text legible; "nearest" drops
+# pixels, which is sharper but loses detail.
+# export SDL_VIDEO_KMSDRM_SCALE_QUALITY=box
+
 # Configure evdev input devices
 # Format: SDL_EVDEV_DEVICES=numdevs,/path/to/dev1,/path/to/dev2,...
 export SDL_EVDEV_DEVICES=2,/dev/input/event0
