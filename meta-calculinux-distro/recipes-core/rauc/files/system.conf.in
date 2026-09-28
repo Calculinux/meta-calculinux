@@ -6,9 +6,6 @@ statusfile=/etc/rauc/rauc-slots.status
 [keyring]
 path=/etc/rauc/ca.cert.pem
 
-[handlers]
-post-install=/usr/lib/rauc/invalidate-merged-fit
-
 [slot.rootfs.0]
 device={RAUC_SLOT_A_DEVICE}
 type=ext4
@@ -19,5 +16,7 @@ device={RAUC_SLOT_B_DEVICE}
 type=ext4
 bootname=B
 
+# RAUC allows one [handlers] group; post-install-handler.sh also runs
+# invalidate-merged-fit.
 [handlers]
 post-install=/usr/lib/rauc/post-install-handler.sh
