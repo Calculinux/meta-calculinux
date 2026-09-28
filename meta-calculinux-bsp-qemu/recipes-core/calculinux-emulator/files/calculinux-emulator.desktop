@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Calculinux Emulator
+Comment=Run Calculinux (PicoCalc Edition) in QEMU
+Exec=calculinux-emulator
+Icon=calculinux-emulator
+Categories=Development;Emulator;
+Terminal=false

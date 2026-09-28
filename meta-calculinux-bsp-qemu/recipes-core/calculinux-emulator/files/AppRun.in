@@ -1,0 +1,118 @@
+#!/bin/sh
+# Calculinux emulator: boots calculinux-qemuarm in the bundled QEMU.
+#
+# The disk image in the AppImage is read-only; changes go to a qcow2 overlay
+# and the U-Boot environment (RAUC A/B state) to a flash image, both under
+# $CALCULINUX_EMULATOR_HOME (default ~/.local/share/calculinux-emulator).
+set -eu
+
+HERE="$(dirname "$(readlink -f "$0")")"
+SYSROOT="$HERE/sysroot"
+IMAGES="$HERE/images"
+STATE="${CALCULINUX_EMULATOR_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/calculinux-emulator}"
+VERSION="$(cat "$IMAGES/version")"
+
+usage() {
+    cat <<EOF
+Calculinux emulator $VERSION
+
+Usage: ${ARGV0:-calculinux-emulator} [options] [-- extra QEMU arguments]
+
+  --nographic       no window; serial console on this terminal (Ctrl-a x quits)
+  --ssh-port PORT   forward localhost:PORT to the guest's SSH (default 2222,
+                    "off" for none)
+  --reset           discard saved state (disk changes, U-Boot environment)
+  --help            show this help
+
+In the window: log in as root/root or pico/calc. From the terminal that
+started it, the serial console is also available (Ctrl-a x quits).
+State: $STATE
+EOF
+}
+
+nographic=0
+ssh_port=2222
+reset=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --nographic) nographic=1 ;;
+        --ssh-port) ssh_port="$2"; shift ;;
+        --reset) reset=1 ;;
+        -h|--help) usage; exit 0 ;;
+        --) shift; break ;;
+        *) echo "Unknown option: $1 (see --help)" >&2; exit 2 ;;
+    esac
+    shift
+done
+
+# The bundled binaries are nativesdk builds: run them through the bundled
+# dynamic loader so they use only the libraries shipped here.
+LOADER="$(ls "$SYSROOT"/lib/ld-linux-*.so.* | head -n 1)"
+LIBS="$SYSROOT/lib:$SYSROOT/usr/lib"
+run() {
+    exe="$1"
+    shift
+    "$LOADER" --library-path "$LIBS" "$SYSROOT/usr/bin/$exe" "$@"
+}
+# X11 locale and XKB keymap data come from the host (the bundled libX11 and
+# libxkbcommon would look in their build-time paths).
+if [ -d /usr/share/X11/locale ]; then
+    export XLOCALEDIR=/usr/share/X11/locale
+fi
+if [ -d /usr/share/X11/xkb ]; then
+    export XKB_CONFIG_ROOT=/usr/share/X11/xkb
+fi
+# X11 first (XWayland on Wayland desktops), native Wayland if there is no X
+# server; fail loudly rather than fall back to an invisible window.
+export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11,wayland}"
+
+BASE="$IMAGES/calculinux.qcow2"
+DISK="$STATE/disk.qcow2"
+ENV_FLASH="$STATE/uboot-env.img"
+
+mkdir -p "$STATE"
+if [ "$reset" = 1 ]; then
+    rm -f "$DISK" "$ENV_FLASH" "$STATE/image-id"
+fi
+# A new AppImage ships a different base image; an overlay made for the old
+# one would corrupt it, so start fresh.
+if [ -f "$DISK" ] && ! cmp -s "$IMAGES/image-id" "$STATE/image-id"; then
+    echo "calculinux-emulator: new system image ($VERSION); resetting saved state" >&2
+    rm -f "$DISK" "$ENV_FLASH"
+fi
+if [ ! -f "$DISK" ]; then
+    run qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$DISK"
+    cp "$IMAGES/image-id" "$STATE/image-id"
+fi
+# The AppImage mounts at a different path on every run.
+run qemu-img rebase -q -u -F qcow2 -b "$BASE" "$DISK"
+if [ ! -f "$ENV_FLASH" ]; then
+    # Second pflash bank (64 MiB) holds the U-Boot environment.
+    truncate -s 64M "$ENV_FLASH"
+fi
+
+netdev="user,id=net0"
+if [ "$ssh_port" != off ]; then
+    netdev="$netdev,hostfwd=tcp:127.0.0.1:$ssh_port-:22"
+fi
+
+if [ "$nographic" = 1 ]; then
+    set -- -nographic "$@"
+else
+    set -- -display sdl -device virtio-gpu-pci,xres=320,yres=320 "$@"
+    if [ -t 0 ]; then
+        set -- -serial mon:stdio "$@"
+    fi
+fi
+
+exec "$LOADER" --library-path "$LIBS" "$SYSROOT/usr/bin/qemu-system-arm" \
+    -name "Calculinux $VERSION" \
+    -L "$SYSROOT/usr/share/qemu" \
+    -machine @QEMU_MACHINE@ -cpu @QEMU_CPU@ -smp @QEMU_SMP@ -m @QEMU_MEM@ \
+    -bios "$IMAGES/u-boot.bin" \
+    -drive if=pflash,unit=1,format=raw,file="$ENV_FLASH" \
+    -drive if=virtio,format=qcow2,file="$DISK" \
+    -netdev "$netdev" \
+    -device virtio-net-device,netdev=net0 \
+    -device qemu-xhci -device usb-kbd \
+    "$@"

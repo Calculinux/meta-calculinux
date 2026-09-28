@@ -43,6 +43,33 @@ The U-Boot environment lives in QEMU's second flash bank, which is not backed
 by a file: it survives reboots inside one QEMU run and starts fresh (slot A)
 on the next run.
 
+## Emulator AppImage
+
+`calculinux-emulator` packages QEMU (SDL window), U-Boot and the disk image
+into one AppImage per host architecture, published next to the SDKs
+(`sdk/<feed>/<subfolder>/<arch>/calculinux-emulator-<arch>.AppImage`) and
+attached to tagged releases. No QEMU install is needed on the host.
+
+```bash
+chmod +x calculinux-emulator-x86_64.AppImage
+./calculinux-emulator-x86_64.AppImage              # 320x320 window (resizable) + serial on the terminal
+./calculinux-emulator-x86_64.AppImage --nographic  # serial console only
+ssh -p 2222 root@localhost                         # guest SSH (--ssh-port to change, "off" to disable)
+./calculinux-emulator-x86_64.AppImage --reset      # start over from the shipped image
+```
+
+Disk changes and the U-Boot environment (RAUC slot state) persist in
+`~/.local/share/calculinux-emulator` (`CALCULINUX_EMULATOR_HOME` overrides);
+a new AppImage with a different system image resets them. Without FUSE, run
+with `APPIMAGE_EXTRACT_AND_RUN=1`.
+
+Build it like an SDK (`SDKMACHINE` picks the host):
+
+```bash
+./kas-container shell kas-calculinux-qemuarm.yaml -c "bitbake calculinux-emulator -c populate_sdk"
+# -> build/tmp/deploy/sdk/calculinux-emulator-x86_64-<version>.AppImage
+```
+
 ## End-to-end boot test
 
 `.github/scripts/qemu-boot-test.py` drives the serial console and checks the
@@ -56,8 +83,11 @@ to `/data` and U-Boot boots it after a reboot.
     "python3 /repo/.github/scripts/qemu-boot-test.py --log /work/qemu-boot-test.log"
 ```
 
-CI runs the same build and test in `.github/workflows/qemu-boot.yml` and keeps
-the serial log as the `qemu-boot-serial-log` artifact.
+The same checks run against the AppImage with
+`--cmd "./calculinux-emulator-x86_64.AppImage --nographic --ssh-port off"`.
+CI (`.github/workflows/qemu-boot.yml`) runs both, builds the x86_64 and
+aarch64 AppImages, and keeps the serial logs as the `qemu-boot-serial-logs`
+artifact.
 
 ## Adding another board
 
