@@ -29,16 +29,17 @@ inherit autotools pkgconfig bash-completion
 # (see the libsdl2 bbappend): no X11, no GPU. Leave out the bundled SDL1 and
 # the OpenGL/ffmpeg paths so configure can't pick them up from the sysroot.
 EXTRA_OECONF = " \
+    --enable-debug \
     --enable-sdl2 \
     --disable-x11 \
     --disable-opengl \
     --disable-avcodec \
 "
 
-# ESFMu's 32-bit ARM inline asm needs more free registers than Thumb-2 has
-# once r7 is reserved as the frame pointer ("impossible constraints"); use its
-# portable C path instead.
-TARGET_CPPFLAGS:append:arm = " -D_ESFMU_DISABLE_ASM_OPTIMIZATIONS"
+# The Lyra tune defaults to Thumb-2. Build in ARM mode instead: ESFMu's ARM
+# inline asm runs out of registers in Thumb-2 ("impossible constraints"), and
+# the emulator's hot loops don't benefit from Thumb's smaller code.
+ARM_INSTRUCTION_SET = "arm"
 
 PACKAGECONFIG ??= "alsa freetype"
 
