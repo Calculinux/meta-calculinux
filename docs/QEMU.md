@@ -45,22 +45,30 @@ on the next run.
 
 ## Emulator AppImage
 
-`calculinux-emulator` packages QEMU (SDL window), U-Boot and the disk image
-into one AppImage per host architecture, published next to the SDKs
+`calculinux-emulator` is one AppImage per host architecture containing QEMU
+(SDL window) and U-Boot, published next to the SDKs
 (`sdk/<feed>/<subfolder>/<arch>/calculinux-emulator-<arch>.AppImage`) and
-attached to tagged releases. No QEMU install is needed on the host.
+attached to tagged releases. No QEMU install is needed on the host. On first
+launch it downloads the system image for its feed
+(`image/<feed>/<subfolder>/calculinux-image-calculinux-qemuarm.rootfs.qcow2`,
+a compressed qcow2 checked against its `.sha256`) with the host's `curl` or
+`wget`.
 
 ```bash
 chmod +x calculinux-emulator-x86_64.AppImage
-./calculinux-emulator-x86_64.AppImage              # 320x320 window (resizable) + serial on the terminal
-./calculinux-emulator-x86_64.AppImage --nographic  # serial console only
-ssh -p 2222 root@localhost                         # guest SSH (--ssh-port to change, "off" to disable)
-./calculinux-emulator-x86_64.AppImage --reset      # start over from the shipped image
+./calculinux-emulator-x86_64.AppImage                   # 320x320 window (resizable) + serial on the terminal
+./calculinux-emulator-x86_64.AppImage --nographic       # serial console only
+ssh -p 2222 root@localhost                              # guest SSH (--ssh-port to change, "off" to disable)
+./calculinux-emulator-x86_64.AppImage --update-image    # fetch a newer published image
+./calculinux-emulator-x86_64.AppImage --image build/tmp/deploy/images/calculinux-qemuarm/calculinux-image-calculinux-qemuarm.rootfs.wic.qcow2c
+                                                        # boot your own build (qcow2/qcow2c or raw .wic)
+./calculinux-emulator-x86_64.AppImage --reset           # start over from the base image
 ```
 
-Disk changes and the U-Boot environment (RAUC slot state) persist in
+The downloaded image, disk changes (a qcow2 overlay on the read-only image)
+and the U-Boot environment (RAUC slot state) live in
 `~/.local/share/calculinux-emulator` (`CALCULINUX_EMULATOR_HOME` overrides);
-a new AppImage with a different system image resets them. Without FUSE, run
+switching to a different base image resets the changes. Without FUSE, run
 with `APPIMAGE_EXTRACT_AND_RUN=1`.
 
 Build it like an SDK (`SDKMACHINE` picks the host):
@@ -84,7 +92,7 @@ to `/data` and U-Boot boots it after a reboot.
 ```
 
 The same checks run against the AppImage with
-`--cmd "./calculinux-emulator-x86_64.AppImage --nographic --ssh-port off"`.
+`--cmd "./calculinux-emulator-x86_64.AppImage --image <disk> --nographic --ssh-port off"`.
 CI (`.github/workflows/qemu-boot.yml`) runs both, builds the x86_64 and
 aarch64 AppImages, and keeps the serial logs as the `qemu-boot-serial-logs`
 artifact.

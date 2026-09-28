@@ -1,9 +1,10 @@
 #!/bin/sh
 # Calculinux emulator: boots calculinux-qemuarm in the bundled QEMU.
 #
-# The disk image in the AppImage is read-only; changes go to a qcow2 overlay
-# and the U-Boot environment (RAUC A/B state) to a flash image, both under
-# $CALCULINUX_EMULATOR_HOME (default ~/.local/share/calculinux-emulator).
+# The system image is downloaded on first launch (or given with --image) and
+# kept read-only; changes go to a qcow2 overlay and the U-Boot environment
+# (RAUC A/B state) to a flash image, all under $CALCULINUX_EMULATOR_HOME
+# (default ~/.local/share/calculinux-emulator).
 set -eu
 
 HERE="$(dirname "$(readlink -f "$0")")"
@@ -11,6 +12,7 @@ SYSROOT="$HERE/sysroot"
 IMAGES="$HERE/images"
 STATE="${CALCULINUX_EMULATOR_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/calculinux-emulator}"
 VERSION="$(cat "$IMAGES/version")"
+IMAGE_URL="${CALCULINUX_EMULATOR_IMAGE_URL:-$(cat "$IMAGES/image-url")}"
 
 usage() {
     cat <<EOF
@@ -18,6 +20,9 @@ Calculinux emulator $VERSION
 
 Usage: ${ARGV0:-calculinux-emulator} [options] [-- extra QEMU arguments]
 
+  --image FILE      boot this image (qcow2, or raw .wic) instead of the
+                    downloaded one; e.g. your own calculinux-qemuarm build
+  --update-image    download the latest published image if it changed
   --nographic       no window; serial console on this terminal (Ctrl-a x quits)
   --ssh-port PORT   forward localhost:PORT to the guest's SSH (default 2222,
                     "off" for none)
@@ -26,6 +31,7 @@ Usage: ${ARGV0:-calculinux-emulator} [options] [-- extra QEMU arguments]
 
 In the window: log in as root/root or pico/calc. From the terminal that
 started it, the serial console is also available (Ctrl-a x quits).
+Image: $IMAGE_URL
 State: $STATE
 EOF
 }
@@ -33,8 +39,12 @@ EOF
 nographic=0
 ssh_port=2222
 reset=0
+update=0
+image=""
 while [ $# -gt 0 ]; do
     case "$1" in
+        --image) image="$(readlink -f "$2")"; shift ;;
+        --update-image) update=1 ;;
         --nographic) nographic=1 ;;
         --ssh-port) ssh_port="$2"; shift ;;
         --reset) reset=1 ;;
@@ -44,6 +54,10 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+say() {
+    echo "calculinux-emulator: $*" >&2
+}
 
 # The bundled binaries are nativesdk builds: run them through the bundled
 # dynamic loader so they use only the libraries shipped here.
@@ -66,26 +80,78 @@ fi
 # server; fail loudly rather than fall back to an invisible window.
 export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11,wayland}"
 
-BASE="$IMAGES/calculinux.qcow2"
+fetch() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -fL --progress-bar -o "$2" "$1"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q --show-progress -O "$2" "$1"
+    else
+        say "need curl or wget to download the system image"
+        return 1
+    fi
+}
+
+DOWNLOADED="$STATE/images/calculinux.qcow2"
+SUM="$DOWNLOADED.sha256"
 DISK="$STATE/disk.qcow2"
 ENV_FLASH="$STATE/uboot-env.img"
+mkdir -p "$STATE/images"
 
-mkdir -p "$STATE"
 if [ "$reset" = 1 ]; then
     rm -f "$DISK" "$ENV_FLASH" "$STATE/image-id"
 fi
-# A new AppImage ships a different base image; an overlay made for the old
-# one would corrupt it, so start fresh.
-if [ -f "$DISK" ] && ! cmp -s "$IMAGES/image-id" "$STATE/image-id"; then
-    echo "calculinux-emulator: new system image ($VERSION); resetting saved state" >&2
+
+# Pick the base image and an id for it (the overlay is only valid on the
+# base it was created from).
+if [ -n "$image" ]; then
+    [ -f "$image" ] || { say "no such image: $image"; exit 1; }
+    base="$image"
+    case "$image" in
+        *.wic|*.img) base_fmt=raw ;;
+        *) base_fmt=qcow2 ;;
+    esac
+    image_id="local $(stat -c '%s %Y' "$image") $image"
+else
+    if [ ! -f "$DOWNLOADED" ] || [ "$update" = 1 ]; then
+        if ! fetch "$IMAGE_URL.sha256" "$SUM.new"; then
+            rm -f "$SUM.new"
+            say "could not fetch $IMAGE_URL.sha256"
+            [ -f "$DOWNLOADED" ] || exit 1
+            say "keeping the image already downloaded"
+        elif [ -f "$DOWNLOADED" ] && [ -f "$SUM" ] && \
+             [ "$(cut -d' ' -f1 "$SUM.new")" = "$(cut -d' ' -f1 "$SUM")" ]; then
+            rm -f "$SUM.new"
+            say "image is up to date"
+        else
+            say "downloading $IMAGE_URL"
+            fetch "$IMAGE_URL" "$DOWNLOADED.part"
+            want="$(cut -d' ' -f1 "$SUM.new")"
+            got="$(sha256sum "$DOWNLOADED.part" | cut -d' ' -f1)"
+            if [ "$want" != "$got" ]; then
+                rm -f "$DOWNLOADED.part" "$SUM.new"
+                say "checksum mismatch for the downloaded image"
+                exit 1
+            fi
+            mv "$DOWNLOADED.part" "$DOWNLOADED"
+            mv "$SUM.new" "$SUM"
+        fi
+    fi
+    base="$DOWNLOADED"
+    base_fmt=qcow2
+    image_id="$(cut -d' ' -f1 "$SUM")"
+fi
+
+# A different base image invalidates the overlay; start fresh.
+if [ -f "$DISK" ] && [ "$image_id" != "$(cat "$STATE/image-id" 2>/dev/null || true)" ]; then
+    say "system image changed; resetting saved state"
     rm -f "$DISK" "$ENV_FLASH"
 fi
 if [ ! -f "$DISK" ]; then
-    run qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$DISK"
-    cp "$IMAGES/image-id" "$STATE/image-id"
+    run qemu-img create -q -f qcow2 -F "$base_fmt" -b "$base" "$DISK"
+    printf '%s\n' "$image_id" > "$STATE/image-id"
 fi
-# The AppImage mounts at a different path on every run.
-run qemu-img rebase -q -u -F qcow2 -b "$BASE" "$DISK"
+# Keep the overlay pointing at the current base path.
+run qemu-img rebase -q -u -F "$base_fmt" -b "$base" "$DISK"
 if [ ! -f "$ENV_FLASH" ]; then
     # Second pflash bank (64 MiB) holds the U-Boot environment.
     truncate -s 64M "$ENV_FLASH"

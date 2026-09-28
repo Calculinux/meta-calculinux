@@ -91,8 +91,9 @@ jobs:
       run: |
         set -euo pipefail
         appimage=$(ls "$RUNNER_TEMP"/artifacts/emulator/x86_64/*.AppImage)
+        disk="$RUNNER_TEMP/artifacts/emulator/image/calculinux-image-calculinux-qemuarm.rootfs.qcow2"
         python3 .github/scripts/qemu-boot-test.py \
-          --cmd "$appimage --nographic --ssh-port off" --log qemu-appimage-test.log
+          --cmd "$appimage --image $disk --nographic --ssh-port off" --log qemu-appimage-test.log
 
     - name: Upload serial logs
       if: always()
@@ -109,7 +110,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: calculinux-emulator-${{ github.run_number }}
-        path: ${{ runner.temp }}/artifacts/emulator/*/*
+        path: |
+          ${{ runner.temp }}/artifacts/emulator/x86_64/*
+          ${{ runner.temp }}/artifacts/emulator/aarch64/*
         retention-days: 30
 
     - name: Publish emulator next to the SDKs
@@ -132,4 +135,5 @@ jobs:
         files: |
           ${{ runner.temp }}/artifacts/emulator/x86_64/*
           ${{ runner.temp }}/artifacts/emulator/aarch64/*
+          ${{ runner.temp }}/artifacts/emulator/image/*
         prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
