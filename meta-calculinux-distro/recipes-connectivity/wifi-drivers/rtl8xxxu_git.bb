@@ -1,5 +1,5 @@
 SUMMARY = "RTL8XXXU kernel driver for RTL8xxxU"
-DESCRIPTION = "Out-of-tree Realtek USB Wi-Fi driver for RTL8188EU/FU chipset"
+DESCRIPTION = "Out-of-tree Realtek USB Wi-Fi driver for RTL8188EU/FU/GU chipsets"
 HOMEPAGE = "https://github.com/Calculinux/rtl8xxxu"
 LICENSE = "GPL-2.0-only"
 LIC_FILES_CHKSUM = "file://firmware/LICENCE.rtlwifi_firmware.txt;md5=00d06cfd3eddd5a2698948ead2ad54a5"
@@ -39,10 +39,19 @@ module_do_install() {
 
 do_install:append() {
     install -d ${D}${nonarch_base_libdir}/firmware/rtlwifi
-    # Install firmware files for 81888EU and 8188FU
+    # Install firmware files for 8188EU, 8188FU and 8188GU (aka 8710BU).
+    # The 8710BU blobs have no split package in linux-firmware, so they would
+    # otherwise only land in the (excluded) main linux-firmware package.
     # Other firmware variants are provided by linux-firmware packages
     install -m 0644 ${S}/firmware/rtl8188eufw.bin ${D}${nonarch_base_libdir}/firmware/rtlwifi/
     install -m 0644 ${S}/firmware/rtl8188fufw.bin ${D}${nonarch_base_libdir}/firmware/rtlwifi/
+    install -m 0644 ${S}/firmware/rtl8710bufw_SMIC.bin ${D}${nonarch_base_libdir}/firmware/rtlwifi/
+    install -m 0644 ${S}/firmware/rtl8710bufw_UMC.bin ${D}${nonarch_base_libdir}/firmware/rtlwifi/
 }
 
-FILES:${PN}-firmware = "${nonarch_base_libdir}/firmware/rtlwifi/rtl8188eufw.bin ${nonarch_base_libdir}/firmware/rtlwifi/rtl8188fufw.bin"
+FILES:${PN}-firmware = " \
+    ${nonarch_base_libdir}/firmware/rtlwifi/rtl8188eufw.bin \
+    ${nonarch_base_libdir}/firmware/rtlwifi/rtl8188fufw.bin \
+    ${nonarch_base_libdir}/firmware/rtlwifi/rtl8710bufw_SMIC.bin \
+    ${nonarch_base_libdir}/firmware/rtlwifi/rtl8710bufw_UMC.bin \
+"
