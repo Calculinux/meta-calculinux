@@ -1,0 +1,40 @@
+# Calculinux build on free GitHub-hosted runners (trial, alongside build.yml).
+#
+# A cold build does not fit the 6h hosted-job limit on 4 cores, so the build
+# runs as a chain of identical time-boxed passes (yocto-pass.yml). A warm
+# build finishes in pass 1 and the rest are skipped; a cold one (toolchain or
+# poky bump) spills into later passes, each resuming from the sstate the
+# previous one left. No per-recipe stage lists to maintain.
+#
+# Publishing to the opkg feed still happens on the self-hosted runners; this
+# workflow only builds and uploads the build-output artifact.
+name: Build (hosted runners)
+
+on:
+  push:
+    branches: [ 'ci/hosted-build' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pass1:
+    uses: ./.github/workflows/yocto-pass.yml
+    with: { pass: 1 }
+
+  pass2:
+    needs: pass1
+    if: needs.pass1.outputs.done != 'true'
+    uses: ./.github/workflows/yocto-pass.yml
+    with: { pass: 2 }
+
+  pass3:
+    needs: pass2
+    if: needs.pass2.outputs.done != 'true'
+    uses: ./.github/workflows/yocto-pass.yml
+    with: { pass: 3 }

@@ -1,0 +1,205 @@
+# One time-boxed build pass on a GitHub-hosted runner.
+#
+# Called several times in a chain by build-hosted.yml. Each pass:
+#   1. restores the shared sstate cache saved by the last finished main build,
+#      plus the sstate deltas left by earlier passes of this run;
+#   2. runs the whole build until it finishes or the pass deadline arrives;
+#   3. if unfinished, uploads only the sstate it created as an artifact for
+#      the next pass (so PRs never write to the size-limited Actions cache);
+#   4. if finished, uploads the build outputs, and on main prunes sstate to
+#      what recent builds used and saves it as the new shared cache.
+name: Yocto build pass
+
+on:
+  workflow_call:
+    inputs:
+      pass:
+        type: number
+        required: true
+      kas_file:
+        type: string
+        default: kas-luckfox-lyra-bundle.yaml
+      machine:
+        type: string
+        default: luckfox-lyra
+    outputs:
+      done:
+        value: ${{ jobs.pass.outputs.done }}
+
+env:
+  SSTATE_DIR: /home/runner/yocto-cache/sstate-cache
+  DL_DIR: /mnt/yocto-downloads
+  # Minutes of the 6h job reserved for bitbake; the rest covers setup,
+  # cache restore, SIGINT wind-down and the delta upload.
+  BUILD_BUDGET_MIN: 285
+  # Shared-cache entries keep sstate objects used within this many days.
+  SSTATE_KEEP_DAYS: 14
+  # SDKs only for published refs, as in build.yml.
+  WITH_SDK: ${{ github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/') }}
+  # Only pushes to main (and the trial branch) write the shared cache; PR
+  # passes hand sstate along as run artifacts, so they never evict it.
+  SAVE_CACHE: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'ci/hosted-build') }}
+
+jobs:
+  pass:
+    name: Pass ${{ inputs.pass }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    outputs:
+      done: ${{ steps.build.outputs.done }}
+    steps:
+    - name: Record pass start
+      run: echo "PASS_START=$(date +%s)" >> "$GITHUB_ENV"
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+          /usr/local/.ghcup /opt/hostedtoolcache /usr/local/share/boost \
+          /usr/share/swift /usr/local/share/powershell /usr/local/lib/node_modules \
+          /opt/microsoft /opt/google /usr/lib/jvm || true
+        docker image prune -af >/dev/null || true
+        sudo swapoff -a && sudo rm -f /mnt/swapfile /swapfile || true
+
+    - name: Lay out build directories
+      run: |
+        # TMPDIR is the biggest consumer: give it the separate /mnt disk and
+        # bind it at ./build so the collect-*.sh scripts find it as usual.
+        sudo mkdir -p /mnt/yocto-build "$DL_DIR"
+        sudo chown "$(id -u):$(id -g)" /mnt/yocto-build "$DL_DIR"
+        mkdir -p build "$SSTATE_DIR" ~/.ssh
+        sudo mount --bind /mnt/yocto-build build
+        df -h / /mnt
+
+    - name: Restore shared sstate cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.SSTATE_DIR }}
+        key: sstate-${{ inputs.machine }}-${{ github.run_id }}
+        restore-keys: sstate-${{ inputs.machine }}-
+
+    - name: Fetch sstate from earlier passes
+      if: inputs.pass > 1
+      uses: actions/download-artifact@v4
+      with:
+        pattern: sstate-delta-${{ inputs.machine }}-*
+        path: ${{ runner.temp }}/deltas
+
+    - name: Unpack sstate deltas and snapshot the file list
+      run: |
+        shopt -s nullglob
+        for t in "$RUNNER_TEMP"/deltas/*/*.tar; do
+          echo "Unpacking $t"
+          tar -xf "$t" -C "$SSTATE_DIR" && rm -f "$t"
+        done
+        # Zero atimes so relatime records every read this pass makes; the
+        # prune step keys on it.
+        find "$SSTATE_DIR" -type f -exec touch -a -d @0 {} +
+        # Anything not in this list afterwards was produced by this pass.
+        (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-before.txt"
+        touch "$RUNNER_TEMP/pass-marker"
+        echo "Restored $(wc -l < "$RUNNER_TEMP/sstate-before.txt") sstate files ($(du -sh "$SSTATE_DIR" | cut -f1))"
+
+    - name: Determine feed configuration
+      id: feed-config
+      run: |
+        set -euo pipefail
+        REF_TYPE="branch"
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          REF_TYPE="tag"
+        fi
+        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh "${{ inputs.kas_file }}" "${{ github.ref_name }}" "$REF_TYPE"
+
+    - name: Prepare build configuration
+      id: prepare-config
+      run: |
+        set -euo pipefail
+        bash .github/scripts/load-script-output.sh --env distro_version:DISTRO_VERSION -- bash .github/scripts/prepare-build-config.sh \
+          "${{ inputs.kas_file }}" \
+          "${{ steps.feed-config.outputs.distro_codename }}" \
+          "${{ steps.feed-config.outputs.feed_subfolder }}" \
+          "${{ github.ref_name }}" \
+          "${{ steps.feed-config.outputs.is_tagged_release }}"
+
+    - name: Build (time-boxed)
+      id: build
+      run: |
+        bash .github/scripts/yocto-pass.sh \
+          "${{ steps.prepare-config.outputs.kas_override_file }}" \
+          "$(( PASS_START + BUILD_BUDGET_MIN * 60 ))" \
+          "$WITH_SDK"
+
+    - name: Package sstate delta for the next pass
+      if: steps.build.outputs.done == 'false'
+      run: |
+        (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-after.txt"
+        comm -13 "$RUNNER_TEMP/sstate-before.txt" "$RUNNER_TEMP/sstate-after.txt" > "$RUNNER_TEMP/sstate-new.txt"
+        mkdir -p "$RUNNER_TEMP/delta-out"
+        # sstate objects are already zstd-compressed; plain tar.
+        tar -cf "$RUNNER_TEMP/delta-out/pass${{ inputs.pass }}.tar" -C "$SSTATE_DIR" -T "$RUNNER_TEMP/sstate-new.txt"
+        echo "Delta: $(wc -l < "$RUNNER_TEMP/sstate-new.txt") files, $(du -h "$RUNNER_TEMP/delta-out/pass${{ inputs.pass }}.tar" | cut -f1)"
+
+    - name: Upload sstate delta
+      if: steps.build.outputs.done == 'false'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sstate-delta-${{ inputs.machine }}-pass${{ inputs.pass }}
+        path: ${{ runner.temp }}/delta-out/
+        compression-level: 0
+        retention-days: 1
+
+    - name: Collect build outputs
+      if: steps.build.outputs.done == 'true'
+      run: |
+        OUT="$RUNNER_TEMP/build-output"
+        mkdir -p "$OUT"
+        bash .github/scripts/collect-images.sh "${{ inputs.machine }}" "$OUT"
+        bash .github/scripts/collect-packages.sh "$OUT"
+        bash .github/scripts/collect-sdk.sh "$OUT"
+        cat > "$OUT/workflow-metadata.env" << EOF
+        FEED_NAME=${{ steps.feed-config.outputs.feed_name }}
+        SUBFOLDER=${{ steps.feed-config.outputs.subfolder }}
+        FEED_SUBFOLDER=${{ steps.feed-config.outputs.feed_subfolder }}
+        DISTRO_CODENAME=${{ steps.feed-config.outputs.distro_codename }}
+        IS_PUBLISHED_BRANCH=${{ steps.feed-config.outputs.is_published_branch }}
+        IS_TAGGED_RELEASE=${{ steps.feed-config.outputs.is_tagged_release }}
+        IS_PRERELEASE=${{ steps.feed-config.outputs.is_prerelease }}
+        DISTRO_VERSION=${{ steps.prepare-config.outputs.distro_version }}
+        EOF
+        du -sh "$OUT"/*
+
+    - name: Upload build outputs
+      if: steps.build.outputs.done == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output-${{ inputs.machine }}
+        path: ${{ runner.temp }}/build-output/
+        compression-level: 0
+        retention-days: 7
+
+    - name: Prune sstate to the recent working set
+      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      run: |
+        before=$(du -sh "$SSTATE_DIR" | cut -f1)
+        # Keep what this build touched (sstate.bbclass refreshes mtime on
+        # reuse; atime covers it if not) and whatever earlier main builds
+        # used recently; drop the rest so the cache tracks the working set.
+        find "$SSTATE_DIR" -type f -mtime "+$SSTATE_KEEP_DAYS" ! -anewer "$RUNNER_TEMP/pass-marker" -delete
+        find "$SSTATE_DIR" -type d -empty -delete
+        echo "sstate: $before -> $(du -sh "$SSTATE_DIR" | cut -f1)"
+
+    - name: Save shared sstate cache
+      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.SSTATE_DIR }}
+        key: sstate-${{ inputs.machine }}-${{ github.run_id }}
+
+    - name: Disk usage
+      if: always()
+      run: |
+        df -h / /mnt
+        du -sh "$SSTATE_DIR" "$DL_DIR" build/tmp 2>/dev/null || true
