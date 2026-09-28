@@ -20,8 +20,14 @@ export SDL_RENDER_DRIVER=software
 # export SDL_VIDEO_KMSDRM_SCALE_QUALITY=box
 
 # Configure evdev input devices
-# Format: SDL_EVDEV_DEVICES=numdevs,/path/to/dev1,/path/to/dev2,...
-export SDL_EVDEV_DEVICES=2,/dev/input/event0
+# Format: SDL_EVDEV_DEVICES=class:/path/to/dev1[,class:/path/to/dev2,...]
+# where class is 1 = mouse, 2 = keyboard, 16 = touchscreen.
+export SDL_EVDEV_DEVICES=2:/dev/input/event0
+
+# Under KMSDRM, keyboards are grabbed so keys don't also reach the console
+# (and the shell in the terminal SDL was started from). Set to 0 to share
+# them instead.
+# export SDL_EVDEV_GRAB_KEYBOARD=1
 
 # Disable mouse cursor (useful for touch-only devices)
 # Uncomment if needed:
