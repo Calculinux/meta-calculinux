@@ -119,7 +119,7 @@ do_fixup_wks() {
 	done
 }
 
-ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest;"
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest; calculinux_install_opkg_image_status;"
 IMAGE_POSTPROCESS_COMMAND += " calculinux_export_bundle_extras;"
 
 calculinux_create_version_manifest() {
@@ -145,19 +145,57 @@ calculinux_create_version_manifest() {
     chmod 644 "${manifest_file}"
 }
 
+calculinux_install_opkg_image_status() {
+    status_dir="${IMAGE_ROOTFS}/var/lib/opkg"
+    status_file="${status_dir}/status"
+    image_status_file="${status_dir}/status.image"
+    image_status_dir="$(dirname "${image_status_file}")"
+
+    install -d "${status_dir}"
+    install -d "${image_status_dir}"
+
+    if [ -f "${status_file}" ]; then
+        install -m 0644 "${status_file}" "${image_status_file}"
+    else
+        : > "${image_status_file}"
+    fi
+
+    : > "${status_file}"
+}
+
 calculinux_export_bundle_extras() {
     extras_work="${WORKDIR}/bundle-extras"
     extras_base="${extras_work}/extras"
+    extras_dir="${extras_base}/opkg"
     extras_tar="${IMGDEPLOYDIR}/bundle-extras.tar.gz"
     extras_manifest="${IMGDEPLOYDIR}/version-manifest.env"
     rm -rf "${extras_work}"
     rm -f "${extras_tar}" "${extras_manifest}"
+
+    has_data=0
+
+    if [ -d "${IMAGE_ROOTFS}/etc/opkg" ]; then
+        install -d "${extras_dir}/etc"
+        cp -r "${IMAGE_ROOTFS}/etc/opkg" "${extras_dir}/etc/"
+        has_data=1
+    fi
+
+    if [ -f "${IMAGE_ROOTFS}/var/lib/opkg/status.image" ]; then
+        install -d "${extras_dir}"
+        install -m 0644 "${IMAGE_ROOTFS}/var/lib/opkg/status.image" "${extras_dir}/status.image"
+        has_data=1
+    fi
+
     if [ -f "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" ]; then
         install -d "${extras_base}"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" \
             "${extras_base}/version-manifest.env"
         install -m 0644 "${IMAGE_ROOTFS}/var/lib/calculinux/version-manifest.env" \
             "${extras_manifest}"
+        has_data=1
+    fi
+
+    if [ "$has_data" = "1" ] && [ -d "${extras_base}" ]; then
         tar -czf "${extras_tar}" -C "${extras_work}" extras
     fi
 }
