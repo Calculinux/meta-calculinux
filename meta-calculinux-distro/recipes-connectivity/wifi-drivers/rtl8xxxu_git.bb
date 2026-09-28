@@ -30,8 +30,8 @@ PACKAGES =+ "${PN}-firmware ${PN}-udev"
 
 RDEPENDS:${PN} += "${PN}-firmware ${PN}-udev"
 
-# The modeswitch rule ejects the fake driver CD with util-linux eject
-RDEPENDS:${PN}-udev += "util-linux-eject"
+# The modeswitch rule ejects the fake driver CD with usb_modeswitch
+RDEPENDS:${PN}-udev += "usb-modeswitch"
 
 # Conflict with linux-firmware packages that provide RTL8188EU firmware
 RCONFLICTS:${PN}-firmware = "linux-firmware-rtl8188"

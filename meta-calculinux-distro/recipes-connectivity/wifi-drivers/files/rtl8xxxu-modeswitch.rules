@@ -1,3 +1,3 @@
 # Realtek USB Wi-Fi dongles (e.g. RTL8188GU) enumerate as a fake driver CD
-# (0bda:1a2b) first. Ejecting it switches them into Wi-Fi mode.
-ACTION=="add", KERNEL=="sr*", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="1a2b", RUN+="/usr/bin/eject /dev/%k"
+# (0bda:1a2b) first. A SCSI standard eject switches them into Wi-Fi mode.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0bda", ATTR{idProduct}=="1a2b", RUN+="/usr/sbin/usb_modeswitch -v 0bda -p 1a2b -K"
