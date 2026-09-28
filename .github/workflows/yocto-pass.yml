@@ -8,6 +8,10 @@
 #      the next pass (so PRs never write to the size-limited Actions cache);
 #   4. if finished, uploads the build outputs, and on main prunes sstate to
 #      what recent builds used and saves it as the new shared cache.
+#
+# With sdk_arch set, the job builds that SDK instead, from the cache the
+# image passes saved. SDK jobs never save the cache: nothing else consumes
+# nativesdk sstate, so it would only crowd out what image builds need.
 name: Yocto build pass
 
 on:
@@ -22,6 +26,10 @@ on:
       machine:
         type: string
         default: luckfox-lyra
+      sdk_arch:
+        description: SDKMACHINE to build instead of the image (x86_64, aarch64)
+        type: string
+        default: ''
     outputs:
       done:
         value: ${{ jobs.pass.outputs.done }}
@@ -34,15 +42,14 @@ env:
   BUILD_BUDGET_MIN: 285
   # Shared-cache entries keep sstate objects used within this many days.
   SSTATE_KEEP_DAYS: 14
-  # SDKs only for published refs, as in build.yml.
-  WITH_SDK: ${{ github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/') }}
-  # Only pushes to main (and the trial branch) write the shared cache; PR
-  # passes hand sstate along as run artifacts, so they never evict it.
-  SAVE_CACHE: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'ci/hosted-build') }}
+  # Only image passes on pushes to main (and the trial branch) write the
+  # shared cache; PR passes hand sstate along as run artifacts, so they
+  # never evict it.
+  SAVE_CACHE: ${{ inputs.sdk_arch == '' && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'ci/hosted-build') }}
 
 jobs:
   pass:
-    name: Pass ${{ inputs.pass }}
+    name: ${{ inputs.sdk_arch != '' && format('SDK {0}', inputs.sdk_arch) || format('Pass {0}', inputs.pass) }}
     runs-on: ubuntu-latest
     timeout-minutes: 355
     outputs:
@@ -146,10 +153,16 @@ jobs:
         bash .github/scripts/yocto-pass.sh \
           "${{ steps.prepare-config.outputs.kas_override_file }}" \
           "$(( PASS_START + BUILD_BUDGET_MIN * 60 ))" \
-          "$WITH_SDK"
+          "${{ inputs.sdk_arch }}"
+
+    - name: SDK must finish in one job
+      if: inputs.sdk_arch != '' && steps.build.outputs.done == 'false'
+      run: |
+        echo "::error::SDK build for ${{ inputs.sdk_arch }} did not finish within one job"
+        exit 1
 
     - name: Package sstate delta for the next pass
-      if: steps.build.outputs.done == 'false'
+      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'false'
       run: |
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-after.txt"
         comm -13 "$RUNNER_TEMP/sstate-before.txt" "$RUNNER_TEMP/sstate-after.txt" > "$RUNNER_TEMP/sstate-new.txt"
@@ -159,7 +172,7 @@ jobs:
         echo "Delta: $(wc -l < "$RUNNER_TEMP/sstate-new.txt") files, $(du -h "$RUNNER_TEMP/delta-out/pass${{ inputs.pass }}.tar" | cut -f1)"
 
     - name: Upload sstate delta
-      if: steps.build.outputs.done == 'false'
+      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'false'
       uses: actions/upload-artifact@v4
       with:
         name: sstate-delta-${{ inputs.machine }}-pass${{ inputs.pass }}
@@ -167,14 +180,28 @@ jobs:
         compression-level: 0
         retention-days: 1
 
+    - name: Collect SDK
+      if: inputs.sdk_arch != '' && steps.build.outputs.done == 'true'
+      run: |
+        mkdir -p "$RUNNER_TEMP/build-output"
+        bash .github/scripts/collect-sdk.sh "$RUNNER_TEMP/build-output"
+
+    - name: Upload SDK
+      if: inputs.sdk_arch != '' && steps.build.outputs.done == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdk-${{ inputs.machine }}-${{ inputs.sdk_arch }}
+        path: ${{ runner.temp }}/build-output/
+        compression-level: 0
+        retention-days: 7
+
     - name: Collect build outputs
-      if: steps.build.outputs.done == 'true'
+      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'true'
       run: |
         OUT="$RUNNER_TEMP/build-output"
         mkdir -p "$OUT"
         bash .github/scripts/collect-images.sh "${{ inputs.machine }}" "$OUT"
         bash .github/scripts/collect-packages.sh "$OUT"
-        bash .github/scripts/collect-sdk.sh "$OUT"
         cat > "$OUT/workflow-metadata.env" << EOF
         FEED_NAME=${{ steps.feed-config.outputs.feed_name }}
         SUBFOLDER=${{ steps.feed-config.outputs.subfolder }}
@@ -188,7 +215,7 @@ jobs:
         du -sh "$OUT"/*
 
     - name: Upload build outputs
-      if: steps.build.outputs.done == 'true'
+      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: build-output-${{ inputs.machine }}

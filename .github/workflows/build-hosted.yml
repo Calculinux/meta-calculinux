@@ -6,6 +6,9 @@
 # poky bump) spills into later passes, each resuming from the sstate the
 # previous one left. No per-recipe stage lists to maintain.
 #
+# SDKs are built by a separate job after the image passes (published refs
+# only) and are kept out of the shared cache.
+#
 # Publishing to the opkg feed still happens on the self-hosted runners; this
 # workflow only builds and uploads the build-output artifact.
 name: Build (hosted runners)
@@ -38,3 +41,20 @@ jobs:
     if: needs.pass2.outputs.done != 'true'
     uses: ./.github/workflows/yocto-pass.yml
     with: { pass: 3 }
+
+  # SDKs build from the cache the finishing image pass just saved, one job
+  # per SDK host arch in parallel, and never write the cache themselves.
+  sdk:
+    needs: [pass1, pass2, pass3]
+    if: >-
+      always() &&
+      (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')) &&
+      (needs.pass1.outputs.done == 'true' || needs.pass2.outputs.done == 'true' || needs.pass3.outputs.done == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk_arch: [x86_64, aarch64]
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 0
+      sdk_arch: ${{ matrix.sdk_arch }}
