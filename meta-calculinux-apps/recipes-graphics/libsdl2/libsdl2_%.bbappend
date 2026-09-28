@@ -19,6 +19,7 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 SRC_URI:append = " \
     file://sdl2-defaults.sh \
     file://0001-kmsdrm-add-dumb-buffer-support.patch \
+    file://0002-kmsdrm-scale-dumb-buffer-windows-keep-master-on-resize.patch \
 "
 
 do_install:append() {
