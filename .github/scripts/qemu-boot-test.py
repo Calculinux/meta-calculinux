@@ -13,6 +13,8 @@ Checks, in order:
      overlayfs is mounted over /etc, systemd finished booting.
   4. merge-dt-overlays-boot writes /data/fit/zboot_merged_a.img, and after
      a reboot U-Boot boots that FIT from OVERLAY_DATA.
+  5. rauc mark-active switches BOOT_ORDER to B and the next boot runs
+     slot B (via U-Boot's by-PARTLABEL bootcmd).
 """
 
 import argparse
@@ -146,6 +148,21 @@ def main():
             login()
             rc, out = run("cat /proc/cmdline")
             check("still on RAUC slot A", "rauc.slot=A" in out, out)
+
+            step("A/B switch: mark slot B active, reboot")
+            rc, out = run("rauc status mark-active other", timeout=120)
+            check("rauc mark-active other", rc == 0, out)
+            rc, out = run("fw_printenv BOOT_ORDER")
+            check("BOOT_ORDER now prefers B", "BOOT_ORDER=B A" in out, out)
+            run("sync")
+            con.send("reboot")
+            con.expect(r"Found valid slot B", 300)
+            check("U-Boot picked slot B", True)
+            login()
+            rc, out = run("cat /proc/cmdline")
+            check("booted RAUC slot B", "rauc.slot=B" in out, out)
+            rc, out = run("rauc status")
+            check("rauc reports slot B booted", rc == 0 and "rootfs.1 (B)" in out, out)
             con.send("poweroff")
         except TimeoutError as e:
             check("boot sequence", False, str(e))
