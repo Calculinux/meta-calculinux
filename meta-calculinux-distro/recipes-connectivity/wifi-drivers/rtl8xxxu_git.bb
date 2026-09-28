@@ -33,10 +33,10 @@ RDEPENDS:${PN} += "${PN}-firmware ${PN}-udev"
 # The modeswitch rule ejects the fake driver CD with util-linux eject
 RDEPENDS:${PN}-udev += "util-linux-eject"
 
-# Conflict with linux-firmware packages that provide RTL8188EU firmware
-RCONFLICTS:${PN}-firmware = "linux-firmware-rtl8188"
-RREPLACES:${PN}-firmware = "linux-firmware-rtl8188"
-RPROVIDES:${PN}-firmware = "linux-firmware-rtl8188"
+# Conflict with linux-firmware packages that provide RTL8188EU and RTL8710BU firmware
+RCONFLICTS:${PN}-firmware = "linux-firmware-rtl8188 linux-firmware-rtl8710"
+RREPLACES:${PN}-firmware = "linux-firmware-rtl8188 linux-firmware-rtl8710"
+RPROVIDES:${PN}-firmware = "linux-firmware-rtl8188 linux-firmware-rtl8710"
 
 module_do_install() {
     install -d ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/net/wireless
