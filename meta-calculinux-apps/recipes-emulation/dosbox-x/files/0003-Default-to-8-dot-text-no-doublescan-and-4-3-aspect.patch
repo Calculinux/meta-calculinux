@@ -1,0 +1,41 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] Default to 8-dot text, no doublescan and 4:3 aspect
+
+Calculinux's 320x320 panel has no GPU, so DOSBox-X can only use the
+non-scaling "surface" output and SDL scales oversized windows down to
+the panel. With 8-pixel-wide text (640x400), 320x200 modes left at their
+native size and 4:3 aspect correction, text mode becomes 640x480 (an
+exact 2:1 scale to 320x240) and 320x200 graphics become 320x240, which
+fit without scaling. Users can still override all three in their config.
+
+Upstream-Status: Inappropriate [Calculinux-specific defaults]
+
+--- a/src/dosbox.cpp
++++ b/src/dosbox.cpp
+@@ -2180,7 +2180,7 @@
+     Pint->Set_help("How many frames DOSBox-X skips before drawing one.");
+     Pint->SetBasic(true);
+ 
+-    Pstring = secprop->Add_string("aspect", Property::Changeable::Always, "false");
++    Pstring = secprop->Add_string("aspect", Property::Changeable::Always, "true");
+     Pstring->Set_values(aspectmodes);
+     Pstring->Set_help(
+         "Aspect ratio correction mode. Can be set to the following values:\n"
+@@ -2255,7 +2255,7 @@
+     Pstring->Set_help("Set the aspect ratio (e.g. 16:9) in the aspect ratio correction mode. 0:0 means the default ratio of 4:3, and -1:-1 means the original image ratio.");
+     Pstring->SetBasic(true);
+ 
+-    Pbool = secprop->Add_bool("char9",Property::Changeable::Always,true);
++    Pbool = secprop->Add_bool("char9",Property::Changeable::Always,false);
+     Pbool->Set_help("Allow 9-pixel wide text mode fonts instead of 8-pixel wide fonts.");
+     Pbool->SetBasic(true);
+ 
+@@ -2266,7 +2266,7 @@
+ 
+     /* NTS: In the original code borrowed from yhkong, this was named "multiscan". All it really does is disable
+      *      the doublescan down-rezzing DOSBox normally does with 320x240 graphics so that you get the full rendition of what a VGA output would emit. */
+-    Pbool = secprop->Add_bool("doublescan",Property::Changeable::Always,true);
++    Pbool = secprop->Add_bool("doublescan",Property::Changeable::Always,false);
+     Pbool->Set_help("If set, doublescanned output emits two scanlines for each source line, "
+             "in the same manner as the actual VGA output (320x200 is rendered as 640x400 for example).\n"
+             "If clear, doublescanned output is rendered at the native source resolution (320x200 as 320x200).\n"
