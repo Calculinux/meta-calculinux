@@ -124,6 +124,22 @@ jobs:
           "${{ github.ref_name }}" \
           "${{ steps.feed-config.outputs.is_tagged_release }}"
 
+    - name: Prefer the Yocto source mirror
+      run: |
+        # Hosted runners start with an empty DL_DIR, so every tarball comes
+        # from upstream, and some upstreams (zlib.net) intermittently answer
+        # datacenter IPs with 200 + a non-tarball body. BitBake aborts on the
+        # first mirror whose content fails the checksum, so try the Yocto
+        # source mirror (stable, checksum-matched) first; misses fall through.
+        cat >> "${{ steps.prepare-config.outputs.kas_override_file }}" << 'EOF'
+          ci_hosted_fetch: |
+            PREMIRRORS:prepend = "\
+                https?://.*/.* https://downloads.yoctoproject.org/mirror/sources/ \
+                ftp://.*/.* https://downloads.yoctoproject.org/mirror/sources/ \
+            "
+        EOF
+        cat "${{ steps.prepare-config.outputs.kas_override_file }}"
+
     - name: Build (time-boxed)
       id: build
       run: |
