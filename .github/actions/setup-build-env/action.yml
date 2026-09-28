@@ -33,6 +33,16 @@ runs:
           echo "Please ensure storage is mounted at ${{ inputs.opkg-repo-dir }}"
           exit 1
         fi
+        # An unmounted mountpoint still passes -d, so prove we can write the
+        # shared artifacts dir now rather than failing after the build.
+        probe="${{ inputs.opkg-repo-dir }}/.build-artifacts/.write-test-$$"
+        if ! mkdir -p "${{ inputs.opkg-repo-dir }}/.build-artifacts" || ! touch "$probe"; then
+          echo "ERROR: Package repository storage ${{ inputs.opkg-repo-dir }} is not writable by $(id -un) on $(hostname)"
+          ls -ld "${{ inputs.opkg-repo-dir }}" "${{ inputs.opkg-repo-dir }}/.build-artifacts" 2>&1 || true
+          findmnt "${{ inputs.opkg-repo-dir }}" 2>&1 || echo "  (not a mountpoint - is the shared storage mounted?)"
+          exit 1
+        fi
+        rm -f "$probe"
         echo "Package repository verified: ${{ inputs.opkg-repo-dir }}"
 
     - name: Pre-pull kas image
