@@ -1,0 +1,27 @@
+# https://github.com/siemens/kas/blob/master/docs/userguide.rst
+#
+# Calculinux on the QEMU Arm 'virt' board. Boots end to end like the device:
+# U-Boot -> boot.scr (RAUC A/B) -> merged DT-overlay FIT -> preinit/overlayfs.
+#
+#   kas build kas-calculinux-qemuarm.yaml
+#   kas shell kas-calculinux-qemuarm.yaml -c "runqemu calculinux-qemuarm calculinux-image wic nographic slirp"
+header:
+  version: 18
+  includes:
+    - kas-base.yaml
+
+machine: calculinux-qemuarm
+target:
+  - calculinux-image
+
+# walnascar checkout
+repos:
+  meta-rauc:
+    url: https://github.com/rauc/meta-rauc.git
+    commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
+  meta-calculinux:
+    layers:
+      meta-calculinux-distro:
+      meta-calculinux-bsp-qemu:
+      meta-calculinux-apps:
+      meta-meshtastic:

@@ -1,0 +1,10 @@
+# Same partition labels as the Luckfox Lyra card, so RAUC slots, the
+# overlayfs /data partition, swap and the boot script behave identically.
+# U-Boot runs from QEMU's first pflash bank (runqemu -bios), so the disk
+# carries no bootloader and no ubootenv partition.
+
+bootloader --ptable gpt
+part / --source rootfs --fstype ext4 --label ROOT_A --mkfs-extraopts "-F -i 8192 -b 4096 -O ext_attr,^has_journal" --align 8192 --fixed-size 2048
+part / --source rootfs --fstype ext4 --label ROOT_B --mkfs-extraopts "-F -i 8192 -b 4096 -O ext_attr,^has_journal" --align 8192 --fixed-size 2048
+part swap --label SWAP --fstype=swap --size=256M --overhead-factor 1
+part --label OVERLAY_DATA --fstype ext4 --fixed-size 1024 --align 8192 --mkfs-extraopts "-O ext_attr"
