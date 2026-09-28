@@ -1,0 +1,116 @@
+# Feasibility probe: can a free GitHub-hosted runner build Calculinux?
+#
+# Runs a *cold* build (no sstate, no downloads) of the same kas target the
+# self-hosted build uses, on ubuntu-latest, and records:
+#   - usable disk after clearing the preinstalled toolchains
+#   - peak disk usage of TMPDIR / SSTATE_DIR / DL_DIR over the build
+#   - how far the build gets inside the 6h job limit
+#   - size and task-type breakdown of the resulting sstate (the working set a
+#     cache or sstate mirror would have to hold)
+#
+# Publishes nothing and touches no self-hosted runner.
+name: Hosted runner probe
+
+on:
+  push:
+    branches: [ 'ci/hosted-runner-probe' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    env:
+      KAS_FILE: kas-luckfox-lyra-bundle.yaml
+      # Leave ~25 min of the 6h job for the report and artifact upload.
+      BUILD_TIMEOUT: 320m
+      REPORT_DIR: ${{ github.workspace }}/probe-report
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Runner shape before cleanup
+      run: |
+        mkdir -p "$REPORT_DIR"
+        { nproc; free -g; df -h; lsblk; } | tee "$REPORT_DIR/runner-before.txt"
+
+    - name: Free disk space
+      run: |
+        # Preinstalled SDKs we never use; ~30-40G on the root fs.
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+          /usr/local/.ghcup /opt/hostedtoolcache /usr/local/share/boost \
+          /usr/share/swift /usr/local/share/powershell /usr/local/lib/node_modules \
+          /opt/microsoft /opt/google /usr/lib/jvm || true
+        docker image prune -af >/dev/null || true
+        sudo swapoff -a && sudo rm -f /mnt/swapfile /swapfile || true
+        df -h | tee "$REPORT_DIR/runner-after-cleanup.txt"
+
+    - name: Lay out build directories
+      run: |
+        # /mnt is a separate (ephemeral) disk; put TMPDIR there and the
+        # caches on the root fs so the two grow on different devices.
+        sudo mkdir -p /mnt/yocto-build
+        sudo chown "$(id -u):$(id -g)" /mnt/yocto-build
+        mkdir -p "$HOME/yocto-cache/downloads" "$HOME/yocto-cache/sstate-cache"
+        {
+          echo "KAS_BUILD_DIR=/mnt/yocto-build"
+          echo "DL_DIR=$HOME/yocto-cache/downloads"
+          echo "SSTATE_DIR=$HOME/yocto-cache/sstate-cache"
+        } >> "$GITHUB_ENV"
+
+    - name: Start disk monitor
+      run: |
+        nohup bash -c '
+          while :; do
+            ts=$(date -u +%FT%TZ)
+            root=$(df --output=used -BG / | tail -1 | tr -dc 0-9)
+            mnt=$(df --output=used -BG /mnt | tail -1 | tr -dc 0-9)
+            tmp=$(du -sBG "$KAS_BUILD_DIR" 2>/dev/null | cut -f1 | tr -dc 0-9)
+            ss=$(du -sBG "$SSTATE_DIR" 2>/dev/null | cut -f1 | tr -dc 0-9)
+            dl=$(du -sBG "$DL_DIR" 2>/dev/null | cut -f1 | tr -dc 0-9)
+            echo "$ts root=${root}G mnt=${mnt}G build=${tmp}G sstate=${ss}G dl=${dl}G"
+            sleep 300
+          done' > "$REPORT_DIR/disk-timeline.txt" 2>&1 &
+
+    - name: Cold build (time-boxed)
+      id: build
+      continue-on-error: true
+      run: |
+        start=$(date +%s)
+        set +e
+        timeout "$BUILD_TIMEOUT" ./kas-container build "$KAS_FILE" 2>&1 | tee "$REPORT_DIR/build.log" | grep -E --line-buffered 'Sstate summary|Tasks Summary|ERROR|Running task [0-9]+0{2} of'
+        rc=${PIPESTATUS[0]}
+        echo "exit=$rc elapsed_min=$(( ($(date +%s) - start) / 60 ))" | tee "$REPORT_DIR/build-result.txt"
+        exit "$rc"
+
+    - name: Report
+      if: always()
+      run: |
+        cd "$REPORT_DIR"
+        {
+          echo "== build result"; cat build-result.txt 2>/dev/null
+          echo "== last progress line"; grep -Eo 'Running task [0-9]+ of [0-9]+' build.log | tail -1
+          echo "== peak disk, root+mnt (5 min samples)"
+          awk '{r=$2; m=$3; gsub(/[^0-9]/,"",r); gsub(/[^0-9]/,"",m); if (r+m > p) {p=r+m; l=$0}} END {print l}' disk-timeline.txt
+          echo "== df now"; df -h / /mnt
+          echo "== sizes"
+          du -sh "$SSTATE_DIR" "$DL_DIR" "$KAS_BUILD_DIR/tmp" \
+            "$KAS_BUILD_DIR/tmp/deploy/ipk" "$KAS_BUILD_DIR/tmp/deploy/images" 2>/dev/null
+          echo "== sstate objects: $(find "$SSTATE_DIR" -name '*.tar.zst' | wc -l)"
+          echo "== sstate size by task"
+          find "$SSTATE_DIR" -name '*.tar.zst' -printf '%s %f\n' \
+            | sed -E 's/^([0-9]+) .*[0-9a-f]{64}_([a-z_]+)\.tar\.zst$/\2 \1/' \
+            | awk '{s[$1]+=$2} END {for (k in s) printf "%8.2f GiB  %s\n", s[k]/2^30, k}' \
+            | sort -rn
+        } | tee summary.txt
+        echo '```' >> "$GITHUB_STEP_SUMMARY"; cat summary.txt >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+        gzip -f build.log
+
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: hosted-runner-probe-report
+        path: probe-report/
+        retention-days: 14
