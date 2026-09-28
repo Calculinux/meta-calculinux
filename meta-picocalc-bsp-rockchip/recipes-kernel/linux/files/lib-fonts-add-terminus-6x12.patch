@@ -49,7 +49,8 @@ diff --git a/lib/fonts/fonts.c b/lib/fonts/fonts.c
  
  #define num_fonts ARRAY_SIZE(fonts)
 diff --git a/lib/fonts/font_ter6x12.c b/lib/fonts/font_ter6x12.c
---- a/lib/fonts/font_ter6x12.c
+new file mode 100644
+--- /dev/null
 +++ b/lib/fonts/font_ter6x12.c
 @@ -0,0 +1,3608 @@
 +// SPDX-License-Identifier: OFL-1.1
