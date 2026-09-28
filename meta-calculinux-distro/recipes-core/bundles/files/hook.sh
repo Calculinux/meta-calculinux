@@ -10,6 +10,10 @@ ROOT_A_EXPECT_BYTES=8388608      # 8 MiB (field cards / new WIC)
 VENDOR_ENV_OFFSET=6291456        # 6 MiB (same as ubootenv)
 ENV_SIZE=32768                   # 0x8000
 BLOB_PATH_REL="usr/lib/calculinux/u-boot-rockchip.bin"
+# New U-Boot's default env (u-boot-env). libubootenv's fw_setenv refuses to
+# write a never-saved (bad CRC) env without it; set in slot_post_install.
+DEFENV_PATH_REL="etc/u-boot-initial-env"
+DEFENV=
 BACKUP_PATH="/data/uboot-ota-backup.bin"
 BACKUP_SHA_PATH="/data/uboot-ota-backup.sha256"
 FW_ENV_PATH="/etc/fw_env.config"
@@ -219,17 +223,33 @@ read_vendor_boot_vars() {
 	rm -f "$cfg"
 }
 
+# Slot the running system booted from (rauc.slot= on the kernel cmdline).
+booted_slot() {
+	# shellcheck disable=SC2013
+	for arg in $(cat /proc/cmdline 2>/dev/null); do
+		case "$arg" in
+			rauc.slot=?*) echo "${arg#rauc.slot=}"; return 0 ;;
+		esac
+	done
+	echo A
+}
+
 write_migrated_env() {
 	[ -e /dev/disk/by-partlabel/ubootenv ] || return 1
 	cfg=$(mktemp)
 	printf '%s\n' "$NEW_FW_ENV" >"$cfg"
 	# Seed defaults if vendor read failed
-	order=${BOOT_ORDER:-A}
+	order=${BOOT_ORDER:-$(booted_slot)}
 	a_left=${BOOT_A_LEFT:-1}
 	b_left=${BOOT_B_LEFT:-1}
-	fw_setenv -c "$cfg" BOOT_ORDER "$order" || { rm -f "$cfg"; return 1; }
-	fw_setenv -c "$cfg" BOOT_A_LEFT "$a_left" || { rm -f "$cfg"; return 1; }
-	fw_setenv -c "$cfg" BOOT_B_LEFT "$b_left" || { rm -f "$cfg"; return 1; }
+	# A fresh WIC card's ubootenv is blank until U-Boot saves it; fw_setenv
+	# then starts from the default env (-f is ignored when the env is valid).
+	defenv_opt=
+	[ -n "$DEFENV" ] && [ -f "$DEFENV" ] && defenv_opt="-f $DEFENV"
+	# shellcheck disable=SC2086
+	fw_setenv -c "$cfg" $defenv_opt BOOT_ORDER "$order" \
+		BOOT_A_LEFT "$a_left" BOOT_B_LEFT "$b_left" \
+		|| { rm -f "$cfg"; return 1; }
 	clear_vendor_uboot_env_vars "$cfg" || { rm -f "$cfg"; return 1; }
 	rm -f "$cfg"
 	return 0
@@ -355,6 +375,7 @@ slot_post_install() {
 	[ -n "$mount_point" ] || flash_wic "RAUC_SLOT_MOUNT_POINT unset"
 
 	blob="$mount_point/$BLOB_PATH_REL"
+	DEFENV="$mount_point/$DEFENV_PATH_REL"
 	[ -f "$blob" ] || flash_wic "Missing $BLOB_PATH_REL in new rootfs"
 
 	blob_size=$(stat -c%s "$blob")
@@ -373,15 +394,10 @@ slot_post_install() {
 		flash_wic "ROOT_A starts at ${root_a_start:-unknown} bytes ($(bytes_mib "${root_a_start:-0}") MiB); need $ROOT_A_EXPECT_BYTES (8 MiB) so U-Boot at 2 MiB fits below it"
 	fi
 
-	blob_sha=$(sha256_file "$blob")
-	on_disk=$(disk_range_sha "$disk" "$UBOOT_SEEK_BYTES" "$blob_size" || true)
-	if [ -n "$on_disk" ] && [ "$on_disk" = "$blob_sha" ]; then
-		echo "U-Boot already matches $blob_sha; nothing to write"
-		exit 0
-	fi
-
 	# Env: migrate vendor→ubootenv only when partition env is not already usable.
-	# Later mainline blob bumps must leave BOOT_* alone.
+	# Later mainline blob bumps must leave BOOT_* alone. Runs even when U-Boot
+	# already matches: a fresh WIC card's env may never have been saved, and
+	# RAUC's own fw_setenv (after this hook) cannot write a blank env.
 	env_ready=0
 	start_env=$(partlabel_start_bytes ubootenv "$disk" || true)
 	if [ -n "$start_env" ] && [ "$start_env" -eq "$UBOOTENV_OFFSET_BYTES" ]; then
@@ -409,6 +425,13 @@ slot_post_install() {
 			flash_wic "Could not clear vendor U-Boot environment variables"
 		fi
 		rm -f "$cfg"
+	fi
+
+	blob_sha=$(sha256_file "$blob")
+	on_disk=$(disk_range_sha "$disk" "$UBOOT_SEEK_BYTES" "$blob_size" || true)
+	if [ -n "$on_disk" ] && [ "$on_disk" = "$blob_sha" ]; then
+		echo "U-Boot already matches $blob_sha; nothing to write"
+		exit 0
 	fi
 
 	retarget_fw_env_config
