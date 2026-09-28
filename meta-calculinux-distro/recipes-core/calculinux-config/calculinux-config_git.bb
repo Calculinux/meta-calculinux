@@ -9,7 +9,7 @@ LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0c1ca00017fe02adea99b8b709ff179b"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-config.git;protocol=https;branch=main"
-SRCREV = "238443cfcefd2b68c22c9bb87caf1dbacc04ee75"
+SRCREV = "0e5298f7e6658219362e76f63c3d66a0178bdc06"
 PV = "1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
@@ -20,14 +20,16 @@ DEPENDS = "ncurses"
 
 EXTRA_OEMAKE = "\
     CC='${CC}' \
-    CFLAGS='${CFLAGS} `pkg-config --cflags ncurses`' \
-    LIBS='${LDFLAGS} `pkg-config --libs ncurses`' \
     PREFIX=${prefix} \
     SYSTEMD_DIR=${systemd_system_unitdir} \
 "
 
 do_compile() {
-    oe_runmake
+    ncurses_cflags="$(${STAGING_BINDIR_NATIVE}/pkg-config --cflags ncurses)"
+    ncurses_libs="$(${STAGING_BINDIR_NATIVE}/pkg-config --libs ncurses)"
+    oe_runmake \
+        CFLAGS="${CFLAGS} $ncurses_cflags" \
+        LIBS="${LDFLAGS} $ncurses_libs"
 }
 
 do_install() {

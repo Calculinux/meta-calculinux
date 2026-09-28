@@ -9,7 +9,6 @@ CONSOLE=cruft
 CONSOLE_TTYS="1 2 3 4 5 6"
 CONSOLE_FONT=default
 CRUFT_FONT=
-YAFT_FONT=
 
 if [ -f "$DEFAULTS" ]; then
 	# shellcheck disable=SC1090
@@ -26,10 +25,6 @@ usage() {
 [ "${1:-}" = "apply" ] || usage
 
 case "$CONSOLE" in
-yaft) CONSOLE=cruft ;;
-esac
-
-case "$CONSOLE" in
 cruft|kernel) ;;
 *)
 	echo "console-mode: unknown CONSOLE='$CONSOLE'" >&2
@@ -43,10 +38,6 @@ boot_tty=${1:-1}
 
 resolve_font() {
 	if [ -n "${CRUFT_FONT:-}" ]; then
-		return 0
-	fi
-	if [ -n "${YAFT_FONT:-}" ]; then
-		CRUFT_FONT=$YAFT_FONT
 		return 0
 	fi
 	case "${CONSOLE_FONT:-default}" in
@@ -114,7 +105,7 @@ if [ "$need_backend_switch" -eq 1 ]; then
 	# Switching cruft ↔ kernel (or first bring-up).
 	for n in $CONSOLE_TTYS; do
 		systemctl stop "cruft@tty${n}.service" "autovt@tty${n}.service" \
-			"yaft@tty${n}.service" "getty@tty${n}.service" 2>/dev/null || true
+			"getty@tty${n}.service" 2>/dev/null || true
 	done
 	if [ "$CONSOLE" = "cruft" ]; then
 		# Only the boot VT — others start on first Alt-Fn via logind/autovt@.

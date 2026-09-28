@@ -37,11 +37,6 @@ if [ "$self_check" -eq 0 ] && [ -f /etc/default/console ]; then
 	. /etc/default/console
 fi
 
-# Upgrade alias: CONSOLE=yaft means cruft.
-case "$CONSOLE" in
-yaft) CONSOLE=cruft ;;
-esac
-
 case "$CONSOLE" in
 cruft) ;;
 kernel)
@@ -57,10 +52,7 @@ kernel)
 	;;
 esac
 
-# Explicit CRUFT_FONT wins; YAFT_FONT alias; else CONSOLE_FONT profile.
-if [ -z "${CRUFT_FONT:-}" ] && [ -n "${YAFT_FONT:-}" ]; then
-	CRUFT_FONT=$YAFT_FONT
-fi
+# Explicit CRUFT_FONT wins; else CONSOLE_FONT profile.
 if [ -z "${CRUFT_FONT:-}" ]; then
 	case "${CONSOLE_FONT:-default}" in
 	default|console|"") CRUFT_FONT=/usr/share/cruft/console.cruftfont ;;
