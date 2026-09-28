@@ -9,6 +9,11 @@ echo "RAUC post-install handler starting"
 echo "RAUC_BUNDLE_MOUNT_POINT=${RAUC_BUNDLE_MOUNT_POINT}"
 echo "RAUC_TARGET_SLOTS=${RAUC_TARGET_SLOTS}"
 
+# Drop the installed slot's merged DT-overlay FIT so U-Boot boots the new
+# kernel from /boot until merge-dt-overlays-boot rebuilds it. Runs first:
+# the package reconciliation below may exit early.
+/usr/lib/rauc/invalidate-merged-fit
+
 # Extract bundle extras if present (tarball contains extras/ e.g. extras/opkg/status.image)
 EXTRAS_TARBALL="${RAUC_BUNDLE_MOUNT_POINT}/bundle-extras.tar.gz"
 if [ -f "${EXTRAS_TARBALL}" ]; then
