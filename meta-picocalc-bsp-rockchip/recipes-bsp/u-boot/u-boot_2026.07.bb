@@ -91,5 +91,9 @@ do_deploy:append() {
 
 PACKAGES =+ "${PN}-ota"
 FILES:${PN}-ota = "${libdir}/calculinux/${UBOOT_BINARY}"
+# The OTA hook seeds a never-saved ubootenv from this U-Boot's default env
+# (/etc/u-boot-initial-env); libubootenv's fw_setenv also needs it to write
+# an env with a bad CRC.
+RDEPENDS:${PN}-ota += "${PN}-env"
 
 COMPATIBLE_MACHINE = "luckfox-lyra"

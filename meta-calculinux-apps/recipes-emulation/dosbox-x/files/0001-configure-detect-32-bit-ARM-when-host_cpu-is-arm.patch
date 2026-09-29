@@ -1,0 +1,44 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] configure: detect 32-bit ARM when host_cpu is a bare "arm"
+
+Cross toolchains such as Yocto's arm-poky-linux-gnueabi report host_cpu
+as "arm" for 32-bit targets. The "arm" case assumed macOS arm64 and
+selected the ARMv8 (AArch64) dynrec backend, which cannot work on a
+32-bit target. Ask the compiler whether it targets AArch64, ARMv7+ or
+an older ARM and pick the matching backend.
+
+Upstream-Status: Pending
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -835,10 +835,29 @@
+     c_unalignedmemory=yes
+     ;;
+    arm) # Mac OS X uname -m says "arm64", for some reason it becomes "arm" ?
++    # Cross toolchains (e.g. Yocto's arm-poky-linux-gnueabi) also report a
++    # bare "arm" for 32-bit targets, so ask the compiler which one it is.
++    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
++#ifndef __aarch64__
++#error not aarch64
++#endif
++]])], [
+     AC_DEFINE(C_TARGETCPU,ARMV8LE)
+     AC_MSG_RESULT(ARMv8 Little Endian 64-bit)
+-    c_targetcpu="arm"
+     c_unalignedmemory=yes
++    ], [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
++#if !defined(__ARM_ARCH) || __ARM_ARCH < 7
++#error pre-ARMv7
++#endif
++]])], [
++    AC_DEFINE(C_TARGETCPU,ARMV7LE)
++    AC_MSG_RESULT(ARMv7 Little Endian)
++    c_unalignedmemory=yes
++    ], [
++    AC_DEFINE(C_TARGETCPU,ARMV4LE)
++    AC_MSG_RESULT(ARMv4 Little Endian)
++    ])])
++    c_targetcpu="arm"
+     ;;
+    *)
+     AC_DEFINE(C_TARGETCPU,UNKNOWN)

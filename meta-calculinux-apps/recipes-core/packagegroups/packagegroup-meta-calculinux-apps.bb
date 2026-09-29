@@ -25,11 +25,10 @@ RDEPENDS:${PN} = " \
     bison \
     bluez5 \
     bombadillo \
-    cargo \
     circumflex \
     criu \
     diffutils \
-    dosbox-pure-libretro \
+    dosbox-x \
     emacs-full \
     fceumm-libretro \
     file \
@@ -73,7 +72,6 @@ RDEPENDS:${PN} = " \
     retro8-libretro \
     rpcbind \
     rsync \
-    rust \
     screen \
     sdl2-test \
     snes9x-libretro \
