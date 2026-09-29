@@ -44,6 +44,10 @@ then
     DATA_MOUNTED=1
 fi
 if [ -n "$DATA_MOUNTED" ]; then
+    # overlayfs is a module (overlay.ko from overlayfs-calculinux); load it
+    # up front rather than relying on on-demand module loading.
+    modprobe overlay 2>/dev/null || true
+
     for overlay in $OVERLAYS; do
         echo ">> Mounting overlay for: $overlay"
 
