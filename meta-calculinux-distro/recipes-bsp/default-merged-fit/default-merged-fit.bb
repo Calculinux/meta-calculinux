@@ -3,7 +3,14 @@
 # no extraction from zboot.img. Installs:
 #   /boot/zboot_merged.img - fallback FIT (U-Boot when both A and B on /data/fit/ fail)
 #   /boot/fit_kernel, /boot/fit_fdt.dtb, /boot/fit_compression.txt - base components
+#   /boot/fit_loadaddr.env - the board's FIT load addresses
 # so merge-dt-overlays-boot.sh can build user-merged FITs from the base DTB (no extraction).
+#
+# Board contract (machine configuration):
+#   - virtual/kernel deploys fit_kernel, fit_fdt.dtb and fit_compression.txt
+#   - CALCULINUX_FIT_KERNEL_LOADADDR / CALCULINUX_FIT_FDT_LOADADDR match the
+#     board's U-Boot memory layout
+#   - CALCULINUX_DT_OVERLAYS lists the recipes that stage the board's .dtbo files
 
 SUMMARY = "Default merged zboot FIT (read-only fallback)"
 DESCRIPTION = "Builds zboot_merged.img with default device tree overlays; \
@@ -11,14 +18,24 @@ installed in /boot/. Fallback when both A and B on /data/fit/ fail."
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-COMPATIBLE_MACHINE = "luckfox-lyra"
+PACKAGE_ARCH = "${MACHINE_ARCH}"
+
+CALCULINUX_FIT_KERNEL_LOADADDR ??= ""
+CALCULINUX_FIT_FDT_LOADADDR ??= ""
+CALCULINUX_DT_OVERLAYS ??= ""
+
+python () {
+    for var in ("CALCULINUX_FIT_KERNEL_LOADADDR", "CALCULINUX_FIT_FDT_LOADADDR"):
+        if not d.getVar(var):
+            bb.fatal("%s must be set in your MACHINE configuration" % var)
+}
 
 # Overlay names (without .dtbo) to apply by default. Empty = no overlays.
 # Empty: match the shipped /etc/device-tree-overlays.conf. Users add overlays
 # (e.g. sx1262-lora) to that file; merge-dt-overlays-boot applies them per slot.
 DEFAULT_DT_OVERLAYS ?= ""
 
-DEPENDS = "virtual/kernel picocalc-dt-overlays u-boot-tools-native dtc-native"
+DEPENDS = "virtual/kernel ${CALCULINUX_DT_OVERLAYS} u-boot-tools-native dtc-native"
 do_install[depends] += "virtual/kernel:do_deploy"
 
 # No fetched sources; do_install only uses DEPLOY_DIR_IMAGE. Empty SRC_URI plus
@@ -80,15 +97,15 @@ do_install() {
             arch = "arm";
             os = "linux";
             compression = "$COMPRESS";
-            load = <0x00140000>;
-            entry = <0x00140000>;
+            load = <${CALCULINUX_FIT_KERNEL_LOADADDR}>;
+            entry = <${CALCULINUX_FIT_KERNEL_LOADADDR}>;
         };
         fdt {
             data = /incbin/("$WORKDIR_MERGE/merged.dtb");
             type = "flat_dt";
             arch = "arm";
             compression = "none";
-            load = <0x00063000>;
+            load = <${CALCULINUX_FIT_FDT_LOADADDR}>;
         };
     };
     configurations {
@@ -110,7 +127,10 @@ EOF
     install -m 0644 "$WORKDIR_MERGE/kernel" "$OUTDIR/fit_kernel"
     install -m 0644 "$WORKDIR_MERGE/fdt.dtb" "$OUTDIR/fit_fdt.dtb"
     echo -n "$COMPRESS" > "$OUTDIR/fit_compression.txt"
+    printf 'KERNEL_LOAD_ADDR=%s\nFDT_LOAD_ADDR=%s\n' \
+        "${CALCULINUX_FIT_KERNEL_LOADADDR}" "${CALCULINUX_FIT_FDT_LOADADDR}" \
+        > "$OUTDIR/fit_loadaddr.env"
 }
 
-FILES:${PN} = "/boot/zboot_merged.img /boot/fit_kernel /boot/fit_fdt.dtb /boot/fit_compression.txt"
+FILES:${PN} = "/boot/zboot_merged.img /boot/fit_kernel /boot/fit_fdt.dtb /boot/fit_compression.txt /boot/fit_loadaddr.env"
 PACKAGES = "${PN}"

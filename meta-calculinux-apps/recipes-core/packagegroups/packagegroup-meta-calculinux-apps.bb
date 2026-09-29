@@ -25,7 +25,6 @@ RDEPENDS:${PN} = " \
     bison \
     bluez5 \
     bombadillo \
-    cargo \
     circumflex \
     criu \
     diffutils \
@@ -73,7 +72,6 @@ RDEPENDS:${PN} = " \
     retro8-libretro \
     rpcbind \
     rsync \
-    rust \
     screen \
     sdl2-test \
     snes9x-libretro \
@@ -87,7 +85,6 @@ RDEPENDS:${PN} = " \
     valgrind \
     vice-libretro \
     vim \
-    wiki-tui \
     x48ng \
     zerotier-one \
 "

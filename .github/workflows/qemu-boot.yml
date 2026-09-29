@@ -1,0 +1,55 @@
+name: QEMU Boot Test
+
+# Builds calculinux-qemuarm and boots it end to end:
+# U-Boot -> boot.scr (RAUC A/B) -> merged DT-overlay FIT -> preinit/overlayfs,
+# then rebuilds the per-slot FIT on /data and checks U-Boot boots it.
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DL_DIR: /mnt/runner-cache/yocto-cache/downloads
+  SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qemu-boot:
+    name: Build and boot calculinux-qemuarm
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 480
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up build environment
+      uses: ./.github/actions/setup-build-env
+      with:
+        dl-dir: ${{ env.DL_DIR }}
+        sstate-dir: ${{ env.SSTATE_DIR }}
+
+    - name: Build calculinux-qemuarm image
+      run: ./kas-container build kas-calculinux-qemuarm.yaml
+
+    - name: Boot test
+      run: |
+        ./kas-container shell kas-calculinux-qemuarm.yaml -c \
+          "python3 /repo/.github/scripts/qemu-boot-test.py --log /work/qemu-boot-test.log"
+
+    - name: Upload serial log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: qemu-boot-serial-log
+        path: qemu-boot-test.log
+        if-no-files-found: ignore
