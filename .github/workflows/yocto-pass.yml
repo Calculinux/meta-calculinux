@@ -84,12 +84,49 @@ jobs:
         sudo mount --bind /mnt/yocto-build build
         df -h / /mnt
 
+    - name: Determine feed configuration
+      id: feed-config
+      run: |
+        set -euo pipefail
+        REF_TYPE="branch"
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          REF_TYPE="tag"
+        fi
+        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh "${{ inputs.kas_file }}" "${{ github.ref_name }}" "$REF_TYPE"
+
+    - name: Prepare build configuration
+      id: prepare-config
+      run: |
+        set -euo pipefail
+        bash .github/scripts/load-script-output.sh --env distro_version:DISTRO_VERSION -- bash .github/scripts/prepare-build-config.sh \
+          "${{ inputs.kas_file }}" \
+          "${{ steps.feed-config.outputs.distro_codename }}" \
+          "${{ steps.feed-config.outputs.feed_subfolder }}" \
+          "${{ github.ref_name }}" \
+          "${{ steps.feed-config.outputs.is_tagged_release }}"
+
+    - name: Identify Yocto release
+      run: |
+        # sstate never carries across Yocto releases, so each release keeps
+        # its own cache entries instead of evicting the other's.
+        release=$(sed -nE 's/^LAYERSERIES_CORENAMES = "([a-z]+).*/\1/p' poky/meta/conf/layer.conf)
+        if [ -z "$release" ]; then
+          echo "::error::Could not read LAYERSERIES_CORENAMES from poky/meta/conf/layer.conf"
+          exit 1
+        fi
+        echo "Yocto release: $release"
+        echo "SSTATE_KEY_PREFIX=sstate-$release-${{ inputs.machine }}-" >> "$GITHUB_ENV"
+
     - name: Restore shared sstate cache
       uses: actions/cache/restore@v4
       with:
         path: ${{ env.SSTATE_DIR }}
-        key: sstate-${{ inputs.machine }}-${{ github.run_id }}
-        restore-keys: sstate-${{ inputs.machine }}-
+        key: ${{ env.SSTATE_KEY_PREFIX }}${{ github.run_id }}
+        # The second key picks up entries saved before keys carried the
+        # release; drop it once those have aged out (7 days unused).
+        restore-keys: |
+          ${{ env.SSTATE_KEY_PREFIX }}
+          sstate-${{ inputs.machine }}-
 
     - name: Fetch sstate from earlier passes
       if: inputs.pass > 1
@@ -112,27 +149,6 @@ jobs:
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-before.txt"
         touch "$RUNNER_TEMP/pass-marker"
         echo "Restored $(wc -l < "$RUNNER_TEMP/sstate-before.txt") sstate files ($(du -sh "$SSTATE_DIR" | cut -f1))"
-
-    - name: Determine feed configuration
-      id: feed-config
-      run: |
-        set -euo pipefail
-        REF_TYPE="branch"
-        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          REF_TYPE="tag"
-        fi
-        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh "${{ inputs.kas_file }}" "${{ github.ref_name }}" "$REF_TYPE"
-
-    - name: Prepare build configuration
-      id: prepare-config
-      run: |
-        set -euo pipefail
-        bash .github/scripts/load-script-output.sh --env distro_version:DISTRO_VERSION -- bash .github/scripts/prepare-build-config.sh \
-          "${{ inputs.kas_file }}" \
-          "${{ steps.feed-config.outputs.distro_codename }}" \
-          "${{ steps.feed-config.outputs.feed_subfolder }}" \
-          "${{ github.ref_name }}" \
-          "${{ steps.feed-config.outputs.is_tagged_release }}"
 
     - name: Add hosted-runner build settings
       run: |
@@ -248,15 +264,15 @@ jobs:
       uses: actions/cache/save@v4
       with:
         path: ${{ env.SSTATE_DIR }}
-        key: sstate-${{ inputs.machine }}-${{ github.run_id }}
+        key: ${{ env.SSTATE_KEY_PREFIX }}${{ github.run_id }}
 
     - name: Keep the two newest shared sstate caches
       if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        bash .github/scripts/rotate-caches.sh "sstate-${{ inputs.machine }}-" \
-          "sstate-${{ inputs.machine }}-${{ github.run_id }}" 2
+        bash .github/scripts/rotate-caches.sh "$SSTATE_KEY_PREFIX" \
+          "$SSTATE_KEY_PREFIX${{ github.run_id }}" 2
 
     - name: Disk usage
       if: always()
