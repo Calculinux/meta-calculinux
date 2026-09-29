@@ -71,8 +71,6 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
-    picocalc-dt-overlays \
-    picocalc-kbd-test \
     rauc \
     sdl2-test \
     shadow \
@@ -84,13 +82,11 @@ IMAGE_INSTALL += " \
     tree \
     tzdata \
     u-boot-fw-config \
-    u-boot-ota \
-    u-boot-rockchip-bootscript \
+    calculinux-bootscript \
     console-font \
     miniwi-console \
     unifont-console \
     unzip \
-    usb-gadget-network \
     usbutils \
     uwific \
     util-linux \
@@ -100,6 +96,10 @@ IMAGE_INSTALL += " \
     cruft \
     zip \
 "
+
+# Board-specific packages (bootloader blobs, device-tree overlays, hardware
+# tools) come from MACHINE_EXTRA_RDEPENDS in the machine configuration via
+# packagegroup-base, so this list stays hardware-neutral.
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
 
