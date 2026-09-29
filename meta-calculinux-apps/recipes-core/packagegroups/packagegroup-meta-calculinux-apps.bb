@@ -85,7 +85,6 @@ RDEPENDS:${PN} = " \
     valgrind \
     vice-libretro \
     vim \
-    wiki-tui \
     x48ng \
     zerotier-one \
 "
