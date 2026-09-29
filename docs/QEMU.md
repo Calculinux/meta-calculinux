@@ -97,6 +97,25 @@ CI (`.github/workflows/qemu-boot.yml`) runs both, builds the x86_64 and
 aarch64 AppImages, and keeps the serial logs as the `qemu-boot-serial-logs`
 artifact.
 
+## overlayfs ioctl test
+
+overlayfs is not built into the kernel on Calculinux machines: it is
+`overlay.ko` from [Calculinux/overlayfs](https://github.com/Calculinux/overlayfs)
+(recipe `overlayfs-calculinux`, branch set by `OVERLAYFS_CALCULINUX_BRANCH`
+in the machine configuration), which adds the upper-layer ioctls
+calculinux-update uses. `.github/scripts/qemu-overlay-test.py` boots the
+emulator and checks them with `ovl-restore` on a scratch overlay and on the
+real `/etc` overlay: upper/whiteout/opaque states, restoring a whiteout
+(visible to `stat` and `ls` again), `ENODATA` when nothing is below, xattr
+whiteouts, argument checks, and a clean kernel log.
+
+```bash
+./kas-container shell kas-calculinux-qemuarm.yaml -c \
+    "python3 /repo/.github/scripts/qemu-overlay-test.py --log /work/qemu-overlay-test.log"
+```
+
+It takes the same `--cmd` option as the boot test.
+
 ## Adding another board
 
 Everything board-specific is set by the machine configuration; see

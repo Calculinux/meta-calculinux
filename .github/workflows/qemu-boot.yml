@@ -3,6 +3,7 @@ name: QEMU Boot Test and Emulator
 # Builds calculinux-qemuarm and boots it end to end:
 # U-Boot -> boot.scr (RAUC A/B) -> merged DT-overlay FIT -> preinit/overlayfs,
 # then rebuilds the per-slot FIT on /data and checks U-Boot boots it.
+# Runs the overlayfs upper-layer ioctl test (qemu-overlay-test.py).
 # Also builds the calculinux-emulator AppImages (x86_64 and aarch64 hosts),
 # boot-tests the x86_64 one, and publishes them next to the SDKs.
 
@@ -76,6 +77,11 @@ jobs:
         ./kas-container shell "${{ steps.prepare-config.outputs.kas_override_file }}" -c \
           "python3 /repo/.github/scripts/qemu-boot-test.py --log /work/qemu-boot-test.log"
 
+    - name: overlayfs ioctl test (runqemu)
+      run: |
+        ./kas-container shell "${{ steps.prepare-config.outputs.kas_override_file }}" -c \
+          "python3 /repo/.github/scripts/qemu-overlay-test.py --log /work/qemu-overlay-test.log"
+
     - name: Build emulator AppImages
       run: |
         set -euo pipefail
@@ -102,6 +108,7 @@ jobs:
         name: qemu-boot-serial-logs
         path: |
           qemu-boot-test.log
+          qemu-overlay-test.log
           qemu-appimage-test.log
         if-no-files-found: ignore
 
