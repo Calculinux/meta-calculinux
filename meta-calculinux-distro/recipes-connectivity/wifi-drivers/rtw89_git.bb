@@ -12,7 +12,7 @@ LIC_FILES_CHKSUM = " \
 PV = "1.0-git"
 
 SRC_URI = "git://github.com/Calculinux/rtw89.git;protocol=https;branch=calculinux-6.1"
-SRCREV = "f3cb26611ed81eb58932b7ccc56d9bbb89237e9e"
+SRCREV = "1c9c1540e30352e4bc7c6ee5d4e83e1ed59eabd5"
 
 S = "${UNPACKDIR}/git"
 DEPENDS += "virtual/kernel"
