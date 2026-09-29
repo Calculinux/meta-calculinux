@@ -53,8 +53,6 @@ RDEPENDS:${PN} = " \
     meshtasticd \
     nano \
     nmap \
-    nodejs \
-    nodejs-npm \
     notcurses \
     notcurses-demos \
     nfs-utils \
