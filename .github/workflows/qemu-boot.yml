@@ -1,0 +1,139 @@
+name: QEMU Boot Test and Emulator
+
+# Builds calculinux-qemuarm and boots it end to end:
+# U-Boot -> boot.scr (RAUC A/B) -> merged DT-overlay FIT -> preinit/overlayfs,
+# then rebuilds the per-slot FIT on /data and checks U-Boot boots it.
+# Also builds the calculinux-emulator AppImages (x86_64 and aarch64 hosts),
+# boot-tests the x86_64 one, and publishes them next to the SDKs.
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DL_DIR: /mnt/runner-cache/yocto-cache/downloads
+  SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
+  OPKG_REPO_DIR: /mnt/opkg-repo
+  KAS_FILE: kas-calculinux-qemuarm.yaml
+  MACHINE: calculinux-qemuarm
+
+permissions:
+  contents: write  # attach emulator AppImages to tagged releases
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qemu:
+    name: Build, boot and package calculinux-qemuarm
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 600
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up build environment
+      uses: ./.github/actions/setup-build-env
+      with:
+        dl-dir: ${{ env.DL_DIR }}
+        sstate-dir: ${{ env.SSTATE_DIR }}
+        opkg-repo-dir: ${{ env.OPKG_REPO_DIR }}
+
+    - name: Determine feed configuration
+      id: feed-config
+      run: |
+        set -euo pipefail
+        REF_TYPE="branch"
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          REF_TYPE="tag"
+        fi
+        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh "$KAS_FILE" "${{ github.ref_name }}" "$REF_TYPE"
+
+    - name: Prepare build configuration
+      id: prepare-config
+      run: |
+        set -euo pipefail
+        bash .github/scripts/load-script-output.sh -- bash .github/scripts/prepare-build-config.sh \
+          "$KAS_FILE" \
+          "${{ steps.feed-config.outputs.distro_codename }}" \
+          "${{ steps.feed-config.outputs.feed_subfolder }}" \
+          "${{ github.ref_name }}" \
+          "${{ steps.feed-config.outputs.is_tagged_release }}"
+
+    - name: Build calculinux-qemuarm image
+      run: ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
+
+    - name: Boot test (runqemu)
+      run: |
+        ./kas-container shell "${{ steps.prepare-config.outputs.kas_override_file }}" -c \
+          "python3 /repo/.github/scripts/qemu-boot-test.py --log /work/qemu-boot-test.log"
+
+    - name: Build emulator AppImages
+      run: |
+        set -euo pipefail
+        for sdk_arch in x86_64 aarch64; do
+          bash .github/scripts/build-sdk.sh "$sdk_arch" "${{ steps.prepare-config.outputs.kas_override_file }}" calculinux-emulator
+        done
+        bash .github/scripts/collect-emulator.sh "$RUNNER_TEMP/artifacts"
+
+    - name: Boot test (x86_64 AppImage)
+      env:
+        APPIMAGE_EXTRACT_AND_RUN: "1"
+        CALCULINUX_EMULATOR_HOME: ${{ runner.temp }}/emulator-state
+      run: |
+        set -euo pipefail
+        appimage=$(ls "$RUNNER_TEMP"/artifacts/emulator/x86_64/*.AppImage)
+        disk="$RUNNER_TEMP/artifacts/emulator/image/calculinux-image-calculinux-qemuarm.rootfs.qcow2"
+        python3 .github/scripts/qemu-boot-test.py \
+          --cmd "$appimage --image $disk --nographic --ssh-port off" --log qemu-appimage-test.log
+
+    - name: Upload serial logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: qemu-boot-serial-logs
+        path: |
+          qemu-boot-test.log
+          qemu-appimage-test.log
+        if-no-files-found: ignore
+
+    - name: Upload emulator AppImages
+      if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: calculinux-emulator-${{ github.run_number }}
+        path: |
+          ${{ runner.temp }}/artifacts/emulator/x86_64/*
+          ${{ runner.temp }}/artifacts/emulator/aarch64/*
+        retention-days: 30
+
+    - name: Publish emulator next to the SDKs
+      if: steps.feed-config.outputs.is_published_branch == 'true'
+      run: |
+        bash .github/scripts/publish-emulator.sh \
+          "$OPKG_REPO_DIR" \
+          "${{ steps.feed-config.outputs.feed_name }}" \
+          "${{ steps.feed-config.outputs.subfolder }}" \
+          "$MACHINE" \
+          "$RUNNER_TEMP/artifacts" \
+          "${{ steps.feed-config.outputs.is_tagged_release }}" \
+          "${{ steps.feed-config.outputs.is_prerelease }}" \
+          "${{ github.ref_name }}"
+
+    - name: Attach emulator to release
+      if: steps.feed-config.outputs.is_tagged_release == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ${{ runner.temp }}/artifacts/emulator/x86_64/*
+          ${{ runner.temp }}/artifacts/emulator/aarch64/*
+          ${{ runner.temp }}/artifacts/emulator/image/*
+        prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
