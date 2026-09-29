@@ -4,8 +4,8 @@
 # Runs on a self-hosted runner with a persistent DL_DIR. Fetches every source
 # the CI targets need (cheap when DL_DIR is warm) with mirror tarballs enabled
 # so version-controlled sources become plain files too, then copies new
-# top-level files into the mirror directory, which nginx serves but does not
-# list. Hosted builds use it as their first PREMIRROR.
+# top-level files into the mirror directory. Its leading dot keeps it out of
+# the site's root listing. Hosted builds use it as their first PREMIRROR.
 #
 # Env: DL_DIR, SSTATE_DIR (for kas-container)
 set -euo pipefail
