@@ -1,14 +1,15 @@
 From: Calculinux <noreply@calculinux.org>
 Subject: [PATCH] spi: rockchip: raise sclk_out cap from 50MHz to 100MHz
 
-The driver clamps ctlr->max_speed_hz to MAX_SCLK_OUT (50MHz), so the
-PicoCalc ILI9488's spi-max-frequency of 80MHz is silently reduced and,
-after the even-divisor rounding of spiclk, the panel runs well below it.
+The driver clamps ctlr->max_speed_hz to MAX_SCLK_OUT (50MHz), so no SPI
+device can be clocked above that however high its spi-max-frequency.
 
-A user found that raising the cap to 100MHz roughly halves the time to
-push a full frame to the display (~40ms -> ~20ms). Devices that ask for
-50MHz or less (e.g. the mmc-spi SD slot) are unaffected because the
-divisor is still computed from their own spi-max-frequency.
+With clk_spi0 at 187.5MHz, raising the cap lets the opt-in
+lcd-spi-100mhz overlay run the PicoCalc ILI9488 at /2 = 93.75MHz instead
+of /4 = 46.875MHz: ~49 instead of ~28 full frames/s. On its own this
+patch changes nothing on the default DT, since the panel's 80MHz request
+still lands on /4, and devices that ask for 50MHz or less (e.g. the
+mmc-spi SD slot) keep their divisor.
 
 Upstream-Status: Inappropriate [exceeds vendor-documented sclk_out limit]
 Signed-off-by: Calculinux <noreply@calculinux.org>
