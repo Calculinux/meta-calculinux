@@ -23,7 +23,7 @@ inherit systemd
 SYSTEMD_SERVICE:${PN} = "merge-dt-overlays-boot.service merge-dt-overlays-boot.path clear-fit-rewritten.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
-RDEPENDS:${PN} += "bash u-boot-tools dtc u-boot-fw-config"
+RDEPENDS:${PN} += "bash u-boot-tools dtc u-boot-fw-config default-merged-fit"
 CONFFILES:${PN} += "${sysconfdir}/device-tree-overlays.conf"
 
 do_install() {
@@ -44,4 +44,4 @@ FILES:${PN} = " \
     ${sysconfdir}/device-tree-overlays.conf \
 "
 
-COMPATIBLE_MACHINE = "luckfox-lyra"
+PACKAGE_ARCH = "${MACHINE_ARCH}"
