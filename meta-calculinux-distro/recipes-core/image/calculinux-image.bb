@@ -119,7 +119,12 @@ do_fixup_wks() {
 	done
 }
 
-ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest; calculinux_install_opkg_image_status;"
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest;"
+# Must run after the rootfs is final: ROOTFS_POSTPROCESS_COMMAND runs before
+# _uninstall_unneeded(), which drops ROOTFS_RO_UNNEEDED through opkg and then
+# runs ROOTFS_POSTUNINSTALL_COMMAND (write_image_manifest). Emptying the opkg
+# status any earlier skips that cleanup and leaves an empty image manifest.
+ROOTFS_POSTUNINSTALL_COMMAND += " calculinux_install_opkg_image_status;"
 IMAGE_POSTPROCESS_COMMAND += " calculinux_export_bundle_extras;"
 
 calculinux_create_version_manifest() {
