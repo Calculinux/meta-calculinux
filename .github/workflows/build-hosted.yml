@@ -9,8 +9,10 @@
 # SDKs are built by a separate job after the image passes (published refs
 # only) and are kept out of the shared cache.
 #
-# Publishing to the opkg feed still happens on the self-hosted runners; this
-# workflow only builds and uploads the build-output artifact.
+# Hosted runners cannot reach the opkg server, so the publish job runs on a
+# self-hosted runner: it publishes the artifacts the hosted jobs uploaded and
+# keeps the source mirror (/.sources on the opkg server) current. Hosted
+# passes fetch sources from that mirror first.
 name: Build (hosted runners)
 
 on:
@@ -59,3 +61,127 @@ jobs:
     with:
       pass: 0
       sdk_arch: ${{ matrix.sdk_arch }}
+
+  # Hosted runners cannot reach the opkg server, so a self-hosted runner does
+  # the trusted part: publish the build and SDK artifacts, and keep the source
+  # mirror the hosted passes fetch from current. Pushes to published refs only.
+  publish:
+    name: Publish
+    needs: [pass1, pass2, pass3, sdk]
+    if: >-
+      always() && !cancelled() &&
+      github.event_name == 'push' &&
+      (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')) &&
+      (needs.pass1.outputs.done == 'true' || needs.pass2.outputs.done == 'true' || needs.pass3.outputs.done == 'true') &&
+      needs.sdk.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: write   # releases
+    env:
+      MACHINE: luckfox-lyra
+      KAS_FILE: kas-luckfox-lyra-bundle.yaml
+      OPKG_REPO_DIR: /mnt/opkg-repo
+      UPDATE_BASE_URL: https://opkg.calculinux.org
+      SHARED_ARTIFACTS_DIR: /mnt/opkg-repo/.build-artifacts/${{ github.run_id }}
+      SOURCE_MIRROR_DIR: /mnt/opkg-repo/.sources
+      DL_DIR: /mnt/runner-cache/yocto-cache/downloads
+      SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Fetch build outputs
+      uses: actions/download-artifact@v4
+      with:
+        name: build-output-${{ env.MACHINE }}
+        path: ${{ env.SHARED_ARTIFACTS_DIR }}
+
+    - name: Fetch SDKs
+      uses: actions/download-artifact@v4
+      with:
+        pattern: sdk-${{ env.MACHINE }}-*
+        merge-multiple: true
+        path: ${{ env.SHARED_ARTIFACTS_DIR }}
+
+    - name: Load workflow metadata
+      run: |
+        set -euo pipefail
+        ls -lh "$SHARED_ARTIFACTS_DIR"
+        bash .github/scripts/load-script-output.sh --env-all --from-file "$SHARED_ARTIFACTS_DIR/workflow-metadata.env"
+
+    - name: Sync packages and generate indexes
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      uses: ./.github/actions/sync-packages
+      with:
+        opkg-repo-dir: ${{ env.OPKG_REPO_DIR }}
+        feed-name: ${{ env.FEED_NAME }}
+        subfolder: ${{ env.SUBFOLDER }}
+        artifacts-dir: ${{ env.SHARED_ARTIFACTS_DIR }}
+        sync-all: 'false'
+
+    - name: Publish images to webserver
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      run: |
+        bash .github/scripts/publish-images.sh \
+          "$OPKG_REPO_DIR" "$FEED_NAME" "$SUBFOLDER" "$MACHINE" \
+          "$SHARED_ARTIFACTS_DIR" "$IS_TAGGED_RELEASE" "$IS_PRERELEASE" "${{ github.ref_name }}"
+
+    - name: Generate artifact index
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      run: |
+        bash .github/scripts/run-generate-artifact-index.sh \
+          "$OPKG_REPO_DIR" "$FEED_NAME" "$SUBFOLDER" "$MACHINE" \
+          "$DISTRO_VERSION" "${{ github.sha }}" "$SHARED_ARTIFACTS_DIR" "$UPDATE_BASE_URL"
+
+    - name: Publish SDK to webserver
+      if: env.IS_PUBLISHED_BRANCH == 'true'
+      run: |
+        bash .github/scripts/publish-sdk.sh \
+          "$OPKG_REPO_DIR" "$FEED_NAME" "$SUBFOLDER" "$MACHINE" \
+          "$SHARED_ARTIFACTS_DIR" "$IS_TAGGED_RELEASE" "$IS_PRERELEASE" "${{ github.ref_name }}"
+
+    - name: Create release
+      if: env.IS_TAGGED_RELEASE == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ env.MACHINE }}-*.raucb
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ env.MACHINE }}-*.raucb.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ env.MACHINE }}*.wic.gz
+          ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-image-${{ env.MACHINE }}*.wic.gz.sha256
+          ${{ env.SHARED_ARTIFACTS_DIR }}/uboot-${{ env.MACHINE }}-*.bin
+          ${{ env.SHARED_ARTIFACTS_DIR }}/u-boot-*initial-env-${{ env.MACHINE }}-*
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/x86_64/*.manifest
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.sh
+          ${{ env.SHARED_ARTIFACTS_DIR }}/sdk/aarch64/*.manifest
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ env.IS_PRERELEASE == 'true' }}
+
+    - name: Send Discord notification
+      if: env.IS_TAGGED_RELEASE == 'true' && success()
+      uses: ./.github/actions/discord-notify
+      with:
+        webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        machine: ${{ env.MACHINE }}
+        feed-name: ${{ env.FEED_NAME }}
+        subfolder: ${{ env.SUBFOLDER }}
+        is-prerelease: ${{ env.IS_PRERELEASE }}
+        tag-name: ${{ github.ref_name }}
+        run-number: ${{ github.run_number }}
+        release-url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+        artifacts-dir: ${{ env.SHARED_ARTIFACTS_DIR }}
+        opkg-repo-base: ${{ env.UPDATE_BASE_URL }}
+
+    - name: Update source mirror
+      # After publishing, so a mirror problem never holds back a release.
+      run: bash .github/scripts/sync-source-mirror.sh "$KAS_FILE" "$SOURCE_MIRROR_DIR"
+
+    - name: Cleanup
+      if: always()
+      run: |
+        rm -rf "$SHARED_ARTIFACTS_DIR" build/tmp || true
+        docker system prune -f || true
