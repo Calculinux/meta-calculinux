@@ -21,4 +21,5 @@ CONSOLE_FONT=default
 
 # Optional kernel fbcon font (CONSOLE=kernel only): install terminus-font, then
 # put e.g. FONT=ter-u12n.psf.gz in /etc/vconsole.conf and reboot (or
-# systemctl restart systemd-vconsole-setup). Default image uses built-in fonts.
+# systemctl restart systemd-vconsole-setup). Default image uses the built-in
+# Terminus 6x12 kernel font, matching cruft's default.
