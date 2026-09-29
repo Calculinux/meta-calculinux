@@ -45,6 +45,8 @@ SRC_URI = " \
     file://0001-of-configfs-overlay-interface.patch \
     file://depmod-skip-when-echo.patch \
     file://btrfs-print-tree-fix-block-group-tree-string.patch \
+    file://spi-rockchip-raise-max-sclk-to-100mhz.patch \
+    file://lib-fonts-add-terminus-6x12.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += "${KERNEL_CFG_FRAGMENTS_LIST}"

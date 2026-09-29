@@ -43,6 +43,12 @@ GPIO bitbang SPI for the Waveshare SX1262 on RMII1 test pads. Prefer FIT-at-boot
 
 Enables UART5 for the NEO-M8N on RMII1 test pads. Compatible with gpsd; can share pads with SX1262 for GPS-equipped Meshtastic nodes.
 
+### LCD SPI @ 100 MHz
+
+**File**: `lcd-spi-100mhz.dtbo`
+
+Raises the ILI9488 display's SPI limit from 80 MHz to 100 MHz. With `clk_spi0` at 187.5 MHz, the SPI clock goes from 46.875 MHz to 93.75 MHz, roughly halving full-frame time (~28 → ~49 fps). This is well past Rockchip's documented 50 MHz, so it is off by default. FIT-at-boot only: the display driver reads its speed once at probe, so a ConfigFS apply has no effect.
+
 ## Persistent: merge for next boot
 
 Use `sudo calculinux-config` → Hardware → Overlays to toggle entries, or edit
