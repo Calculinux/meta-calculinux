@@ -1,0 +1,52 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] Default to TTF output with a 4x6 bitmap font
+
+On Calculinux's 320x320 panel, VGA text mode has to be scaled down and
+80-column text becomes hard to read. The X11 misc-fixed 4x6 font fits
+80 columns in exactly 320 pixels, so default to the TTF output with that
+font (installed by the recipe) at its native size. Graphics modes still
+switch to the surface output (outputswitch=auto).
+
+ptsize 9 is the minimum DOSBox-X accepts; FreeType picks the font's only
+(6 pixel) bitmap size. The 2/3-of-screen window limit is turned off so
+80x25 fits.
+
+Upstream-Status: Inappropriate [Calculinux-specific defaults]
+
+--- a/src/dosbox.cpp
++++ b/src/dosbox.cpp
+@@ -3314,7 +3314,7 @@
+ 
+     secprop=control->AddSection_prop("ttf",&Null_Init,true);
+ 
+-	Pstring = secprop->Add_string("font", Property::Changeable::Always, "");
++	Pstring = secprop->Add_string("font", Property::Changeable::Always, "/usr/share/dosbox-x/4x6.bdf");
+     Pstring->Set_help("Specifies a TrueType font to use for the TTF output. If not specified, the built-in TrueType font will be used.\n"
+                     "Either a font name or full font path can be specified. If file ends with the .TTF extension then the extension can be omitted.\n"
+                     "For a font name or relative path, directories such as the working directory and default system font directory will be searched.\n"
+@@ -3357,12 +3357,12 @@
+     Pint->Set_help("Specifies the window percentage for the TTF output (100 = full screen). Ignored if the ptsize setting is specified.");
+     Pint->SetBasic(true);
+ 
+-    Pbool = secprop->Add_bool("enableWinPercLimit", Property::Changeable::Always, true);
++    Pbool = secprop->Add_bool("enableWinPercLimit", Property::Changeable::Always, false);
+     Pbool->Set_help("If set, a TrueType window size will be limited to 60 percent of the screen.\n"
+         "Enabled by default; optionally disable the limit when using more than 25 lines in a TTF window.");
+     Pbool->SetBasic(true);
+ 
+-	Pint = secprop->Add_int("ptsize", Property::Changeable::Always, 0);
++	Pint = secprop->Add_int("ptsize", Property::Changeable::Always, 9);
+     Pint->Set_help("Specifies the font point size for the TTF output. If specified (minimum: 9), it will override the winperc setting.");
+     Pint->SetBasic(true);
+ 
+--- a/src/gui/sdlmain.cpp
++++ b/src/gui/sdlmain.cpp
+@@ -6864,7 +6864,7 @@
+     Pint->Set_help("Specify a screen/display number to use for a multi-screen setup (0 = default).");
+     Pint->SetBasic(true);
+ 
+-    Pstring = sdl_sec->Add_string("output", Property::Changeable::Always, "default");
++    Pstring = sdl_sec->Add_string("output", Property::Changeable::Always, "ttf");
+     Pstring->Set_help("What video system to use for output (surface = software (SDL_Surface); openglnb = OpenGL nearest; openglpp = OpenGL perfect; ttf = TrueType font output).");
+     Pstring->Set_values(outputs);
+     Pstring->SetBasic(true);

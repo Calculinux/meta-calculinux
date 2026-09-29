@@ -29,7 +29,7 @@ RDEPENDS:${PN} = " \
     circumflex \
     criu \
     diffutils \
-    dosbox-pure-libretro \
+    dosbox-x \
     emacs-full \
     fceumm-libretro \
     file \
