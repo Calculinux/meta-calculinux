@@ -7,7 +7,8 @@
 #   3. if unfinished, uploads only the sstate it created as an artifact for
 #      the next pass (so PRs never write to the size-limited Actions cache);
 #   4. if finished, uploads the build outputs, and on main prunes sstate to
-#      what recent builds used and saves it as the new shared cache.
+#      what this build used (the free cache is capped at 10 GB) and saves
+#      it as the new shared cache.
 #
 # With sdk_arch set, the job builds that SDK instead, from the cache the
 # image passes saved. SDK jobs never save the cache: nothing else consumes
@@ -40,8 +41,8 @@ env:
   # Minutes of the 6h job reserved for bitbake; the rest covers setup,
   # cache restore, SIGINT wind-down and the delta upload.
   BUILD_BUDGET_MIN: 285
-  # Shared-cache entries keep sstate objects used within this many days.
-  SSTATE_KEEP_DAYS: 14
+  # The free Actions cache holds 10 GB per repository; stay under it.
+  SSTATE_CACHE_BUDGET_MIB: 9500
   # Only image passes on pushes to main (and the trial branch) write the
   # shared cache; PR passes hand sstate along as run artifacts, so they
   # never evict it.
@@ -131,7 +132,7 @@ jobs:
           "${{ github.ref_name }}" \
           "${{ steps.feed-config.outputs.is_tagged_release }}"
 
-    - name: Prefer the Yocto source mirror
+    - name: Add hosted-runner build settings
       run: |
         # Hosted runners start with an empty DL_DIR, so every tarball comes
         # from upstream, and some upstreams (zlib.net) intermittently answer
@@ -144,6 +145,12 @@ jobs:
                 https?://.*/.* https://downloads.yoctoproject.org/mirror/sources/ \
                 ftp://.*/.* https://downloads.yoctoproject.org/mirror/sources/ \
             "
+          ci_hosted_persist: |
+            # Hash equivalence data (hashserv.db) lives in PERSISTENT_DIR.
+            # Keep it inside the sstate tree so it travels with the cache
+            # and pass deltas; without it objects stored under an
+            # equivalent hash are missed on the next runner.
+            PERSISTENT_DIR = "${SSTATE_DIR}/persistent"
         EOF
         cat "${{ steps.prepare-config.outputs.kas_override_file }}"
 
@@ -165,7 +172,9 @@ jobs:
       if: inputs.sdk_arch == '' && steps.build.outputs.done == 'false'
       run: |
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-after.txt"
-        comm -13 "$RUNNER_TEMP/sstate-before.txt" "$RUNNER_TEMP/sstate-after.txt" > "$RUNNER_TEMP/sstate-new.txt"
+        # New objects, plus the persistent dir (hashserv.db is updated in place).
+        { comm -13 "$RUNNER_TEMP/sstate-before.txt" "$RUNNER_TEMP/sstate-after.txt"
+          (cd "$SSTATE_DIR" && find ./persistent -type f 2>/dev/null); } | sort -u > "$RUNNER_TEMP/sstate-new.txt"
         mkdir -p "$RUNNER_TEMP/delta-out"
         # sstate objects are already zstd-compressed; plain tar.
         tar -cf "$RUNNER_TEMP/delta-out/pass${{ inputs.pass }}.tar" -C "$SSTATE_DIR" -T "$RUNNER_TEMP/sstate-new.txt"
@@ -223,16 +232,9 @@ jobs:
         compression-level: 0
         retention-days: 7
 
-    - name: Prune sstate to the recent working set
+    - name: Prune sstate to this build's working set
       if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
-      run: |
-        before=$(du -sh "$SSTATE_DIR" | cut -f1)
-        # Keep what this build touched (sstate.bbclass refreshes mtime on
-        # reuse; atime covers it if not) and whatever earlier main builds
-        # used recently; drop the rest so the cache tracks the working set.
-        find "$SSTATE_DIR" -type f -mtime "+$SSTATE_KEEP_DAYS" ! -anewer "$RUNNER_TEMP/pass-marker" -delete
-        find "$SSTATE_DIR" -type d -empty -delete
-        echo "sstate: $before -> $(du -sh "$SSTATE_DIR" | cut -f1)"
+      run: bash .github/scripts/prune-sstate.sh "$SSTATE_DIR" "$RUNNER_TEMP/pass-marker" "$SSTATE_CACHE_BUDGET_MIB"
 
     - name: Save shared sstate cache
       if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
