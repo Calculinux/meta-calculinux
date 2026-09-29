@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shrink SSTATE_DIR to what the next warm build needs before it is saved as
-# the shared Actions cache, which is capped at 10 GB per repository.
+# the shared Actions cache (repo limit 50 GB, shared with the downloads cache).
 #
 # Keeps only sstate objects this build's task hashes refer to: sstate.bbclass
 # touches every object it finds while checking hashes (sstate_checkhashes),

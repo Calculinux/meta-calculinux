@@ -1,14 +1,16 @@
 # One time-boxed build pass on a GitHub-hosted runner.
 #
 # Called several times in a chain by build-hosted.yml. Each pass:
-#   1. restores the shared sstate cache saved by the last finished main build,
-#      plus the sstate deltas left by earlier passes of this run;
+#   1. restores the shared sstate and downloads caches saved by the last
+#      finished main build, plus the sstate deltas left by earlier passes of
+#      this run;
 #   2. runs the whole build until it finishes or the pass deadline arrives;
 #   3. if unfinished, uploads only the sstate it created as an artifact for
 #      the next pass (so PRs never write to the size-limited Actions cache);
 #   4. if finished, uploads the build outputs, and on main prunes sstate to
-#      what this build used (the free cache is capped at 10 GB) and saves
-#      it as the new shared cache.
+#      what this build's hashes refer to and saves it as the new shared
+#      cache (the two newest are kept), and saves DL_DIR as the shared
+#      downloads cache when the build fetched anything new.
 #
 # With sdk_arch set, the job builds that SDK instead, from the cache the
 # image passes saved. SDK jobs never save the cache: nothing else consumes
@@ -41,8 +43,12 @@ env:
   # Minutes of the 6h job reserved for bitbake; the rest covers setup,
   # cache restore, SIGINT wind-down and the delta upload.
   BUILD_BUDGET_MIN: 285
-  # The free Actions cache holds 10 GB per repository; stay under it.
-  SSTATE_CACHE_BUDGET_MIB: 9500
+  # The repo's Actions cache limit is 50 GB. Budget: two sstate entries
+  # (newest two are kept) plus one downloads entry, with headroom for the
+  # moment a new entry exists alongside the ones it replaces.
+  SSTATE_CACHE_BUDGET_MIB: 15000
+  # Downloads whose .done stamp was not refreshed for this long are dropped.
+  DL_KEEP_DAYS: 90
   # Only image passes on pushes to main (and the trial branch) write the
   # shared cache; PR passes hand sstate along as run artifacts, so they
   # never evict it.
@@ -89,6 +95,14 @@ jobs:
         key: sstate-${{ inputs.machine }}-${{ github.run_id }}
         restore-keys: sstate-${{ inputs.machine }}-
 
+    - name: Restore shared downloads cache
+      id: dl-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.DL_DIR }}
+        key: downloads-${{ inputs.machine }}-${{ github.run_id }}
+        restore-keys: downloads-${{ inputs.machine }}-
+
     - name: Fetch sstate from earlier passes
       if: inputs.pass > 1
       uses: actions/download-artifact@v4
@@ -109,6 +123,8 @@ jobs:
         # Anything not in this list afterwards was produced by this pass.
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-before.txt"
         touch "$RUNNER_TEMP/pass-marker"
+        # New .done stamps after the build mean new downloads worth saving.
+        (cd "$DL_DIR" && find . -name '*.done' | sort) > "$RUNNER_TEMP/dl-before.txt"
         echo "Restored $(wc -l < "$RUNNER_TEMP/sstate-before.txt") sstate files ($(du -sh "$SSTATE_DIR" | cut -f1))"
 
     - name: Determine feed configuration
@@ -153,6 +169,17 @@ jobs:
             PERSISTENT_DIR = "${SSTATE_DIR}/persistent"
         EOF
         cat "${{ steps.prepare-config.outputs.kas_override_file }}"
+
+    - name: Seed downloads for the shared cache
+      # With no downloads cache yet, a warm build would only fetch the few
+      # sources its missed tasks need; fetch everything once so the saved
+      # cache can carry a later cold build. Targets mirror the kas target list.
+      if: >-
+        inputs.sdk_arch == '' && env.SAVE_CACHE == 'true' &&
+        steps.dl-cache.outputs.cache-matched-key == ''
+      run: |
+        ./kas-container shell "${{ steps.prepare-config.outputs.kas_override_file }}" \
+          -c "bitbake --runall=fetch calculinux-bundle packagegroup-meta-calculinux-apps"
 
     - name: Build (time-boxed)
       id: build
@@ -242,6 +269,43 @@ jobs:
       with:
         path: ${{ env.SSTATE_DIR }}
         key: sstate-${{ inputs.machine }}-${{ github.run_id }}
+
+    - name: Keep the two newest shared sstate caches
+      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash .github/scripts/rotate-caches.sh "sstate-${{ inputs.machine }}-" \
+          "sstate-${{ inputs.machine }}-${{ github.run_id }}" 2
+
+    - name: Check for new downloads
+      id: downloads
+      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      run: |
+        (cd "$DL_DIR" && find . -name '*.done' | sort) > "$RUNNER_TEMP/dl-after.txt"
+        new=$(comm -13 "$RUNNER_TEMP/dl-before.txt" "$RUNNER_TEMP/dl-after.txt" | wc -l)
+        echo "$new new downloads this build"
+        # Warm builds rarely fetch; skip re-uploading ~14 GB unchanged.
+        echo "changed=$([ "$new" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+    - name: Prune downloads
+      if: steps.downloads.outputs.changed == 'true'
+      run: bash .github/scripts/prune-downloads.sh "$DL_DIR" "$DL_KEEP_DAYS"
+
+    - name: Save shared downloads cache
+      if: steps.downloads.outputs.changed == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.DL_DIR }}
+        key: downloads-${{ inputs.machine }}-${{ github.run_id }}
+
+    - name: Keep only the newest shared downloads cache
+      if: steps.downloads.outputs.changed == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash .github/scripts/rotate-caches.sh "downloads-${{ inputs.machine }}-" \
+          "downloads-${{ inputs.machine }}-${{ github.run_id }}" 1
 
     - name: Disk usage
       if: always()
