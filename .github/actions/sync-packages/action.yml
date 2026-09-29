@@ -18,6 +18,13 @@ inputs:
     description: 'Sync all packages instead of just newly built ones'
     required: false
     default: 'false'
+  package-list:
+    description: >-
+      File listing newly built packages as <arch>/<file>.ipk. When it exists,
+      those (plus any missing from the feed) are synced instead of guessing
+      from mtimes, which artifact downloads do not preserve.
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -33,8 +40,14 @@ runs:
         
         # Determine sync strategy
         SYNC_ALL="${{ inputs.sync-all }}"
+        PACKAGE_LIST="${{ inputs.package-list }}"
+        USE_LIST=false
         if [ "$SYNC_ALL" = "true" ]; then
           echo "Syncing ALL packages (manual full sync requested)"
+          BUILD_START_TIME=0
+        elif [ -n "$PACKAGE_LIST" ] && [ -f "$PACKAGE_LIST" ]; then
+          echo "Syncing the $(wc -l < "$PACKAGE_LIST") packages listed in $PACKAGE_LIST, plus any missing"
+          USE_LIST=true
           BUILD_START_TIME=0
         else
           # Record the build start time (subtract 5 minutes for safety margin)
@@ -59,11 +72,24 @@ runs:
               while IFS= read -r -d '' ipk_file; do
                 package_name=$(basename "$ipk_file")
                 target_file="$arch_dir_target/$package_name"
-                file_mtime=$(stat -c %Y "$ipk_file")
+                if [ "$USE_LIST" = "true" ]; then
+                  if grep -qxF "$arch/$package_name" "$PACKAGE_LIST"; then
+                    newly_built=true
+                  else
+                    newly_built=false
+                  fi
+                else
+                  file_mtime=$(stat -c %Y "$ipk_file")
+                  if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
+                    newly_built=true
+                  else
+                    newly_built=false
+                  fi
+                fi
                 
                 # Sync if package is newly built OR missing from target
-                if [ "$file_mtime" -ge "$BUILD_START_TIME" ] || [ ! -f "$target_file" ]; then
-                  if [ "$file_mtime" -ge "$BUILD_START_TIME" ]; then
+                if [ "$newly_built" = "true" ] || [ ! -f "$target_file" ]; then
+                  if [ "$newly_built" = "true" ]; then
                     echo "  Syncing newly built package: $package_name"
                   else
                     echo "  Syncing missing package: $package_name"

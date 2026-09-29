@@ -1,19 +1,20 @@
 # One time-boxed build pass on a GitHub-hosted runner.
 #
-# Called several times in a chain by build-hosted.yml. Each pass:
-#   1. restores the shared sstate cache saved by the last finished main
-#      build, plus the sstate deltas left by earlier passes of this run
-#      (sources come lazily from the .sources mirror on the opkg server);
-#   2. runs the whole build until it finishes or the pass deadline arrives;
-#   3. if unfinished, uploads only the sstate it created as an artifact for
-#      the next pass (so PRs never write to the size-limited Actions cache);
-#   4. if finished, uploads the build outputs, and on main prunes sstate to
-#      what this build's hashes refer to and saves it as the new shared
-#      cache (the two newest are kept).
+# Called several times in a chain by build-hosted.yml, once per lane:
+#   image  the image, bundle and packages
+#   sdk    both SDKs, after the image lane (published refs only)
 #
-# With sdk_arch set, the job builds that SDK instead, from the cache the
-# image passes saved. SDK jobs never save the cache: nothing else consumes
-# nativesdk sstate, so it would only crowd out what image builds need.
+# Each pass:
+#   1. restores the shared image sstate cache (the SDK lane also its own SDK
+#      cache on top), plus the sstate deltas earlier passes of this lane left
+#      in this run; sources come lazily from the .sources mirror on the opkg
+#      server;
+#   2. runs its lane until it finishes or the pass deadline arrives;
+#   3. if unfinished, uploads only the sstate it created as an artifact for
+#      the next pass (so PRs never write to the Actions cache);
+#   4. if finished, uploads the build outputs, and on main saves the cache:
+#      the image lane its pruned working set (two newest kept), the SDK lane
+#      only the objects the image entry lacks (newest kept).
 name: Yocto build pass
 
 on:
@@ -22,37 +23,41 @@ on:
       pass:
         type: number
         required: true
+      lane:
+        description: image or sdk
+        type: string
+        default: image
       kas_file:
         type: string
         default: kas-luckfox-lyra-bundle.yaml
       machine:
         type: string
         default: luckfox-lyra
-      sdk_arch:
-        description: SDKMACHINE to build instead of the image (x86_64, aarch64)
-        type: string
-        default: ''
     outputs:
       done:
         value: ${{ jobs.pass.outputs.done }}
 
 env:
   SSTATE_DIR: /home/runner/yocto-cache/sstate-cache
+  # The SDK entry is saved and restored at this fixed path (the cache key
+  # covers the path) and hardlinked in and out of SSTATE_DIR.
+  SDK_SSTATE_DIR: /home/runner/yocto-cache/sdk-sstate
   DL_DIR: /mnt/yocto-downloads
   # Minutes of the 6h job reserved for bitbake; the rest covers setup,
   # cache restore, SIGINT wind-down and the delta upload.
   BUILD_BUDGET_MIN: 285
-  # The repo's Actions cache limit is 50 GB and holds only sstate: the two
-  # newest entries are kept, plus a third briefly while one is replaced.
+  # The repo's Actions cache limit is 50 GB: two image entries plus one SDK
+  # entry, plus one more briefly while an entry is replaced.
   SSTATE_CACHE_BUDGET_MIB: 15000
-  # Only image passes on pushes to main (and the trial branch) write the
-  # shared cache; PR passes hand sstate along as run artifacts, so they
-  # never evict it.
-  SAVE_CACHE: ${{ inputs.sdk_arch == '' && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'ci/hosted-build') }}
+  SDK_CACHE_BUDGET_MIB: 8000
+  # Only pushes to main write the shared caches; PR passes hand sstate along
+  # as run artifacts, so they never evict them.
+  SAVE_CACHE: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+  LC_ALL: C
 
 jobs:
   pass:
-    name: ${{ inputs.sdk_arch != '' && format('SDK {0}', inputs.sdk_arch) || format('Pass {0}', inputs.pass) }}
+    name: ${{ inputs.lane == 'sdk' && format('SDK pass {0}', inputs.pass) || format('Pass {0}', inputs.pass) }}
     runs-on: ubuntu-latest
     timeout-minutes: 355
     outputs:
@@ -76,11 +81,11 @@ jobs:
 
     - name: Lay out build directories
       run: |
-        # TMPDIR is the biggest consumer: give it the separate /mnt disk and
-        # bind it at ./build so the collect-*.sh scripts find it as usual.
+        # TMPDIR is the biggest consumer: give it /mnt and bind it at ./build
+        # so the collect-*.sh scripts find it as usual.
         sudo mkdir -p /mnt/yocto-build "$DL_DIR"
         sudo chown "$(id -u):$(id -g)" /mnt/yocto-build "$DL_DIR"
-        mkdir -p build "$SSTATE_DIR" ~/.ssh
+        mkdir -p build "$SSTATE_DIR" "$SDK_SSTATE_DIR" ~/.ssh
         sudo mount --bind /mnt/yocto-build build
         df -h / /mnt
 
@@ -115,24 +120,48 @@ jobs:
           exit 1
         fi
         echo "Yocto release: $release"
-        echo "SSTATE_KEY_PREFIX=sstate-$release-${{ inputs.machine }}-" >> "$GITHUB_ENV"
+        {
+          echo "SSTATE_RELEASE_PREFIX=sstate-$release-${{ inputs.machine }}-"
+          echo "IMG_CACHE_PREFIX=sstate-$release-${{ inputs.machine }}-img-"
+          echo "SDK_CACHE_PREFIX=sstate-$release-${{ inputs.machine }}-sdk-"
+        } >> "$GITHUB_ENV"
 
-    - name: Restore shared sstate cache
+    - name: Restore shared image sstate cache
       uses: actions/cache/restore@v4
       with:
         path: ${{ env.SSTATE_DIR }}
-        key: ${{ env.SSTATE_KEY_PREFIX }}${{ github.run_id }}
-        # The second key picks up entries saved before keys carried the
-        # release; drop it once those have aged out (7 days unused).
+        key: ${{ env.IMG_CACHE_PREFIX }}${{ github.run_id }}
+        # The last two keys pick up entries saved before image keys carried
+        # "img-" and the release (2026-09-29); drop them once those entries
+        # have aged out (7 days unused).
         restore-keys: |
-          ${{ env.SSTATE_KEY_PREFIX }}
+          ${{ env.IMG_CACHE_PREFIX }}
+          ${{ env.SSTATE_RELEASE_PREFIX }}
           sstate-${{ inputs.machine }}-
+
+    - name: Snapshot image sstate
+      if: inputs.lane == 'sdk'
+      run: (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/image-sstate.txt"
+
+    - name: Restore SDK sstate cache
+      if: inputs.lane == 'sdk'
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.SDK_SSTATE_DIR }}
+        key: ${{ env.SDK_CACHE_PREFIX }}${{ github.run_id }}
+        restore-keys: ${{ env.SDK_CACHE_PREFIX }}
+
+    - name: Merge SDK sstate
+      if: inputs.lane == 'sdk'
+      run: |
+        cp -aln "$SDK_SSTATE_DIR"/. "$SSTATE_DIR"/
+        rm -rf "$SDK_SSTATE_DIR"
 
     - name: Fetch sstate from earlier passes
       if: inputs.pass > 1
       uses: actions/download-artifact@v4
       with:
-        pattern: sstate-delta-${{ inputs.machine }}-*
+        pattern: sstate-delta-${{ inputs.machine }}-${{ inputs.lane }}-*
         path: ${{ runner.temp }}/deltas
 
     - name: Unpack sstate deltas and snapshot the file list
@@ -143,7 +172,7 @@ jobs:
           tar -xf "$t" -C "$SSTATE_DIR" && rm -f "$t"
         done
         # Zero atimes so relatime records every read this pass makes; the
-        # prune step keys on it.
+        # prune and SDK selection steps key on it.
         find "$SSTATE_DIR" -type f -exec touch -a -d @0 {} +
         # Anything not in this list afterwards was produced by this pass.
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-before.txt"
@@ -170,9 +199,12 @@ jobs:
             "
           ci_hosted_persist: |
             # Hash equivalence data (hashserv.db) lives in PERSISTENT_DIR.
-            # Keep it inside the sstate tree so it travels with the cache
-            # and pass deltas; without it objects stored under an
-            # equivalent hash are missed on the next runner.
+            # Keep it inside the sstate tree so it travels with the image
+            # cache and pass deltas; without it objects stored under an
+            # equivalent hash are missed on the next runner. The SDK entry
+            # does not carry its own copy (two copies cannot be merged), so
+            # an SDK object stored under an equivalent hash can occasionally
+            # miss and rebuild.
             PERSISTENT_DIR = "${SSTATE_DIR}/persistent"
         EOF
         cat "${{ steps.prepare-config.outputs.kas_override_file }}"
@@ -183,16 +215,10 @@ jobs:
         bash .github/scripts/yocto-pass.sh \
           "${{ steps.prepare-config.outputs.kas_override_file }}" \
           "$(( PASS_START + BUILD_BUDGET_MIN * 60 ))" \
-          "${{ inputs.sdk_arch }}"
-
-    - name: SDK must finish in one job
-      if: inputs.sdk_arch != '' && steps.build.outputs.done == 'false'
-      run: |
-        echo "::error::SDK build for ${{ inputs.sdk_arch }} did not finish within one job"
-        exit 1
+          "${{ inputs.lane }}"
 
     - name: Package sstate delta for the next pass
-      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'false'
+      if: steps.build.outputs.done == 'false'
       run: |
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-after.txt"
         # New objects, plus the persistent dir (hashserv.db is updated in place).
@@ -204,36 +230,42 @@ jobs:
         echo "Delta: $(wc -l < "$RUNNER_TEMP/sstate-new.txt") files, $(du -h "$RUNNER_TEMP/delta-out/pass${{ inputs.pass }}.tar" | cut -f1)"
 
     - name: Upload sstate delta
-      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'false'
+      if: steps.build.outputs.done == 'false'
       uses: actions/upload-artifact@v4
       with:
-        name: sstate-delta-${{ inputs.machine }}-pass${{ inputs.pass }}
+        name: sstate-delta-${{ inputs.machine }}-${{ inputs.lane }}-pass${{ inputs.pass }}
         path: ${{ runner.temp }}/delta-out/
         compression-level: 0
         retention-days: 1
 
-    - name: Collect SDK
-      if: inputs.sdk_arch != '' && steps.build.outputs.done == 'true'
+    - name: List packages built by this run
+      if: inputs.lane == 'image' && steps.build.outputs.done == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        mkdir -p "$RUNNER_TEMP/build-output"
-        bash .github/scripts/collect-sdk.sh "$RUNNER_TEMP/build-output"
-
-    - name: Upload SDK
-      if: inputs.sdk_arch != '' && steps.build.outputs.done == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: sdk-${{ inputs.machine }}-${{ inputs.sdk_arch }}
-        path: ${{ runner.temp }}/build-output/
-        compression-level: 0
-        retention-days: 7
+        started=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" -q .run_started_at)
+        echo "Run started $started"
+        build_tmp=$(bash .github/scripts/build-dir.sh)
+        bash .github/scripts/list-new-packages.sh "$build_tmp/deploy/ipk" \
+          "$(date -d "$started" +%s)" "$RUNNER_TEMP/packages-new.txt"
 
     - name: Collect build outputs
-      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'true'
+      if: inputs.lane == 'image' && steps.build.outputs.done == 'true'
       run: |
         OUT="$RUNNER_TEMP/build-output"
         mkdir -p "$OUT"
         bash .github/scripts/collect-images.sh "${{ inputs.machine }}" "$OUT"
-        bash .github/scripts/collect-packages.sh "$OUT"
+        if [ "${{ github.event_name }}" = pull_request ]; then
+          # PRs publish only what they built to the testing feed.
+          build_tmp=$(bash .github/scripts/build-dir.sh)
+          while IFS= read -r ipk; do
+            mkdir -p "$OUT/packages/$(dirname "$ipk")"
+            cp "$build_tmp/deploy/ipk/$ipk" "$OUT/packages/$ipk"
+          done < "$RUNNER_TEMP/packages-new.txt"
+        else
+          bash .github/scripts/collect-packages.sh "$OUT"
+        fi
+        cp "$RUNNER_TEMP/packages-new.txt" "$OUT/"
         cat > "$OUT/workflow-metadata.env" << EOF
         FEED_NAME=${{ steps.feed-config.outputs.feed_name }}
         SUBFOLDER=${{ steps.feed-config.outputs.subfolder }}
@@ -247,32 +279,76 @@ jobs:
         du -sh "$OUT"/*
 
     - name: Upload build outputs
-      if: inputs.sdk_arch == '' && steps.build.outputs.done == 'true'
+      if: inputs.lane == 'image' && steps.build.outputs.done == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: build-output-${{ inputs.machine }}
+        name: ${{ github.event_name == 'pull_request' && 'pr-output' || 'build-output' }}-${{ inputs.machine }}
+        path: ${{ runner.temp }}/build-output/
+        compression-level: 0
+        retention-days: ${{ github.event_name == 'pull_request' && 14 || 7 }}
+
+    - name: Collect SDK
+      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true'
+      run: |
+        mkdir -p "$RUNNER_TEMP/build-output"
+        bash .github/scripts/collect-sdk.sh "$RUNNER_TEMP/build-output"
+
+    - name: Upload SDK
+      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdk-${{ inputs.machine }}
         path: ${{ runner.temp }}/build-output/
         compression-level: 0
         retention-days: 7
 
+    # --- Image lane: save the pruned working set, keep the two newest ---
+
     - name: Prune sstate to this build's working set
-      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      if: inputs.lane == 'image' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       run: bash .github/scripts/prune-sstate.sh "$SSTATE_DIR" "$RUNNER_TEMP/pass-marker" "$SSTATE_CACHE_BUDGET_MIB"
 
-    - name: Save shared sstate cache
-      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+    - name: Save shared image sstate cache
+      if: inputs.lane == 'image' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       uses: actions/cache/save@v4
       with:
         path: ${{ env.SSTATE_DIR }}
-        key: ${{ env.SSTATE_KEY_PREFIX }}${{ github.run_id }}
+        key: ${{ env.IMG_CACHE_PREFIX }}${{ github.run_id }}
 
-    - name: Keep the two newest shared sstate caches
-      if: steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+    - name: Keep the two newest image sstate caches
+      if: inputs.lane == 'image' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        bash .github/scripts/rotate-caches.sh "$SSTATE_KEY_PREFIX" \
-          "${SSTATE_KEY_PREFIX}${{ github.run_id }}" 2
+        bash .github/scripts/rotate-caches.sh "$IMG_CACHE_PREFIX" \
+          "${IMG_CACHE_PREFIX}${{ github.run_id }}" 2
+
+    # --- SDK lane: save only what the image entry lacks, keep the newest ---
+
+    - name: Stage SDK sstate
+      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      run: |
+        bash .github/scripts/select-sdk-sstate.sh "$SSTATE_DIR" "$RUNNER_TEMP/image-sstate.txt" \
+          "$RUNNER_TEMP/pass-marker" "$SDK_SSTATE_DIR"
+        size=$(du -sm "$SDK_SSTATE_DIR" | cut -f1)
+        if [ "$size" -gt "$SDK_CACHE_BUDGET_MIB" ]; then
+          echo "::warning::SDK sstate (${size} MiB) exceeds its budget (${SDK_CACHE_BUDGET_MIB} MiB)"
+        fi
+
+    - name: Save SDK sstate cache
+      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.SDK_SSTATE_DIR }}
+        key: ${{ env.SDK_CACHE_PREFIX }}${{ github.run_id }}
+
+    - name: Keep the newest SDK sstate cache
+      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash .github/scripts/rotate-caches.sh "$SDK_CACHE_PREFIX" \
+          "${SDK_CACHE_PREFIX}${{ github.run_id }}" 1
 
     - name: Disk usage
       if: always()

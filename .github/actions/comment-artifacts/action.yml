@@ -5,18 +5,40 @@ inputs:
   github-token:
     description: GitHub token with repo scope
     required: true
+  pr-number:
+    description: PR to comment on (default the PR in the event payload)
+    required: false
+    default: ''
+  run-id:
+    description: Build run whose artifacts to list (default the current run)
+    required: false
+    default: ''
+  extra-body-file:
+    description: Markdown file appended below the artifact list
+    required: false
+    default: ''
+  exclude-prefix:
+    description: Hide artifacts whose names start with this (pass-to-pass handoffs)
+    required: false
+    default: 'sstate-delta-'
 runs:
   using: composite
   steps:
     - name: Comment artifact links
       uses: actions/github-script@v7
+      env:
+        PR_NUMBER: ${{ inputs.pr-number }}
+        RUN_ID: ${{ inputs.run-id }}
+        EXTRA_BODY_FILE: ${{ inputs.extra-body-file }}
+        EXCLUDE_PREFIX: ${{ inputs.exclude-prefix }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
           try {
-            const runId = context.runId;
+            const fs = require('fs');
+            const runId = Number(process.env.RUN_ID) || context.runId;
             const { owner, repo } = context.repo;
-            const issueNumber = context.payload.pull_request?.number;
+            const issueNumber = Number(process.env.PR_NUMBER) || context.payload.pull_request?.number;
 
             if (!issueNumber) {
               core.info('No pull request context detected; skipping comment.');
@@ -32,7 +54,9 @@ runs:
               per_page: 100,
             });
 
-            const artifacts = artifactsResponse.data.artifacts ?? [];
+            const exclude = process.env.EXCLUDE_PREFIX;
+            const artifacts = (artifactsResponse.data.artifacts ?? [])
+              .filter((artifact) => !exclude || !artifact.name.startsWith(exclude));
             core.info(`Found ${artifacts.length} artifacts`);
 
             if (artifacts.length === 0) {
@@ -56,7 +80,11 @@ runs:
               .join('\n');
 
             const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
-            const body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
+            let body = `<!-- calculinux-artifacts -->\n📦 **Build artifacts for this run:** [view logs and details](${runUrl})\n\n${artifactLines}`;
+            const extraFile = process.env.EXTRA_BODY_FILE;
+            if (extraFile && fs.existsSync(extraFile)) {
+              body += `\n\n${fs.readFileSync(extraFile, 'utf8')}`;
+            }
 
             core.info('Checking for existing artifact comments...');
             const existingComments = await github.paginate(

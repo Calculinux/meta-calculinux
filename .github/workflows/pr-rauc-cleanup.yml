@@ -1,7 +1,9 @@
 name: Cleanup PR Artifacts
 
+# pull_request_target runs this workflow as defined on main, never a fork's
+# edited copy, on the self-hosted runner. It does not check out PR code.
 on:
-  pull_request:
+  pull_request_target:
     branches: [ main ]
     types: [closed]
 
@@ -14,7 +16,7 @@ permissions:
 
 jobs:
   cleanup:
-    name: Remove PR RAUC and WIC artifacts
+    name: Remove PR RAUC, WIC and testing-feed artifacts
     runs-on: [self-hosted, Linux, X64]
     strategy:
       matrix:
@@ -49,3 +51,11 @@ jobs:
           "$OPKG_REPO_DIR" \
           "${{ steps.feed-config.outputs.feed_name }}" \
           "$UPDATE_BASE_URL"
+
+    - name: Remove PR packages from the testing feed
+      run: |
+        set -euo pipefail
+        bash .github/scripts/cleanup-testing-packages.sh \
+          "$OPKG_REPO_DIR" \
+          "${{ steps.feed-config.outputs.feed_name }}" \
+          "${{ github.event.pull_request.number }}"

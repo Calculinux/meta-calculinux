@@ -1,29 +1,38 @@
-# Calculinux build on free GitHub-hosted runners (trial, alongside build.yml).
+# Build Calculinux on free GitHub-hosted runners.
 #
-# A cold build does not fit the 6h hosted-job limit on 4 cores, so the build
+# A cold build does not fit the 6h hosted-job limit on 4 cores, so each lane
 # runs as a chain of identical time-boxed passes (yocto-pass.yml). A warm
-# build finishes in pass 1 and the rest are skipped; a cold one (toolchain or
-# poky bump) spills into later passes, each resuming from the sstate the
-# previous one left. No per-recipe stage lists to maintain.
+# build finishes in its first pass and the rest are skipped; a cold one
+# (toolchain or poky bump) spills into later passes, each resuming from the
+# sstate the previous one left. No per-recipe stage lists to maintain.
 #
-# SDKs are built by a separate job after the image passes (published refs
-# only) and are kept out of the shared cache.
+#   pass1..3  image, bundle and packages (every event)
+#   sdk1..3   both SDKs (published refs only), after the image chain
+#   publish   self-hosted: publish artifacts, keep the source mirror current
 #
-# Hosted runners cannot reach the opkg server, so the publish job runs on a
-# self-hosted runner: it publishes the artifacts the hosted jobs uploaded and
-# keeps the source mirror (/.sources on the opkg server) current. Hosted
-# passes fetch sources from that mirror first.
-name: Build (hosted runners)
+# PR builds upload only the packages they built; publish-pr.yml puts those in
+# the shared testing feed. build.yml is the manual self-hosted fallback.
+name: Build Calculinux
 
 on:
   push:
-    branches: [ 'ci/hosted-build' ]
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      sync_all_packages:
+        description: 'Sync all packages (not just newly built ones)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  actions: write   # delete superseded cache entries
+  actions: write   # read the run's start time, delete superseded cache entries
 
+# Drop superseded runs when a branch/PR is pushed again.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -45,35 +54,41 @@ jobs:
     uses: ./.github/workflows/yocto-pass.yml
     with: { pass: 3 }
 
-  # SDKs build from the cache the finishing image pass just saved, one job
-  # per SDK host arch in parallel, and never write the cache themselves.
-  sdk:
+  # SDKs start from the image cache the finishing image pass just saved, plus
+  # their own SDK cache entry.
+  sdk1:
     needs: [pass1, pass2, pass3]
     if: >-
-      always() &&
+      always() && !cancelled() &&
+      github.event_name != 'pull_request' &&
       (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')) &&
       (needs.pass1.outputs.done == 'true' || needs.pass2.outputs.done == 'true' || needs.pass3.outputs.done == 'true')
-    strategy:
-      fail-fast: false
-      matrix:
-        sdk_arch: [x86_64, aarch64]
     uses: ./.github/workflows/yocto-pass.yml
-    with:
-      pass: 0
-      sdk_arch: ${{ matrix.sdk_arch }}
+    with: { pass: 1, lane: sdk }
+
+  sdk2:
+    needs: sdk1
+    if: needs.sdk1.outputs.done == 'false'
+    uses: ./.github/workflows/yocto-pass.yml
+    with: { pass: 2, lane: sdk }
+
+  sdk3:
+    needs: sdk2
+    if: needs.sdk2.outputs.done == 'false'
+    uses: ./.github/workflows/yocto-pass.yml
+    with: { pass: 3, lane: sdk }
 
   # Hosted runners cannot reach the opkg server, so a self-hosted runner does
   # the trusted part: publish the build and SDK artifacts, and keep the source
   # mirror the hosted passes fetch from current. Pushes to published refs only.
   publish:
     name: Publish
-    needs: [pass1, pass2, pass3, sdk]
+    needs: [pass1, pass2, pass3, sdk1, sdk2, sdk3]
     if: >-
       always() && !cancelled() &&
-      github.event_name == 'push' &&
+      github.event_name != 'pull_request' &&
       (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')) &&
-      (needs.pass1.outputs.done == 'true' || needs.pass2.outputs.done == 'true' || needs.pass3.outputs.done == 'true') &&
-      needs.sdk.result == 'success'
+      (needs.sdk1.outputs.done == 'true' || needs.sdk2.outputs.done == 'true' || needs.sdk3.outputs.done == 'true')
     runs-on: [self-hosted, Linux, X64]
     permissions:
       contents: write   # releases
@@ -101,8 +116,7 @@ jobs:
     - name: Fetch SDKs
       uses: actions/download-artifact@v4
       with:
-        pattern: sdk-${{ env.MACHINE }}-*
-        merge-multiple: true
+        name: sdk-${{ env.MACHINE }}
         path: ${{ env.SHARED_ARTIFACTS_DIR }}
 
     - name: Load workflow metadata
@@ -119,7 +133,9 @@ jobs:
         feed-name: ${{ env.FEED_NAME }}
         subfolder: ${{ env.SUBFOLDER }}
         artifacts-dir: ${{ env.SHARED_ARTIFACTS_DIR }}
-        sync-all: 'false'
+        sync-all: ${{ github.event_name == 'workflow_dispatch' && inputs.sync_all_packages && 'true' || 'false' }}
+        # Artifact downloads lose mtimes, so tell it what the build built.
+        package-list: ${{ env.SHARED_ARTIFACTS_DIR }}/packages-new.txt
 
     - name: Publish images to webserver
       if: env.IS_PUBLISHED_BRANCH == 'true'
