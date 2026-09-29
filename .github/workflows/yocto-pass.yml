@@ -272,7 +272,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         bash .github/scripts/rotate-caches.sh "$SSTATE_KEY_PREFIX" \
-          "$SSTATE_KEY_PREFIX${{ github.run_id }}" 2
+          "${SSTATE_KEY_PREFIX}${{ github.run_id }}" 2
 
     - name: Disk usage
       if: always()

@@ -13,6 +13,11 @@ PREFIX="$1"
 NEW_KEY="$2"
 KEEP="$3"
 
+if [ -z "$PREFIX" ] || [ -z "$NEW_KEY" ]; then
+  echo "::error::Empty cache key prefix or new key" >&2
+  exit 1
+fi
+
 keys=$(gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "$PREFIX" \
   --sort created_at --order desc --limit 100 --json key -q '.[].key')
 
