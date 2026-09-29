@@ -2,9 +2,15 @@
 # Shrink SSTATE_DIR to what the next warm build needs before it is saved as
 # the shared Actions cache, which is capped at 10 GB per repository.
 #
-# Keeps only sstate objects this pass read or wrote (sstate.bbclass refreshes
-# the mtime of objects it reuses; atimes were zeroed after restore so relatime
-# records reads too), minus image-level objects that can never be reused.
+# Keeps only sstate objects this build's task hashes refer to: sstate.bbclass
+# touches every object it finds while checking hashes (sstate_checkhashes),
+# and atimes were zeroed after restore so relatime records any other read.
+# Objects left by older hashes are dropped, and so are image-level objects,
+# which can never be reused.
+#
+# If that is still over budget, do_package objects go next: a warm build
+# only needs them when do_package_write_ipk reruns for an unchanged recipe,
+# and then that recipe recompiles instead.
 set -euo pipefail
 
 if [ $# -lt 3 ]; then
@@ -31,6 +37,11 @@ find "$SSTATE_DIR" -type f \( -name 'sstate:calculinux-image:*' -o -name 'sstate
 find "$SSTATE_DIR" -type d -empty -delete
 
 size=$(size_mib)
+if [ "$size" -gt "$BUDGET_MIB" ]; then
+  echo "${size} MiB is over budget; dropping do_package objects"
+  find "$SSTATE_DIR" -type f -name 'sstate:*_package.tar.zst*' -delete
+  size=$(size_mib)
+fi
 echo "sstate after pruning: ${size} MiB (budget ${BUDGET_MIB} MiB)"
 echo "by task:"
 find "$SSTATE_DIR" -name '*.tar.zst' -printf '%s %f\n' \
