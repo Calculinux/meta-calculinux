@@ -27,3 +27,10 @@ python populate_packages:append () {
 
 # Allow the main metapackage to be empty since we're not using it
 ALLOW_EMPTY:${PN} = "1"
+
+# rtl8xxxu-firmware ships the RTL8710BU (RTL8188GU) blobs. Older linux-firmware
+# has no split package for them, so they would land in the main package and
+# clash with rtl8xxxu-firmware at rootfs time.
+do_install:append () {
+    rm -f ${D}${nonarch_base_libdir}/firmware/rtlwifi/rtl8710bufw_*
+}
