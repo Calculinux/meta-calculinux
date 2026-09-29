@@ -10,6 +10,7 @@ BUILD_ROOT ?= ..
 META_CALCULINUX_DIR = $(CURDIR)
 KAS_CONTAINER = ./meta-calculinux/kas-container
 KAS_CONFIG = ./meta-calculinux/kas-luckfox-lyra-bundle.yaml
+KAS_QEMU_CONFIG = ./meta-calculinux/kas-calculinux-qemuarm.yaml
 BUILD_DIR = ./build
 SYMLINK_NEEDED = $(shell [ "$(BUILD_ROOT)" != ".." ] && [ ! -e "$(BUILD_ROOT)/meta-calculinux" ] && echo "yes" || echo "no")
 
@@ -32,6 +33,9 @@ help:
 	@echo "  make sdk             - Build SDK (x86_64 + aarch64)"
 	@echo "  make apps            - Build application packagegroup"
 	@echo "  make shell           - Launch interactive bitbake shell"
+	@echo ""
+	@echo "  make qemu-image      - Build the calculinux-qemuarm emulator image"
+	@echo "  make qemu            - Boot it in QEMU (serial console; Ctrl-a x quits)"
 	@echo ""
 	@echo "  make clean-all       - Clean all build artifacts"
 	@echo "  make clean-image     - Clean image recipe"
@@ -69,6 +73,15 @@ sdk: setup
 .PHONY: apps
 apps: setup
 	cd $(BUILD_ROOT) && $(KAS_CONTAINER) shell $(KAS_CONFIG) -c "bitbake packagegroup-meta-calculinux-apps"
+
+# QEMU emulator target (calculinux-qemuarm)
+.PHONY: qemu-image
+qemu-image: setup
+	cd $(BUILD_ROOT) && $(KAS_CONTAINER) build $(KAS_QEMU_CONFIG)
+
+.PHONY: qemu
+qemu: setup
+	cd $(BUILD_ROOT) && $(KAS_CONTAINER) shell $(KAS_QEMU_CONFIG) -c "runqemu calculinux-qemuarm calculinux-image wic nographic slirp"
 
 # Interactive shell
 .PHONY: shell

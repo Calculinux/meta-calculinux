@@ -71,8 +71,6 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
-    picocalc-dt-overlays \
-    picocalc-kbd-test \
     rauc \
     sdl2-test \
     shadow \
@@ -84,13 +82,11 @@ IMAGE_INSTALL += " \
     tree \
     tzdata \
     u-boot-fw-config \
-    u-boot-ota \
-    u-boot-rockchip-bootscript \
+    calculinux-bootscript \
     console-font \
     miniwi-console \
     unifont-console \
     unzip \
-    usb-gadget-network \
     usbutils \
     uwific \
     util-linux \
@@ -100,6 +96,10 @@ IMAGE_INSTALL += " \
     cruft \
     zip \
 "
+
+# Board-specific packages (bootloader blobs, device-tree overlays, hardware
+# tools) come from MACHINE_EXTRA_RDEPENDS in the machine configuration via
+# packagegroup-base, so this list stays hardware-neutral.
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
 
@@ -119,7 +119,12 @@ do_fixup_wks() {
 	done
 }
 
-ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest; calculinux_install_opkg_image_status;"
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest;"
+# Must run after the rootfs is final: ROOTFS_POSTPROCESS_COMMAND runs before
+# _uninstall_unneeded(), which drops ROOTFS_RO_UNNEEDED through opkg and then
+# runs ROOTFS_POSTUNINSTALL_COMMAND (write_image_manifest). Emptying the opkg
+# status any earlier skips that cleanup and leaves an empty image manifest.
+ROOTFS_POSTUNINSTALL_COMMAND += " calculinux_install_opkg_image_status;"
 IMAGE_POSTPROCESS_COMMAND += " calculinux_export_bundle_extras;"
 
 calculinux_create_version_manifest() {

@@ -1,0 +1,94 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] evdev: grab keyboards when KMSDRM owns the display
+
+SDL mutes the console keyboard through its controlling tty. When an app
+is started from a terminal emulator running on the console (cruft), that
+tty is a pty, the KDGKBTYPE check fails and nothing is muted: the VT, and
+so the terminal and the shell behind it, receives every key the app does
+(typing "exit" in DOSBox-X also exits the shell).
+
+When the KMSDRM backend starts evdev input, grab keyboard devices with
+EVIOCGRAB so their events only reach SDL. The kernel drops the grab when
+the device is closed, even if the app crashes. Other backends (Wayland,
+X11, dummy, RPi, Vivante) don't ask for it. The SDL_EVDEV_GRAB_KEYBOARD
+hint or environment variable overrides the default either way.
+
+Upstream-Status: Inappropriate [Calculinux-specific]
+
+--- a/src/core/linux/SDL_evdev.c	2025-01-01 10:47:53.000000000 -0500
++++ b/src/core/linux/SDL_evdev.c	2026-09-28 19:34:28.310274108 -0400
+@@ -32,6 +32,8 @@
+ #include "SDL_evdev.h"
+ #include "SDL_evdev_kbd.h"
+ 
++#include <errno.h>
++#include <string.h>
+ #include <sys/stat.h>
+ #include <unistd.h>
+ #include <fcntl.h>
+@@ -151,6 +153,34 @@
+     return 0;
+ }
+ 
++/* Keyboards are grabbed (EVIOCGRAB) only when the video backend owns the
++   display itself and asks for it. When started from a terminal emulator
++   such as cruft, SDL's controlling tty is a pty, so the console keyboard
++   can't be muted and the VT (and the shell behind the terminal) would get
++   every key the app does. The grab is released when the device is closed,
++   even if the app crashes. The SDL_EVDEV_GRAB_KEYBOARD hint overrides the
++   backend's choice. */
++static SDL_bool SDL_EVDEV_grab_keyboards = SDL_FALSE;
++
++void SDL_EVDEV_SetGrabKeyboards(SDL_bool grab)
++{
++    SDL_EVDEV_grab_keyboards = grab;
++}
++
++static void SDL_EVDEV_GrabKeyboard(SDL_evdevlist_item *item)
++{
++    if (!(item->udev_class & SDL_UDEV_DEVICE_KEYBOARD)) {
++        return;
++    }
++    if (!SDL_GetHintBoolean("SDL_EVDEV_GRAB_KEYBOARD", SDL_EVDEV_grab_keyboards)) {
++        return;
++    }
++    if (ioctl(item->fd, EVIOCGRAB, 1) < 0) {
++        SDL_LogWarn(SDL_LOG_CATEGORY_INPUT, "Unable to grab keyboard %s: %s",
++                    item->path, strerror(errno));
++    }
++}
++
+ static void SDL_EVDEV_UpdateKeyboardMute(void)
+ {
+     if (SDL_EVDEV_GetDeviceCount(SDL_UDEV_DEVICE_KEYBOARD) > 0) {
+@@ -917,6 +947,8 @@
+         _this->last = item;
+     }
+ 
++    SDL_EVDEV_GrabKeyboard(item);
++
+     SDL_EVDEV_sync_device(item);
+ 
+     SDL_EVDEV_UpdateKeyboardMute();
+--- a/src/core/linux/SDL_evdev.h	2025-01-01 10:47:53.000000000 -0500
++++ b/src/core/linux/SDL_evdev.h	2026-09-28 19:34:28.309339695 -0400
+@@ -29,6 +29,7 @@
+ #include "SDL_events.h"
+ 
+ extern int SDL_EVDEV_Init(void);
++extern void SDL_EVDEV_SetGrabKeyboards(SDL_bool grab);
+ extern void SDL_EVDEV_Quit(void);
+ extern void SDL_EVDEV_SetVTSwitchCallbacks(void (*release_callback)(void*), void *release_callback_data,
+                                            void (*acquire_callback)(void*), void *acquire_callback_data);
+--- a/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-28 17:02:38.889771424 -0400
++++ b/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-28 19:34:28.312189240 -0400
+@@ -1286,6 +1286,9 @@
+     }
+ 
+ #ifdef SDL_INPUT_LINUXEV
++    /* KMSDRM owns the display, so keep keystrokes away from the console
++       (and any terminal emulator drawing on it) while SDL is running. */
++    SDL_EVDEV_SetGrabKeyboards(SDL_TRUE);
+     SDL_EVDEV_Init();
+     SDL_EVDEV_SetVTSwitchCallbacks(KMSDRM_ReleaseVT, _this, KMSDRM_AcquireVT, _this);
+ #elif defined(SDL_INPUT_WSCONS)

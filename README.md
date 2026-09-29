@@ -182,6 +182,11 @@ make list-images
 Persistent overlays are listed in `/etc/device-tree-overlays.conf` and merged into a per-RAUC-slot FIT at boot.
 Runtime apply via ConfigFS is still available for I2C-child overlays. See [docs/DEVICE-TREE-OVERLAYS.md](docs/DEVICE-TREE-OVERLAYS.md).
 
+## Running in QEMU
+
+`make qemu-image && make qemu` builds and boots Calculinux on QEMU's Arm `virt` board through the same
+U-Boot, RAUC A/B and device-tree-overlay FIT path as the device. See [docs/QEMU.md](docs/QEMU.md).
+
 ---
 
 ## OTA Updates with RAUC
