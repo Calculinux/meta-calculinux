@@ -22,6 +22,7 @@ import os
 import pty
 import re
 import select
+import shlex
 import subprocess
 import sys
 import time
@@ -76,9 +77,15 @@ def main():
     ap.add_argument("--image", default="calculinux-image")
     ap.add_argument("--log", default="qemu-boot-test.log")
     ap.add_argument("--boot-timeout", type=int, default=600)
+    ap.add_argument("--cmd", help="command that boots the machine on this terminal "
+                    "(default: runqemu ... nographic slirp snapshot), e.g. "
+                    "'./calculinux-emulator-x86_64.AppImage --nographic'")
     args = ap.parse_args()
 
-    cmd = ["runqemu", args.machine, args.image, "wic", "nographic", "slirp", "snapshot"]
+    if args.cmd:
+        cmd = shlex.split(args.cmd)
+    else:
+        cmd = ["runqemu", args.machine, args.image, "wic", "nographic", "slirp", "snapshot"]
     failures = []
 
     with open(args.log, "w") as log:

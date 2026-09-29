@@ -1,16 +1,18 @@
 # The Luckfox SPI LCD is driven via TinyDRM, so SDL should use the KMS/DRM
 # renderer by default. Keep other backends (fbcon, directfb) available as fallbacks.
 # Disable OpenGL/GLES since this is an SPI display without GPU acceleration.
+# Device only (:class-target): nativesdk SDL (emulator window) is configured
+# in meta-calculinux-bsp-qemu.
 PACKAGECONFIG[fbcon] = "-DSDL_FBDEV=ON,-DSDL_FBDEV=OFF"
 PACKAGECONFIG[directfb] = "-DSDL_DIRECTFB=ON,-DSDL_DIRECTFB=OFF,directfb"
 # Remove directfb (extra dependencies), opengl/gles (no GPU), keep fbcon as fallback
-PACKAGECONFIG:remove = "directfb opengl gles2"
-PACKAGECONFIG:append = " kmsdrm fbcon"
+PACKAGECONFIG:remove:class-target = "directfb opengl gles2"
+PACKAGECONFIG:append:class-target = " kmsdrm fbcon"
 
 # Runtime dependency for kmsdrm backend:
 # - libdrm: dynamically loaded at runtime, so it isn't captured by shlibdeps
 # GBM/EGL paths are disabled, so libgbm is no longer needed.
-RDEPENDS:${PN}:append = " libdrm"
+RDEPENDS:${PN}:append:class-target = " libdrm"
 
 # Bump PR to force rebuild without OpenGL/EGL dependencies
 PR = "r15"
