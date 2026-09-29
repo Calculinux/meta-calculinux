@@ -46,6 +46,7 @@ SRC_URI = " \
     file://depmod-skip-when-echo.patch \
     file://btrfs-print-tree-fix-block-group-tree-string.patch \
     file://lib-fonts-add-terminus-6x12.patch \
+    file://btrtl-firmware-format-v2-support.patch \
 "
 
 KERNEL_CONFIG_FRAGMENTS += "${KERNEL_CFG_FRAGMENTS_LIST}"
