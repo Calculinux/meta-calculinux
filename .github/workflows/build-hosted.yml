@@ -56,6 +56,10 @@ jobs:
 
   # SDKs start from the image cache the finishing image pass just saved, plus
   # their own SDK cache entry.
+  #
+  # sdk2/sdk3 need always(): without a status function, if: implies
+  # success(), which is false when any upstream job was skipped, and pass3
+  # (or pass2) usually is, so the chain would stop after sdk1.
   sdk1:
     needs: [pass1, pass2, pass3]
     if: >-
@@ -68,13 +72,13 @@ jobs:
 
   sdk2:
     needs: sdk1
-    if: needs.sdk1.outputs.done == 'false'
+    if: always() && !cancelled() && needs.sdk1.result == 'success' && needs.sdk1.outputs.done == 'false'
     uses: ./.github/workflows/yocto-pass.yml
     with: { pass: 2, lane: sdk }
 
   sdk3:
     needs: sdk2
-    if: needs.sdk2.outputs.done == 'false'
+    if: always() && !cancelled() && needs.sdk2.result == 'success' && needs.sdk2.outputs.done == 'false'
     uses: ./.github/workflows/yocto-pass.yml
     with: { pass: 3, lane: sdk }
 
