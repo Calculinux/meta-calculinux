@@ -8,7 +8,8 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
 .github/
 ├── workflows/           # GitHub Actions workflow definitions
 │   ├── build-hosted.yml     # Main build ("Build Calculinux"), GitHub-hosted
-│   ├── yocto-pass.yml       # One time-boxed build pass (called by build-hosted)
+│   ├── yocto-pass.yml       # One time-boxed build pass (called by build-hosted, qemu-boot)
+│   ├── qemu-boot.yml        # calculinux-qemuarm boot tests + emulator AppImages, GitHub-hosted
 │   ├── publish-pr.yml       # Publish PR builds to the PR channel + testing feed
 │   ├── pr-rauc-cleanup.yml  # Remove a closed PR's published artifacts
 │   ├── build.yml            # Manual fallback build on the self-hosted runners
@@ -31,6 +32,8 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
     ├── publish-testing-packages.sh # Publish a PR's packages to the testing feed
     ├── cleanup-testing-packages.sh # Remove a closed PR's packages from the testing feed
     ├── sync-source-mirror.sh       # Keep the /.sources download mirror current
+    ├── qemu-image-tests.sh         # post_build: runqemu boot + overlayfs tests (qemuarm)
+    ├── qemu-appimage-test.sh       # post_build: boot test of the x86_64 emulator AppImage
     ├── build-dir.sh                # Find Yocto build directory (used by collect-*)
     ├── determine-feed-config.sh    # Determine feed configuration
     ├── load-script-output.sh       # Run script and load key=value output to GITHUB_OUTPUT
@@ -66,6 +69,22 @@ Yocto release so releases never evict each other: the two newest
 `sstate-<release>-<machine>-img-` entries and the newest `...-sdk-` entry.
 Only pushes to `main` save; PR builds only read. Sources come lazily from
 `https://opkg.calculinux.org/.sources/`, then the Yocto source mirror, then upstream.
+
+### qemu-boot.yml
+Builds `calculinux-qemuarm` and the `calculinux-emulator` AppImages on
+GitHub-hosted runners, with the same pass chains and caches as
+`build-hosted.yml` (cache keys are per machine):
+
+- `pass1..3`: the image; the finishing pass runs the runqemu boot and
+  overlayfs tests (`qemu-image-tests.sh`) and hands its sstate to the next lane.
+- `emu1..3` (`emulator` lane): the AppImages for both hosts and the disk image
+  they boot; the finishing pass boot-tests the x86_64 AppImage
+  (`qemu-appimage-test.sh`).
+- `publish` (self-hosted, published refs only): publishes the emulator next
+  to the SDKs and attaches it to tagged releases.
+
+Test time is reserved out of each pass's build budget (`post_build_minutes`),
+so tests always fit in the job. Serial logs are uploaded as `test-logs-*`.
 
 ### publish-pr.yml
 Runs after a successful PR build of "Build Calculinux", from `main`'s code only

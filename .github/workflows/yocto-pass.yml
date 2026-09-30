@@ -1,8 +1,10 @@
 # One time-boxed build pass on a GitHub-hosted runner.
 #
-# Called several times in a chain by build-hosted.yml, once per lane:
-#   image  the image, bundle and packages
-#   sdk    both SDKs, after the image lane (published refs only)
+# Called several times in a chain (build-hosted.yml, qemu-boot.yml), per lane:
+#   image     the kas targets (image, bundle, packages)
+#   sdk       both SDKs, after the image lane
+#   emulator  the calculinux-emulator AppImages (both hosts) and the disk
+#             image they boot, after the image lane
 #
 # Each pass:
 #   1. restores the shared image sstate cache (the SDK lane also its own SDK
@@ -13,8 +15,13 @@
 #   3. if unfinished, uploads only the sstate it created as an artifact for
 #      the next pass (so PRs never write to the Actions cache);
 #   4. if finished, uploads the build outputs, and on main saves the cache:
-#      the image lane its pruned working set (two newest kept), the SDK lane
-#      only the objects the image entry lacks (newest kept).
+#      the image lane its pruned working set (two newest kept), the other
+#      lanes only the objects the image entry lacks (newest kept);
+#   5. if finished, runs the lane's post_build hook (tests), whose time is
+#      reserved out of the build budget so it always fits.
+#
+# With handoff, the image lane also uploads its finishing pass's sstate, so
+# later lanes of the same run build on it even when nothing is cached (PRs).
 name: Yocto build pass
 
 on:
@@ -24,9 +31,25 @@ on:
         type: number
         required: true
       lane:
-        description: image or sdk
+        description: image, sdk or emulator
         type: string
         default: image
+      collect:
+        description: Collect and upload the image lane's images and packages
+        type: boolean
+        default: true
+      handoff:
+        description: Upload the finishing pass's sstate for later lanes of this run
+        type: boolean
+        default: false
+      post_build:
+        description: Script run after a finished build as <script> <kas-override> <output-dir>
+        type: string
+        default: ''
+      post_build_minutes:
+        description: Minutes reserved for post_build out of the build budget
+        type: number
+        default: 0
       kas_file:
         type: string
         default: kas-luckfox-lyra-bundle.yaml
@@ -57,7 +80,7 @@ env:
 
 jobs:
   pass:
-    name: ${{ inputs.lane == 'sdk' && format('SDK pass {0}', inputs.pass) || format('Pass {0}', inputs.pass) }}
+    name: ${{ inputs.lane == 'image' && format('Pass {0}', inputs.pass) || format('{0} pass {1}', inputs.lane, inputs.pass) }}
     runs-on: ubuntu-latest
     timeout-minutes: 355
     outputs:
@@ -140,11 +163,11 @@ jobs:
           sstate-${{ inputs.machine }}-
 
     - name: Snapshot image sstate
-      if: inputs.lane == 'sdk'
+      if: inputs.lane != 'image'
       run: (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/image-sstate.txt"
 
     - name: Restore SDK sstate cache
-      if: inputs.lane == 'sdk'
+      if: inputs.lane != 'image'
       uses: actions/cache/restore@v4
       with:
         path: ${{ env.SDK_SSTATE_DIR }}
@@ -152,10 +175,17 @@ jobs:
         restore-keys: ${{ env.SDK_CACHE_PREFIX }}
 
     - name: Merge SDK sstate
-      if: inputs.lane == 'sdk'
+      if: inputs.lane != 'image'
       run: |
         cp -aln "$SDK_SSTATE_DIR"/. "$SSTATE_DIR"/
         rm -rf "$SDK_SSTATE_DIR"
+
+    - name: Fetch sstate the image lane handed over
+      if: inputs.lane != 'image'
+      uses: actions/download-artifact@v4
+      with:
+        pattern: sstate-delta-${{ inputs.machine }}-image-*
+        path: ${{ runner.temp }}/deltas
 
     - name: Fetch sstate from earlier passes
       if: inputs.pass > 1
@@ -214,11 +244,11 @@ jobs:
       run: |
         bash .github/scripts/yocto-pass.sh \
           "${{ steps.prepare-config.outputs.kas_override_file }}" \
-          "$(( PASS_START + BUILD_BUDGET_MIN * 60 ))" \
+          "$(( PASS_START + (BUILD_BUDGET_MIN - ${{ inputs.post_build_minutes }}) * 60 ))" \
           "${{ inputs.lane }}"
 
     - name: Package sstate delta for the next pass
-      if: steps.build.outputs.done == 'false'
+      if: steps.build.outputs.done == 'false' || (inputs.handoff && steps.build.outputs.done == 'true')
       run: |
         (cd "$SSTATE_DIR" && find . -type f | sort) > "$RUNNER_TEMP/sstate-after.txt"
         # New objects, plus the persistent dir (hashserv.db is updated in place).
@@ -230,7 +260,7 @@ jobs:
         echo "Delta: $(wc -l < "$RUNNER_TEMP/sstate-new.txt") files, $(du -h "$RUNNER_TEMP/delta-out/pass${{ inputs.pass }}.tar" | cut -f1)"
 
     - name: Upload sstate delta
-      if: steps.build.outputs.done == 'false'
+      if: steps.build.outputs.done == 'false' || (inputs.handoff && steps.build.outputs.done == 'true')
       uses: actions/upload-artifact@v4
       with:
         name: sstate-delta-${{ inputs.machine }}-${{ inputs.lane }}-pass${{ inputs.pass }}
@@ -239,7 +269,7 @@ jobs:
         retention-days: 1
 
     - name: List packages built by this run
-      if: inputs.lane == 'image' && steps.build.outputs.done == 'true'
+      if: inputs.lane == 'image' && inputs.collect && steps.build.outputs.done == 'true'
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
@@ -250,7 +280,7 @@ jobs:
           "$(date -d "$started" +%s)" "$RUNNER_TEMP/packages-new.txt"
 
     - name: Collect build outputs
-      if: inputs.lane == 'image' && steps.build.outputs.done == 'true'
+      if: inputs.lane == 'image' && inputs.collect && steps.build.outputs.done == 'true'
       run: |
         OUT="$RUNNER_TEMP/build-output"
         mkdir -p "$OUT"
@@ -279,7 +309,7 @@ jobs:
         du -sh "$OUT"/*
 
     - name: Upload build outputs
-      if: inputs.lane == 'image' && steps.build.outputs.done == 'true'
+      if: inputs.lane == 'image' && inputs.collect && steps.build.outputs.done == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ github.event_name == 'pull_request' && 'pr-output' || 'build-output' }}-${{ inputs.machine }}
@@ -302,6 +332,21 @@ jobs:
         compression-level: 0
         retention-days: 7
 
+    - name: Collect emulator
+      if: inputs.lane == 'emulator' && steps.build.outputs.done == 'true'
+      run: |
+        mkdir -p "$RUNNER_TEMP/build-output"
+        bash .github/scripts/collect-emulator.sh "$RUNNER_TEMP/build-output"
+
+    - name: Upload emulator
+      if: inputs.lane == 'emulator' && steps.build.outputs.done == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: emulator-${{ inputs.machine }}
+        path: ${{ runner.temp }}/build-output/
+        compression-level: 0
+        retention-days: 30
+
     # --- Image lane: save the pruned working set, keep the two newest ---
 
     - name: Prune sstate to this build's working set
@@ -323,10 +368,10 @@ jobs:
         bash .github/scripts/rotate-caches.sh "$IMG_CACHE_PREFIX" \
           "${IMG_CACHE_PREFIX}${{ github.run_id }}" 2
 
-    # --- SDK lane: save only what the image entry lacks, keep the newest ---
+    # --- Other lanes: save only what the image entry lacks, keep the newest ---
 
     - name: Stage SDK sstate
-      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      if: inputs.lane != 'image' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       run: |
         bash .github/scripts/select-sdk-sstate.sh "$SSTATE_DIR" "$RUNNER_TEMP/image-sstate.txt" \
           "$RUNNER_TEMP/pass-marker" "$SDK_SSTATE_DIR"
@@ -336,19 +381,35 @@ jobs:
         fi
 
     - name: Save SDK sstate cache
-      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      if: inputs.lane != 'image' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       uses: actions/cache/save@v4
       with:
         path: ${{ env.SDK_SSTATE_DIR }}
         key: ${{ env.SDK_CACHE_PREFIX }}${{ github.run_id }}
 
     - name: Keep the newest SDK sstate cache
-      if: inputs.lane == 'sdk' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
+      if: inputs.lane != 'image' && steps.build.outputs.done == 'true' && env.SAVE_CACHE == 'true'
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         bash .github/scripts/rotate-caches.sh "$SDK_CACHE_PREFIX" \
           "${SDK_CACHE_PREFIX}${{ github.run_id }}" 1
+
+    # --- Tests, after the cache is saved so a failing test keeps the sstate ---
+
+    - name: Post-build tests
+      if: inputs.post_build != '' && steps.build.outputs.done == 'true'
+      run: |
+        mkdir -p "$RUNNER_TEMP/build-output"
+        bash "${{ inputs.post_build }}" "${{ steps.prepare-config.outputs.kas_override_file }}" "$RUNNER_TEMP/build-output"
+
+    - name: Upload test logs
+      if: always() && inputs.post_build != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs-${{ inputs.machine }}-${{ inputs.lane }}-pass${{ inputs.pass }}
+        path: ${{ runner.temp }}/test-logs/
+        if-no-files-found: ignore
 
     - name: Disk usage
       if: always()
