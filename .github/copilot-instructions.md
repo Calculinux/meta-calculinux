@@ -167,6 +167,8 @@ Check `conf/layer.conf` in each layer for `LAYERDEPENDS`. Example dependency cha
 - Release tags: `v1.0.0-alpha4`
 - Continuous: `1.0.0-continuous+<hash>`
 - Develop: `1.0.0-develop+<hash>`
+- Pull requests: `1.0.0-pr-<number>+<hash>`
+- Other branches: `1.0.0-<sanitized-branch-name>+<hash>`
 
 ### Package Feeds
 - Base URL: `https://opkg.calculinux.org/`

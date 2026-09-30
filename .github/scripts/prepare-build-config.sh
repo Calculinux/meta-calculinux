@@ -29,20 +29,26 @@ if [ -z "$SHORT_SHA" ]; then
   exit 1
 fi
 
+# Strip characters that are unsafe in OE/DISTRO version labels
+# (e.g. "/" and "~" from branch names)
+sanitize_label() {
+  printf '%s' "$1" | LC_ALL=C sed -e 's/[^A-Za-z0-9._+-]/-/g' | cut -c1-40
+}
+
 if [ "$IS_TAGGED_RELEASE" = "true" ]; then
   DISTRO_VERSION="$REF_NAME"
+elif [ "$REF_NAME" = "main" ]; then
+  DISTRO_VERSION="1.0.0-continuous+$SHORT_SHA"
+elif [ "$REF_NAME" = "develop" ]; then
+  DISTRO_VERSION="1.0.0-develop+$SHORT_SHA"
+elif [[ "$REF_NAME" =~ ^([0-9]+)/merge$ ]]; then
+  # GitHub pull_request events set ref_name to "<pr_number>/merge"
+  DISTRO_VERSION="1.0.0-pr-${BASH_REMATCH[1]}+$SHORT_SHA"
 else
-  case "$REF_NAME" in
-    main)
-      DISTRO_VERSION="1.0.0-continuous+$SHORT_SHA"
-      ;;
-    develop)
-      DISTRO_VERSION="1.0.0-develop+$SHORT_SHA"
-      ;;
-    *)
-      DISTRO_VERSION="1.0.0-branch+$SHORT_SHA"
-      ;;
-  esac
+  # Any other branch: embed a sanitized branch name
+  LABEL=$(sanitize_label "$REF_NAME")
+  [ -n "$LABEL" ] || LABEL="branch"
+  DISTRO_VERSION="1.0.0-${LABEL}+$SHORT_SHA"
 fi
 
 cat > "$OUTPUT_FILE" <<EOF
