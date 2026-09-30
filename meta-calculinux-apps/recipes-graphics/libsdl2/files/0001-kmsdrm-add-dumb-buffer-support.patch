@@ -3,6 +3,7 @@ From: JohnnyonFlame <johnnyonflame@hotmail.com>
 Date: Sat, 17 Dec 2022 07:11:20 -0300
 Subject: [PATCH] KMSDRM: Added experimental Dumb Buffer support.
 
+Upstream-Status: Pending
 ---
  cmake/sdlchecks.cmake                 |  32 +++-
  src/video/kmsdrm/SDL_kmsdrmdumb.c     | 228 +++++++++++++++++++++++++

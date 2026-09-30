@@ -22,6 +22,33 @@ Enables the Maxim DS3231 Real-Time Clock on I2C bus 2.
 
 Reduces the I2C2 bus clock from 400 kHz to 100 kHz.
 
+### PCM5102A I2S DAC Module
+
+**File**: `pcm5102a-i2s.dtbo`  
+**Documentation**: [PCM5102A-I2S-DAC.md](PCM5102A-I2S-DAC.md)
+
+Enables I2S audio output via the PCM5102A DAC on RMII1 test pads. Prefer FIT-at-boot (pinctrl groups).
+
+### SX1262 LoRA Module (Meshtastic)
+
+**File**: `sx1262-lora.dtbo`  
+**Documentation**: [SX1262-LORA-MESHTASTIC.md](SX1262-LORA-MESHTASTIC.md)
+
+GPIO bitbang SPI for the Waveshare SX1262 on RMII1 test pads. Prefer FIT-at-boot.
+
+### u-blox NEO-M8N GPS Module
+
+**File**: `neo-m8n-gps.dtbo`  
+**Documentation**: [NEO-M8N-GPS.md](NEO-M8N-GPS.md)
+
+Enables UART5 for the NEO-M8N on RMII1 test pads. Compatible with gpsd; can share pads with SX1262 for GPS-equipped Meshtastic nodes.
+
+### LCD SPI @ 100 MHz
+
+**File**: `lcd-spi-100mhz.dtbo`
+
+Raises the ILI9488 display's SPI limit from 80 MHz to 100 MHz. With `clk_spi0` at 187.5 MHz, the SPI clock goes from 46.875 MHz to 93.75 MHz, roughly halving full-frame time (~28 → ~49 fps). This is well past Rockchip's documented 50 MHz, so it is off by default. FIT-at-boot only: the display driver reads its speed once at probe, so a ConfigFS apply has no effect.
+
 ## Persistent: merge for next boot
 
 Use `sudo calculinux-config` → Hardware → Overlays to toggle entries, or edit

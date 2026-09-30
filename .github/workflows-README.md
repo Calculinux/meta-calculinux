@@ -7,8 +7,12 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
 ```
 .github/
 ├── workflows/           # GitHub Actions workflow definitions
-│   ├── build.yml       # Main build workflow
-│   └── cleanall.yml    # Recipe cleaning workflow
+│   ├── build-hosted.yml     # Main build ("Build Calculinux"), GitHub-hosted
+│   ├── yocto-pass.yml       # One time-boxed build pass (called by build-hosted)
+│   ├── publish-pr.yml       # Publish PR builds to the PR channel + testing feed
+│   ├── pr-rauc-cleanup.yml  # Remove a closed PR's published artifacts
+│   ├── build.yml            # Manual fallback build on the self-hosted runners
+│   └── cleanall.yml         # Recipe cleaning workflow
 ├── actions/            # Reusable composite actions
 │   ├── setup-build-env/     # Set up Yocto build environment
 │   ├── sync-packages/       # Sync packages to repository
@@ -16,7 +20,17 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
 └── scripts/            # Standalone bash/python scripts
     ├── lib/                        # Shared helpers (sourced by other scripts)
     │   ├── publish-common.sh       # Arg parsing + paths for publish-images, publish-sdk
-    │   └── copy-with-checksum.sh   # cp + sha256sum helper
+    │   ├── copy-with-checksum.sh   # cp + sha256sum helper
+    │   ├── index-feed.sh           # Regenerate Packages.gz for one feed arch dir
+    │   └── testing-feed.sh         # Testing-feed manifests, locking, reindexing
+    ├── yocto-pass.sh               # Run one time-boxed pass of a lane (image or sdk)
+    ├── prune-sstate.sh             # Shrink sstate to the build's working set before caching
+    ├── select-sdk-sstate.sh        # Stage the SDK lane's own sstate for its cache entry
+    ├── rotate-caches.sh            # Keep the newest N Actions cache entries per prefix
+    ├── list-new-packages.sh        # List the IPKs a workflow run built
+    ├── publish-testing-packages.sh # Publish a PR's packages to the testing feed
+    ├── cleanup-testing-packages.sh # Remove a closed PR's packages from the testing feed
+    ├── sync-source-mirror.sh       # Keep the /.sources download mirror current
     ├── build-dir.sh                # Find Yocto build directory (used by collect-*)
     ├── determine-feed-config.sh    # Determine feed configuration
     ├── load-script-output.sh       # Run script and load key=value output to GITHUB_OUTPUT
@@ -31,19 +45,47 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
 
 ## Workflows
 
-### build.yml
-Main workflow for building Calculinux images, packages, and SDKs. Triggers on:
-- Push to `main` or `develop` branches
-- Tagged releases (`v*`)
-- Pull requests to `main`
-- Manual workflow dispatch
+### build-hosted.yml ("Build Calculinux")
+Main build, on free GitHub-hosted runners. Triggers on pushes to `main` and
+`develop`, `v*` tags, PRs to `main`, and manual dispatch (with
+`sync_all_packages`).
 
-Key features:
-- Builds Yocto images and packages
-- Generates SDKs for x86_64 and aarch64
-- Publishes artifacts to webserver
-- Creates GitHub releases for tagged versions
-- Sends Discord notifications for releases
+A cold build does not fit the 6 hour hosted-job limit on 4 cores, so each lane
+runs as a chain of identical time-boxed passes (`yocto-pass.yml`): a warm build
+finishes in its first pass and later passes are skipped; a cold one resumes from
+the sstate the previous pass handed over as a run artifact.
+
+- `pass1..3`: image, bundle and packages.
+- `sdk1..3`: both SDKs, published refs only, after the image chain.
+- `publish` (self-hosted): publishes the artifacts to the opkg server (feed,
+  images, index, SDKs, releases, Discord) and keeps the `/.sources` download
+  mirror current. Hosted runners cannot reach the server themselves.
+
+**Caches.** sstate is kept in the Actions cache (repo limit 50 GB), keyed by
+Yocto release so releases never evict each other: the two newest
+`sstate-<release>-<machine>-img-` entries and the newest `...-sdk-` entry.
+Only pushes to `main` save; PR builds only read. Sources come lazily from
+`https://opkg.calculinux.org/.sources/`, then the Yocto source mirror, then upstream.
+
+### publish-pr.yml
+Runs after a successful PR build of "Build Calculinux", from `main`'s code only
+(it never checks out PR code), on a self-hosted runner:
+- RAUC bundle and WIC image go to the PR channel (`update|image/<feed>/pr/`).
+- The packages the PR built (new or changed relative to `main`'s cache) go to
+  the shared **testing feed**, `ipk/<feed>/testing/<arch>/`. The PR comment
+  lists them with the `src/gz` lines to add on a device.
+- Same-repo PRs always publish. Fork PRs publish only once a maintainer adds
+  the `publish-testing` label, which publishes the PR head's latest build.
+
+### pr-rauc-cleanup.yml
+When a PR closes (merged or not), removes its bundle and image and its
+testing-feed packages. A package another open PR also published stays until
+that PR closes too; `ipk/<feed>/testing/.manifests/pr<N>.txt` records which
+PR published what.
+
+### build.yml
+The previous self-hosted build, now **manual only** (workflow dispatch) as a
+fallback. It still builds and publishes the way it always did.
 
 ### cleanall.yml
 Workflow for cleaning BitBake recipes. Useful for forcing rebuilds or clearing cache.
@@ -79,6 +121,9 @@ Syncs IPK packages to the repository and generates opkg package indexes.
 - `subfolder`: Subfolder - continuous, release, or branch (required)
 - `artifacts-dir`: Directory containing built packages (required)
 - `sync-all`: Sync all packages instead of just newly built (optional, default: false)
+- `package-list`: File listing newly built packages as `<arch>/<file>.ipk` (optional). When
+  present, those plus any missing from the feed are synced instead of guessing from mtimes,
+  which artifact downloads do not preserve. `build-hosted.yml` passes the list `yocto-pass.yml` records.
 
 **Usage:**
 ```yaml
@@ -213,28 +258,17 @@ Generates a JSON index of published artifacts for machine-readable access. Used 
 
 ## Adding a New Machine Configuration
 
-To add a new machine (e.g., Raspberry Pi 4):
+The hosted build (`build-hosted.yml`) builds one machine today: `yocto-pass.yml`
+takes `machine` and `kas_file` inputs (default `luckfox-lyra` and
+`kas-luckfox-lyra-bundle.yaml`), and the `publish` job and `publish-pr.yml` set
+`MACHINE`. To add a machine:
 
-1. Update the `build.yml` workflow matrix:
-```yaml
-matrix:
-  machine: [luckfox-lyra, rpi4]
-  include:
-    - machine: luckfox-lyra
-      name: "Luckfox Lyra Bundle"
-      kas_file: "kas-luckfox-lyra-bundle.yaml"
-      target: "calculinux-bundle"
-      dockerfile: "Dockerfile.aarch64"
-    - machine: rpi4
-      name: "Raspberry Pi 4 Bundle"
-      kas_file: "kas-rpi4-bundle.yaml"
-      target: "calculinux-bundle"
-      dockerfile: "Dockerfile.arm64"
-```
-
-2. Create the corresponding kas configuration file (`kas-rpi4-bundle.yaml`)
-
-3. All scripts and actions will automatically work with the new machine
+1. Create its kas configuration file (e.g. `kas-rpi4-bundle.yaml`).
+2. In `build-hosted.yml`, add a pass chain (and SDK chain if it ships SDKs) that
+   passes the new `machine` and `kas_file` to `yocto-pass.yml`. Cache keys,
+   deltas and artifacts are already named per machine.
+3. Publish its artifacts: extend the `publish` job and `publish-pr.yml`, which
+   currently handle one `MACHINE`.
 
 ## Modifying Workflows
 

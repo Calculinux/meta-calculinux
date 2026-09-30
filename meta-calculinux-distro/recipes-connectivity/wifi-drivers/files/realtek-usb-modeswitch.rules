@@ -1,0 +1,5 @@
+# Realtek USB Wi-Fi dongles (RTL8188GU, and rtw89 parts such as RTL8851BU and
+# RTL8852BU) enumerate as a fake driver CD first. A SCSI standard eject
+# switches them into Wi-Fi mode.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0bda", ATTR{idProduct}=="1a2b", RUN+="/usr/sbin/usb_modeswitch -v 0bda -p 1a2b -K"
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0bda", ATTR{idProduct}=="a192", RUN+="/usr/sbin/usb_modeswitch -v 0bda -p a192 -K"

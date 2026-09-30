@@ -63,12 +63,20 @@ trim() {
 FIT_KERNEL="/boot/fit_kernel"
 FIT_FDT="/boot/fit_fdt.dtb"
 FIT_COMPRESS_FILE="/boot/fit_compression.txt"
-# Must match rk3506_common.h ENV_MEM_LAYOUT_SETTINGS
-KERNEL_LOAD_ADDR="0x00140000"
-FDT_LOAD_ADDR="0x00063000"
+# Board load addresses (match the board's U-Boot memory layout); written by
+# default-merged-fit from the machine configuration.
+FIT_LOADADDR_FILE="/boot/fit_loadaddr.env"
 
-if [[ ! -f "$FIT_KERNEL" ]] || [[ ! -f "$FIT_FDT" ]]; then
-    echo "merge-dt-overlays-boot: required $FIT_KERNEL and $FIT_FDT not found (install default-merged-fit)" >&2
+if [[ ! -f "$FIT_KERNEL" ]] || [[ ! -f "$FIT_FDT" ]] || [[ ! -f "$FIT_LOADADDR_FILE" ]]; then
+    echo "merge-dt-overlays-boot: required $FIT_KERNEL, $FIT_FDT and $FIT_LOADADDR_FILE not found (install default-merged-fit)" >&2
+    exit 1
+fi
+KERNEL_LOAD_ADDR=""
+FDT_LOAD_ADDR=""
+# shellcheck source=/dev/null
+. "$FIT_LOADADDR_FILE"
+if [[ -z "$KERNEL_LOAD_ADDR" ]] || [[ -z "$FDT_LOAD_ADDR" ]]; then
+    echo "merge-dt-overlays-boot: $FIT_LOADADDR_FILE does not set KERNEL_LOAD_ADDR and FDT_LOAD_ADDR" >&2
     exit 1
 fi
 
@@ -121,7 +129,7 @@ else
 fi
 
 # Use a quoted heredoc delimiter so BitBake/shell do not mangle #address-cells.
-# load/entry must match U-Boot ram layout (rk3506_common.h).
+# load/entry must match the board U-Boot ram layout (fit_loadaddr.env).
 cat > image.its << EOF
 /dts-v1/;
 / {
