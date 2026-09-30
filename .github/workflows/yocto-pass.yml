@@ -114,9 +114,17 @@ jobs:
       run: |
         # sstate never carries across Yocto releases, so each release keeps
         # its own cache entries instead of evicting the other's.
-        release=$(sed -nE 's/^LAYERSERIES_CORENAMES = "([a-z]+).*/\1/p' poky/meta/conf/layer.conf)
+        # oe-core is poky/meta up to walnascar and a separate
+        # openembedded-core checkout (split Poky) from wrynose on.
+        release=
+        for conf in poky/meta/conf/layer.conf openembedded-core/meta/conf/layer.conf; do
+          if [ -f "$conf" ]; then
+            release=$(sed -nE 's/^LAYERSERIES_CORENAMES = "([a-z]+).*/\1/p' "$conf")
+            break
+          fi
+        done
         if [ -z "$release" ]; then
-          echo "::error::Could not read LAYERSERIES_CORENAMES from poky/meta/conf/layer.conf"
+          echo "::error::Could not read LAYERSERIES_CORENAMES from poky/meta or openembedded-core/meta"
           exit 1
         fi
         echo "Yocto release: $release"
