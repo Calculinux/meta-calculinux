@@ -131,6 +131,15 @@ calculinux_create_version_manifest() {
     manifest_dir="${IMAGE_ROOTFS}/var/lib/calculinux"
     manifest_file="${manifest_dir}/version-manifest.env"
     install -d "${manifest_dir}"
+    # KERNEL_VERSION and PYTHON_BASEVERSION are recipe-local variables on the
+    # kernel and python3 recipes, so they are empty here. Derive both from
+    # what actually shipped in the rootfs.
+    kernel_version="$(ls "${IMAGE_ROOTFS}/lib/modules" 2>/dev/null | grep -E '^[0-9]' \
+        | sort -V | tail -n1)"
+    python_so="$(find "${IMAGE_ROOTFS}/${base_libdir}" -maxdepth 1 -name 'libpython3.*.so*' \
+        2>/dev/null | head -n1)"
+    python_version="$(basename "${python_so:-/dev/null}" \
+        | sed -n 's/^libpython\(3\.[0-9][0-9]*\)\.so.*/\1/p')"
     {
         echo "# Distribution Version Manifest (generated at image build time)"
         echo "CALCULINUX_VERSION=\"${DISTRO_VERSION}\""
@@ -138,8 +147,8 @@ calculinux_create_version_manifest() {
         echo "MIN_CALCULINUX_VERSION=\"${CALCULINUX_MIN_VERSION}\""
         echo "MIN_BUILD_TIMESTAMP=\"${CALCULINUX_MIN_BUILD_TIMESTAMP}\""
         echo "YOCTO_VERSION=\"${LAYERSERIES_CORENAMES}\""
-        echo "KERNEL_VERSION=\"${KERNEL_VERSION}\""
-        echo "PYTHON_VERSION=\"${PYTHON_BASEVERSION}\""
+        echo "KERNEL_VERSION=\"${kernel_version}\""
+        echo "PYTHON_VERSION=\"${python_version}\""
         echo "FEED_BASE_URL=\"${PACKAGE_FEED_URIS}\""
         echo "FEED_PATH=\"${PACKAGE_FEED_BASE_PATHS}\""
         # SOURCE_DATE_EPOCH keeps the rootfs bit-identical across rebuilds.
