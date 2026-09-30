@@ -7,11 +7,11 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;nobranch=1;protocol=https"
-SRCREV = "d9faddb15d1d2bc2c04d122a40bc3727d532b31e"
+SRCREV = "c5f25874d3be861515df4e26bf43af70fad987cb"
 
 
 # Use SRCPV for automatic git-based versioning (format: <base>+git<revision>)
-PV = "0.9.0+git${SRCPV}"
+PV = "0.9.1+git${SRCPV}"
 
 inherit python3-dir python3native systemd
 
@@ -30,9 +30,9 @@ RDEPENDS:${PN} += " \
 
 FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${libdir}/calculinux-update ${sysconfdir}/calculinux-update ${sysconfdir}/profile.d/cup-pending.sh ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update ${mandir}/man1 ${systemd_system_unitdir}"
 
-# cup-reconcile.service has no [Install]; the timer starts it while
-# reinstalls wait for the network.
-SYSTEMD_SERVICE:${PN} = "cup-postreboot.service cup-reconcile.timer"
+# The retired cup-reconcile.timer is not packaged: work left waiting for
+# the network is surfaced via the login notice instead of retried.
+SYSTEMD_SERVICE:${PN} = "cup-postreboot.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
 # Compile Python modules to bytecode for faster startup
@@ -75,8 +75,6 @@ install_man_page() {
 install_service() {
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${S}/systemd/cup-postreboot.service ${D}${systemd_system_unitdir}/cup-postreboot.service
-    install -m 0644 ${S}/systemd/cup-reconcile.service ${D}${systemd_system_unitdir}/cup-reconcile.service
-    install -m 0644 ${S}/systemd/cup-reconcile.timer ${D}${systemd_system_unitdir}/cup-reconcile.timer
 }
 
 # Login message while reinstalls wait for the network
