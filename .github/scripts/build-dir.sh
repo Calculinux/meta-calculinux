@@ -10,7 +10,10 @@ set -euo pipefail
 OPTIONAL=false
 [[ "${1:-}" = "--optional" ]] && OPTIONAL=true
 
-BUILD_TMP=$(find build -name "tmp" -type d 2>/dev/null | head -1)
+# -print -quit, not "| head -1": under pipefail, find dying of SIGPIPE once
+# head exits fails the script silently (it did in the SDK lane, whose tree
+# holds many dirs named tmp).
+BUILD_TMP=$(find build -name "tmp" -type d -print -quit 2>/dev/null || true)
 if [ -z "$BUILD_TMP" ]; then
     if [ "$OPTIONAL" = "true" ]; then
         exit 0
