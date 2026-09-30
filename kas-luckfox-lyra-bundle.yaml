@@ -71,6 +71,7 @@ local_conf_header:
       rtl8821cu \
       rtl88x2bu \
       rtl8733bu \
+      rtw89 \
     "
 
     PICOCALC_DRIVERS = "\

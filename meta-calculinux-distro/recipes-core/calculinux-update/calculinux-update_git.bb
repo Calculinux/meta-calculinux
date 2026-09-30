@@ -7,12 +7,12 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;nobranch=1;protocol=https"
-SRCREV = "303270351ff6dfadf3803bba7397e5b03e5b880d"
+SRCREV = "c5f25874d3be861515df4e26bf43af70fad987cb"
 
 S = "${WORKDIR}/git"
 
 # Use SRCPV for automatic git-based versioning (format: <base>+git<revision>)
-PV = "0.7.1+git${SRCPV}"
+PV = "0.9.1+git${SRCPV}"
 
 inherit python3-dir python3native systemd
 
@@ -29,8 +29,10 @@ RDEPENDS:${PN} += " \
     squashfs-tools \
 "
 
-FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${libdir}/calculinux-update ${sysconfdir}/calculinux-update ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update ${mandir}/man1"
+FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR} ${libdir}/calculinux-update ${sysconfdir}/calculinux-update ${sysconfdir}/profile.d/cup-pending.sh ${localstatedir}/cache/calculinux-update ${localstatedir}/lib/calculinux-update ${mandir}/man1 ${systemd_system_unitdir}"
 
+# The retired cup-reconcile.timer is not packaged: work left waiting for
+# the network is surfaced via the login notice instead of retried.
 SYSTEMD_SERVICE:${PN} = "cup-postreboot.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "enable"
 
@@ -76,6 +78,12 @@ install_service() {
     install -m 0644 ${S}/systemd/cup-postreboot.service ${D}${systemd_system_unitdir}/cup-postreboot.service
 }
 
+# Login message while reinstalls wait for the network
+install_login_notice() {
+    install -d ${D}${sysconfdir}/profile.d
+    install -m 0644 ${S}/profile.d/cup-pending.sh ${D}${sysconfdir}/profile.d/cup-pending.sh
+}
+
 do_install() {
     install_python_package
     install_entrypoint
@@ -83,4 +91,5 @@ do_install() {
     install_state_dirs
     install_man_page
     install_service
+    install_login_notice
 }

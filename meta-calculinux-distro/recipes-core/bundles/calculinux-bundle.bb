@@ -16,6 +16,10 @@ RAUC_BUNDLE_EXTRA_DEPENDS += "calculinux-image:do_image_complete"
 RAUC_BUNDLE_EXTRA_FILES += "bundle-extras.tar.gz"
 
 RAUC_BUNDLE_HOOKS[file] = "hook.sh"
+# install-check refuses bundles the running system cannot take (minimum
+# version, overlayfs ioctls) before any slot is written, and takes over
+# RAUC's compatible check.
+RAUC_BUNDLE_HOOKS[hooks] = "install-check"
 RAUC_SLOT_rootfs = "calculinux-image"
 RAUC_SLOT_rootfs[fstype] = "ext4"
 RAUC_SLOT_rootfs[hooks] = "post-install"

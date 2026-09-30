@@ -20,7 +20,7 @@ SRC_URI = "git://github.com/Calculinux/opkg.git;protocol=https;branch=master \
            file://run-ptest \
            "
 
-SRCREV = "b99c3a03ca05c6c2f1c60294d4b4c57612c753e6"
+SRCREV = "ff71b83bcc00899cac9ef08c9689fe5ece62e989"
 S = "${WORKDIR}/git"
 
 # This needs to be before ptest inherit, otherwise all ptest files end packaged

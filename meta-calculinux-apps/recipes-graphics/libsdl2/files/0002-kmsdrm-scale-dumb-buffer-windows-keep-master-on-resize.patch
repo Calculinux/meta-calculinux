@@ -1,0 +1,211 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] kmsdrm: scale dumb-buffer windows to the display, keep DRM master on resize
+
+The dumb-buffer path sized its buffers to the display mode but copied the
+window surface into them row by row using the window's size, so a window
+larger than the display wrote past the end of the mapping.
+
+Every SetWindowSize also marked the surfaces dirty, which tore the dumb
+buffers down on the next present: that restored the original (console)
+CRTC and closed the DRM fd, dropping master, before recreating them. It
+then sent a display-sized RESIZED event, forcing every window to the panel
+size. Apps that pick their own window size (e.g. DOSBox-X) fought this in
+a loop, with the console flashing through on each round.
+
+Dumb buffers never need to change with the window size, so leave them in
+place on resize and let SDL_video.c report the size the app asked for.
+When presenting, copy a display-sized surface directly, scale a larger one
+down to fit (aspect preserved) and show a smaller one 1:1, centred with
+black borders. Downscaling averages each source area by default; set the
+SDL_VIDEO_KMSDRM_SCALE_QUALITY hint or environment variable to "nearest"
+to drop pixels instead.
+
+Upstream-Status: Inappropriate [depends on the Calculinux dumb-buffer patch]
+
+--- a/src/video/kmsdrm/SDL_kmsdrmdumb.c	2026-09-28 17:01:14.562016577 -0400
++++ b/src/video/kmsdrm/SDL_kmsdrmdumb.c	2026-09-28 17:38:53.768089501 -0400
+@@ -23,6 +23,7 @@
+ 
+ #if SDL_VIDEO_DRIVER_KMSDRM
+ 
++#include "SDL_hints.h"
+ #include "SDL_log.h"
+ 
+ #include "SDL_kmsdrmvideo.h"
+@@ -143,6 +144,125 @@
+     return 0;
+ }
+ 
++/* Downscaling filter, from the SDL_VIDEO_KMSDRM_SCALE_QUALITY hint (or the
++   environment variable of the same name): "nearest"/"0" drops pixels,
++   "box"/"linear"/"1" (the default) averages each source area. */
++static SDL_bool KMSDRM_Dumb_UseBoxFilter(void)
++{
++    const char *hint = SDL_GetHint("SDL_VIDEO_KMSDRM_SCALE_QUALITY");
++
++    if (hint && (SDL_strcasecmp(hint, "nearest") == 0 || SDL_strcmp(hint, "0") == 0)) {
++        return SDL_FALSE;
++    }
++    return SDL_TRUE;
++}
++
++/* Average the source pixels [sx0,sx1) x [sy0,sy1) of a 32bpp surface. */
++static Uint32 KMSDRM_Dumb_BoxSample(const SDL_Surface *surf, int sx0, int sx1, int sy0, int sy1)
++{
++    Uint32 r = 0, g = 0, b = 0, n;
++    int x, y;
++
++    for (y = sy0; y < sy1; y++) {
++        const Uint32 *row = (const Uint32 *)((const Uint8 *)surf->pixels + y * surf->pitch);
++        for (x = sx0; x < sx1; x++) {
++            const Uint32 p = row[x];
++            r += (p >> 16) & 0xff;
++            g += (p >> 8) & 0xff;
++            b += p & 0xff;
++        }
++    }
++    n = (Uint32)((sx1 - sx0) * (sy1 - sy0));
++    return 0xff000000u | ((r / n) << 16) | ((g / n) << 8) | (b / n);
++}
++
++/* Copy the window surface into a panel-sized dumb buffer. A window the same
++   size as the buffer is copied as-is; a larger one is scaled down to fit
++   (aspect preserved, see KMSDRM_Dumb_UseBoxFilter) and a smaller one is
++   shown 1:1. Either way the image is centred and the borders are cleared
++   to black. */
++static void KMSDRM_Dumb_Present(const SDL_Surface *surf, KMSDRM_DumbBuffer *buffer)
++{
++    const int bw = (int)buffer->req_create.width;
++    const int bh = (int)buffer->req_create.height;
++    const int dpitch = (int)buffer->req_create.pitch;
++    const int sw = surf->w;
++    const int sh = surf->h;
++    Uint8 *dst = (Uint8 *)buffer->map;
++    const Uint8 *src = (const Uint8 *)surf->pixels;
++    int dw, dh, ox, oy, x, y;
++    SDL_bool box;
++
++    if (sw == bw && sh == bh) {
++        for (y = 0; y < bh; y++) {
++            SDL_memcpy(dst + y * dpitch, src + y * surf->pitch, (size_t)bw * 4);
++        }
++        return;
++    }
++
++    if (sw <= bw && sh <= bh) {
++        dw = sw;
++        dh = sh;
++    } else if ((Sint64)sw * bh > (Sint64)sh * bw) {
++        dw = bw;
++        dh = (int)(((Sint64)sh * bw) / sw);
++    } else {
++        dh = bh;
++        dw = (int)(((Sint64)sw * bh) / sh);
++    }
++    if (dw < 1) {
++        dw = 1;
++    }
++    if (dh < 1) {
++        dh = 1;
++    }
++    ox = (bw - dw) / 2;
++    oy = (bh - dh) / 2;
++    box = (dw < sw || dh < sh) && KMSDRM_Dumb_UseBoxFilter();
++
++    for (y = 0; y < bh; y++) {
++        Uint32 *drow = (Uint32 *)(dst + y * dpitch);
++        const Uint32 *srow;
++        Uint32 sx_fp, step;
++
++        if (y < oy || y >= oy + dh) {
++            SDL_memset(drow, 0, (size_t)bw * 4);
++            continue;
++        }
++        srow = (const Uint32 *)(src + (Sint64)(y - oy) * sh / dh * surf->pitch);
++        if (ox > 0) {
++            SDL_memset(drow, 0, (size_t)ox * 4);
++        }
++        if (box) {
++            int sy0 = (int)((Sint64)(y - oy) * sh / dh);
++            int sy1 = (int)((Sint64)(y - oy + 1) * sh / dh);
++            if (sy1 <= sy0) {
++                sy1 = sy0 + 1;
++            }
++            for (x = 0; x < dw; x++) {
++                int sx0 = (int)((Sint64)x * sw / dw);
++                int sx1 = (int)((Sint64)(x + 1) * sw / dw);
++                if (sx1 <= sx0) {
++                    sx1 = sx0 + 1;
++                }
++                drow[ox + x] = KMSDRM_Dumb_BoxSample(surf, sx0, sx1, sy0, sy1);
++            }
++        } else if (dw == sw) {
++            SDL_memcpy(drow + ox, srow, (size_t)dw * 4);
++        } else {
++            step = (Uint32)(((Uint64)sw << 16) / dw);
++            sx_fp = 0;
++            for (x = 0; x < dw; x++) {
++                drow[ox + x] = srow[sx_fp >> 16];
++                sx_fp += step;
++            }
++        }
++        if (ox + dw < bw) {
++            SDL_memset(drow + ox + dw, 0, (size_t)(bw - ox - dw) * 4);
++        }
++    }
++}
++
+ int KMSDRM_Dumb_UpdateWindowFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
+ {
+     SDL_WindowData *windata = ((SDL_WindowData *)window->driverdata);
+@@ -155,19 +275,10 @@
+     if (viddata->opengl_mode)
+         return SDL_SetError("Cannot mix dumb buffers with OpenGL.");
+ 
+-    /* Recreate the GBM / EGL surfaces if the display mode has changed */
+-    if (windata->egl_surface_dirty) {
+-        KMSDRM_CreateSurfaces(_this, window);
+-    }
+-
+-    if (!viddata->dumb_init)
++    if (!viddata->dumb_init || !surf)
+         return -1;
+ 
+-    for (int i = 0; i < window->h; i++) {
+-        Uint32 *row_db = buffer->map + (i * buffer->req_create.pitch);
+-        Uint32 *row_fb = surf->pixels + (i * surf->pitch);
+-        SDL_memcpy(row_db, row_fb, window->w * surf->format->BytesPerPixel);
+-    }
++    KMSDRM_Dumb_Present(surf, buffer);
+ 
+     ret = KMSDRM_drmModeSetCrtc(viddata->drm_fd, dispdata->crtc->crtc_id,
+                                 windata->dumb_buffers[windata->back_buffer].buf_id, 
+--- a/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-28 17:01:14.563707308 -0400
++++ b/src/video/kmsdrm/SDL_kmsdrmvideo.c	2026-09-28 17:02:38.889771424 -0400
+@@ -1107,6 +1107,16 @@
+     SDL_WindowData *windata = (SDL_WindowData *)window->driverdata;
+     drmModeModeInfo mode;
+ 
++    /* Dumb buffers are always the size of the display mode and the window
++       surface is scaled into them when presented, so a resize needs no new
++       buffers. Rebuilding them would restore the console's CRTC and drop DRM
++       master on every resize, and faking a display-sized RESIZED event would
++       force every window to the panel size. SDL_video.c already sends the
++       events for windowed and fullscreen size changes. */
++    if (!windata->viddata->opengl_mode) {
++        return;
++    }
++
+     /* Can't recreate EGL surfaces right now, need to wait until SwapWindow
+        so the correct thread-local surface and context state are available */
+     windata->egl_surface_dirty = SDL_TRUE;
+@@ -1166,9 +1176,6 @@
+             return SDL_SetError("KMSDRM: Failed to create window Dumb Buffer.");
+         }
+ 
+-        SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED,
+-                            dispdata->mode.hdisplay, dispdata->mode.vdisplay);
+-
+         windata->egl_surface_dirty = SDL_FALSE;
+         return 0;
+     }

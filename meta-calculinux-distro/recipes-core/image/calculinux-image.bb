@@ -71,10 +71,6 @@ IMAGE_INSTALL += " \
     overlayfs-tools \
     ovl-restore \
     packagegroup-core-buildessential \
-    picocalc-drivers \
-    picocalc-dt-overlays \
-    picocalc-m0-firmware \
-    picocalc-kbd-test \
     rauc \
     sdl2-test \
     shadow \
@@ -86,13 +82,11 @@ IMAGE_INSTALL += " \
     tree \
     tzdata \
     u-boot-fw-config \
-    u-boot-ota \
-    u-boot-rockchip-bootscript \
+    calculinux-bootscript \
     console-font \
     miniwi-console \
     unifont-console \
     unzip \
-    usb-gadget-network \
     usbutils \
     uwific \
     util-linux \
@@ -102,6 +96,10 @@ IMAGE_INSTALL += " \
     cruft \
     zip \
 "
+
+# Board-specific packages (bootloader blobs, device-tree overlays, hardware
+# tools) come from MACHINE_EXTRA_RDEPENDS in the machine configuration via
+# packagegroup-base, so this list stays hardware-neutral.
 
 OVERLAYFS_ETC_INIT_TEMPLATE = "${CALCULINUX_DISTRO_LAYER_DIR}/files/overlayfs-etc-preinit.sh.in"
 
@@ -121,13 +119,27 @@ do_fixup_wks() {
 	done
 }
 
-ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest; calculinux_install_opkg_image_status;"
+ROOTFS_POSTPROCESS_COMMAND += " calculinux_create_version_manifest;"
+# Must run after the rootfs is final: ROOTFS_POSTPROCESS_COMMAND runs before
+# _uninstall_unneeded(), which drops ROOTFS_RO_UNNEEDED through opkg and then
+# runs ROOTFS_POSTUNINSTALL_COMMAND (write_image_manifest). Emptying the opkg
+# status any earlier skips that cleanup and leaves an empty image manifest.
+ROOTFS_POSTUNINSTALL_COMMAND += " calculinux_install_opkg_image_status;"
 IMAGE_POSTPROCESS_COMMAND += " calculinux_export_bundle_extras;"
 
 calculinux_create_version_manifest() {
     manifest_dir="${IMAGE_ROOTFS}/var/lib/calculinux"
     manifest_file="${manifest_dir}/version-manifest.env"
     install -d "${manifest_dir}"
+    # KERNEL_VERSION and PYTHON_BASEVERSION are recipe-local variables on the
+    # kernel and python3 recipes, so they are empty here. Derive both from
+    # what actually shipped in the rootfs.
+    kernel_version="$(ls "${IMAGE_ROOTFS}/lib/modules" 2>/dev/null | grep -E '^[0-9]' \
+        | sort -V | tail -n1)"
+    python_so="$(find "${IMAGE_ROOTFS}/${base_libdir}" -maxdepth 1 -name 'libpython3.*.so*' \
+        2>/dev/null | head -n1)"
+    python_version="$(basename "${python_so:-/dev/null}" \
+        | sed -n 's/^libpython\(3\.[0-9][0-9]*\)\.so.*/\1/p')"
     {
         echo "# Distribution Version Manifest (generated at image build time)"
         echo "CALCULINUX_VERSION=\"${DISTRO_VERSION}\""
@@ -135,8 +147,8 @@ calculinux_create_version_manifest() {
         echo "MIN_CALCULINUX_VERSION=\"${CALCULINUX_MIN_VERSION}\""
         echo "MIN_BUILD_TIMESTAMP=\"${CALCULINUX_MIN_BUILD_TIMESTAMP}\""
         echo "YOCTO_VERSION=\"${LAYERSERIES_CORENAMES}\""
-        echo "KERNEL_VERSION=\"${KERNEL_VERSION}\""
-        echo "PYTHON_VERSION=\"${PYTHON_BASEVERSION}\""
+        echo "KERNEL_VERSION=\"${kernel_version}\""
+        echo "PYTHON_VERSION=\"${python_version}\""
         echo "FEED_BASE_URL=\"${PACKAGE_FEED_URIS}\""
         echo "FEED_PATH=\"${PACKAGE_FEED_BASE_PATHS}\""
         # SOURCE_DATE_EPOCH keeps the rootfs bit-identical across rebuilds.

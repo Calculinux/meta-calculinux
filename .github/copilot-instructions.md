@@ -163,10 +163,12 @@ Check `conf/layer.conf` in each layer for `LAYERDEPENDS`. Example dependency cha
 
 ### Version Management (`meta-calculinux-distro/conf/distro/calculinux-distro.conf`)
 - Local builds: `DISTRO_VERSION = "1.0.0-dev+<git-short-hash>"`
-- CI overrides via `kas-ci-override.yaml` using `local_conf_header`
+- CI overrides via `kas-ci-override.yaml` using `local_conf_header`, setting `CALCULINUX_VERSION` / `CALCULINUX_CODENAME` (never `DISTRO_VERSION` / `DISTRO_CODENAME` directly: local.conf is parsed before the distro conf, so those get clobbered by poky.conf)
 - Release tags: `v1.0.0-alpha4`
 - Continuous: `1.0.0-continuous+<hash>`
 - Develop: `1.0.0-develop+<hash>`
+- Pull requests: `1.0.0-pr-<number>+<hash>`
+- Other branches: `1.0.0-<sanitized-branch-name>+<hash>`
 
 ### Package Feeds
 - Base URL: `https://opkg.calculinux.org/`
