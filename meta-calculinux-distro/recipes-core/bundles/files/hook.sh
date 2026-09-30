@@ -1,5 +1,7 @@
 #!/bin/sh
-# RAUC slot-post-install: migrate vendor U-Boot → mainline (or bump mainline).
+# RAUC bundle hooks.
+# install-check: refuse bundles this system cannot take (see install_check).
+# slot-post-install: migrate vendor U-Boot → mainline (or bump mainline).
 # Abort with a flash-WIC message if the bootloader cannot be applied over OTA.
 set -eu
 
@@ -473,9 +475,149 @@ slot_post_install() {
 	flash_wic "Bootloader write failed before backup could be used"
 }
 
+# --- install-check: runs from the bundle before RAUC writes any slot --------
+#
+# Enforces the bundle's MIN_CALCULINUX_VERSION even for a plain `rauc install`,
+# and checks the running system really has what the update relies on (the
+# overlayfs upper-state ioctls and a calculinux-update that uses them). RAUC
+# skips its own compatible check when a bundle has an install-check hook, so
+# that is done here too. `cup install --force` (or creating the flag file by
+# hand) overrides the version and capability checks, never compatible.
+INSTALL_CHECK_OVERRIDE=/run/calculinux-update/allow-install-check-override
+RUNNING_MANIFEST=/var/lib/calculinux/version-manifest.env
+VERSION_CHECK=version_meets_minimum
+CAPABILITY_CHECK=system_capable
+
+# Value of KEY="value" (quotes optional) from a manifest on stdin.
+manifest_value() {
+	sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}\$/\1/p" | head -n 1
+}
+
+# 0 when running version $1 (build timestamp $2) meets minimum $3 (build
+# timestamp $4). Uses the running calculinux-update so the rule matches cup's.
+version_meets_minimum() {
+	python3 - "$@" 2>/dev/null <<'PY'
+import sys
+from calculinux_update.version_compat import version_meets_minimum
+cur, cur_ts, minimum, min_ts = sys.argv[1:5]
+ok = version_meets_minimum(cur, minimum, current_timestamp=cur_ts, minimum_timestamp=min_ts)
+sys.exit(0 if ok else 1)
+PY
+}
+
+system_capable() {
+	ovl-restore --state /etc /etc/hostname >/dev/null 2>&1 || return 1
+	python3 -c 'import calculinux_update.opkg.overlayfs as o; o.OVL_IOC_UPPER_STATE' \
+		>/dev/null 2>&1
+}
+
+# Args: system compatible, bundle compatible, bundle manifest text, running
+# manifest text, override (1/0). Prints why to refuse and returns 1, or
+# returns 0.
+install_check_verdict() {
+	sys_compat=$1
+	mf_compat=$2
+	bundle_manifest=$3
+	running_manifest=$4
+	override=$5
+
+	if [ "$sys_compat" != "$mf_compat" ]; then
+		echo "Compatible mismatch: this system is '$sys_compat', the bundle is for '$mf_compat'"
+		return 1
+	fi
+	minimum=$(printf '%s\n' "$bundle_manifest" | manifest_value MIN_CALCULINUX_VERSION)
+	[ -n "$minimum" ] || return 0
+	[ "$override" != 1 ] || return 0
+
+	current=$(printf '%s\n' "$running_manifest" | manifest_value CALCULINUX_VERSION)
+	if [ -z "$current" ]; then
+		echo "This update requires Calculinux $minimum or newer and the running version is unknown. Install Calculinux $minimum first."
+		return 1
+	fi
+	current_ts=$(printf '%s\n' "$running_manifest" | manifest_value BUILD_TIMESTAMP)
+	minimum_ts=$(printf '%s\n' "$bundle_manifest" | manifest_value MIN_BUILD_TIMESTAMP)
+	if ! "$VERSION_CHECK" "$current" "$current_ts" "$minimum" "$minimum_ts"; then
+		echo "This update requires Calculinux $minimum or newer (running $current). Install Calculinux $minimum first."
+		return 1
+	fi
+	if ! "$CAPABILITY_CHECK"; then
+		echo "Calculinux $current lacks the overlayfs ioctls or calculinux-update this update relies on. Install Calculinux $minimum first."
+		return 1
+	fi
+	return 0
+}
+
+install_check() {
+	extras="$(dirname "$0")/bundle-extras.tar.gz"
+	bundle_manifest=$(tar -xzOf "$extras" extras/version-manifest.env 2>/dev/null || true)
+	running_manifest=$(cat "$RUNNING_MANIFEST" 2>/dev/null || true)
+	override=0
+	[ ! -e "$INSTALL_CHECK_OVERRIDE" ] || override=1
+
+	if ! reason=$(install_check_verdict "${RAUC_SYSTEM_COMPATIBLE:-}" \
+		"${RAUC_MF_COMPATIBLE:-}" "$bundle_manifest" "$running_manifest" "$override"); then
+		# RAUC reports the last line on stderr when the exit code is >= 10.
+		echo "$reason" >&2
+		exit 10
+	fi
+	if [ "$override" = 1 ]; then
+		echo "install-check: version checks overridden by $INSTALL_CHECK_OVERRIDE" >&2
+	fi
+	exit 0
+}
+
+install_check_self_check() {
+	fail=0
+	good='CALCULINUX_VERSION="1.2.0"
+BUILD_TIMESTAMP="2026-09-01T00:00:00Z"'
+	needs='MIN_CALCULINUX_VERSION="1.2.0"
+MIN_BUILD_TIMESTAMP=""'
+
+	check() {
+		name=$1
+		want=$2
+		shift 2
+		if out=$(install_check_verdict "$@"); then got=ok; else got=refuse; fi
+		if [ "$got" = "$want" ]; then
+			echo "ok: install-check $name"
+		else
+			echo "FAIL: install-check $name: got $got ($out)" >&2
+			fail=1
+		fi
+	}
+
+	VERSION_CHECK=true
+	CAPABILITY_CHECK=true
+	check "accepts a matching system" ok lyra lyra "$needs" "$good" 0
+	check "refuses another compatible" refuse lyra qemu "" "$good" 0
+	check "refuses another compatible even with override" refuse lyra qemu "$needs" "$good" 1
+	check "accepts a bundle without minimum" ok lyra lyra "" "" 0
+	check "refuses an unknown running version" refuse lyra lyra "$needs" "" 0
+	check "override skips the version checks" ok lyra lyra "$needs" "" 1
+	VERSION_CHECK=false
+	check "refuses a too-old version" refuse lyra lyra "$needs" "$good" 0
+	VERSION_CHECK=true
+	CAPABILITY_CHECK=false
+	check "refuses a system without the ioctls" refuse lyra lyra "$needs" "$good" 0
+	VERSION_CHECK=version_meets_minimum
+	CAPABILITY_CHECK=system_capable
+
+	got=$(printf 'A="x y"\nB=plain\nMIN_CALCULINUX_VERSION="1.0"\n' | manifest_value B)
+	if [ "$got" = plain ]; then
+		echo "ok: manifest_value reads unquoted values"
+	else
+		echo "FAIL: manifest_value got '$got'" >&2
+		fail=1
+	fi
+	[ "$fail" -eq 0 ]
+}
+
 case "${1:-}" in
 	--self-check)
-		run_self_check
+		run_self_check && install_check_self_check
+		;;
+	install-check)
+		install_check
 		;;
 	slot-post-install)
 		slot_post_install

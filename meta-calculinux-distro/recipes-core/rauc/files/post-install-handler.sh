@@ -2,6 +2,9 @@
 # RAUC post-install system handler wrapper
 # This calls cup-hook for each target rootfs slot after installation completes
 # The status.image file is obtained from the bundle extras, not from the slot itself
+#
+# RAUC runs this after the slot is already marked active, so nothing here can
+# stop an update; the bundle's install-check hook is what refuses a bundle.
 
 set -e
 
@@ -62,12 +65,9 @@ for i in ${RAUC_TARGET_SLOTS}; do
         export RAUC_SLOT_CLASS="${SLOT_CLASS}"
         export RAUC_SLOT_NAME="${SLOT_NAME}"
         export RAUC_BUNDLE_STATUS_IMAGE="${BUNDLE_STATUS_IMAGE}"
-        
-        # Call cup-hook with slot-post-install hook type
-        # cup-hook reads extras/version-manifest.env under
-        # RAUC_BUNDLE_MOUNT_POINT; point it at the unpacked extras.
-        if RAUC_BUNDLE_MOUNT_POINT="${EXTRAS_ROOT}" \
-            /usr/lib/calculinux-update/cup-hook slot-post-install "${SLOT_NAME}"; then
+        export RAUC_BUNDLE_VERSION_MANIFEST="${EXTRAS_ROOT}/extras/version-manifest.env"
+
+        if /usr/lib/calculinux-update/cup-hook slot-post-install "${SLOT_NAME}"; then
             echo "cup-hook completed successfully for ${SLOT_NAME}"
         else
             echo "ERROR: cup-hook failed for ${SLOT_NAME}" >&2
