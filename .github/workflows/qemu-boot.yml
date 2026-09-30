@@ -6,6 +6,14 @@ name: QEMU Boot Test and Emulator
 # Runs the overlayfs upper-layer ioctl test (qemu-overlay-test.py).
 # Also builds the calculinux-emulator AppImages (x86_64 and aarch64 hosts),
 # boot-tests the x86_64 one, and publishes them next to the SDKs.
+#
+# Builds and tests run on GitHub-hosted runners as time-boxed pass chains
+# (yocto-pass.yml, see build-hosted.yml); a warm build finishes in the first
+# pass of each lane. Only publishing needs the self-hosted runner.
+#
+#   pass1..3  calculinux-qemuarm image; runqemu boot and overlay tests
+#   emu1..3   emulator AppImages and their disk image; x86_64 AppImage test
+#   publish   self-hosted: publish the emulator (published refs only)
 
 on:
   push:
@@ -15,38 +23,126 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  DL_DIR: /mnt/runner-cache/yocto-cache/downloads
-  SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
-  OPKG_REPO_DIR: /mnt/opkg-repo
-  KAS_FILE: kas-calculinux-qemuarm.yaml
-  MACHINE: calculinux-qemuarm
-
 permissions:
-  contents: write  # attach emulator AppImages to tagged releases
+  contents: read
+  actions: write   # read the run's start time, delete superseded cache entries
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  qemu:
-    name: Build, boot and package calculinux-qemuarm
-    runs-on: [self-hosted, Linux, X64]
-    timeout-minutes: 600
+  pass1:
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 1
+      machine: calculinux-qemuarm
+      kas_file: kas-calculinux-qemuarm.yaml
+      collect: false
+      # The emulator lane builds on this sstate even when nothing is cached.
+      handoff: true
+      post_build: .github/scripts/qemu-image-tests.sh
+      post_build_minutes: 45
 
+  pass2:
+    needs: pass1
+    if: needs.pass1.outputs.done == 'false'
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 2
+      machine: calculinux-qemuarm
+      kas_file: kas-calculinux-qemuarm.yaml
+      collect: false
+      handoff: true
+      post_build: .github/scripts/qemu-image-tests.sh
+      post_build_minutes: 45
+
+  pass3:
+    needs: pass2
+    if: needs.pass2.outputs.done == 'false'
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 3
+      machine: calculinux-qemuarm
+      kas_file: kas-calculinux-qemuarm.yaml
+      collect: false
+      handoff: true
+      post_build: .github/scripts/qemu-image-tests.sh
+      post_build_minutes: 45
+
+  # Needs the image lane to have finished and passed its tests.
+  emu1:
+    needs: [pass1, pass2, pass3]
+    if: >-
+      always() && !cancelled() &&
+      ((needs.pass1.outputs.done == 'true' && needs.pass1.result == 'success') ||
+       (needs.pass2.outputs.done == 'true' && needs.pass2.result == 'success') ||
+       (needs.pass3.outputs.done == 'true' && needs.pass3.result == 'success'))
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 1
+      lane: emulator
+      machine: calculinux-qemuarm
+      kas_file: kas-calculinux-qemuarm.yaml
+      post_build: .github/scripts/qemu-appimage-test.sh
+      post_build_minutes: 30
+
+  emu2:
+    needs: emu1
+    if: needs.emu1.outputs.done == 'false'
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 2
+      lane: emulator
+      machine: calculinux-qemuarm
+      kas_file: kas-calculinux-qemuarm.yaml
+      post_build: .github/scripts/qemu-appimage-test.sh
+      post_build_minutes: 30
+
+  emu3:
+    needs: emu2
+    if: needs.emu2.outputs.done == 'false'
+    uses: ./.github/workflows/yocto-pass.yml
+    with:
+      pass: 3
+      lane: emulator
+      machine: calculinux-qemuarm
+      kas_file: kas-calculinux-qemuarm.yaml
+      post_build: .github/scripts/qemu-appimage-test.sh
+      post_build_minutes: 30
+
+  # Hosted runners cannot reach the opkg server; publish from a self-hosted
+  # runner, pushes to published refs only, once the AppImage test passed.
+  publish:
+    name: Publish emulator
+    needs: [emu1, emu2, emu3]
+    if: >-
+      always() && !cancelled() &&
+      github.event_name != 'pull_request' &&
+      (github.ref_name == 'main' || github.ref_name == 'develop' || startsWith(github.ref, 'refs/tags/')) &&
+      ((needs.emu1.outputs.done == 'true' && needs.emu1.result == 'success') ||
+       (needs.emu2.outputs.done == 'true' && needs.emu2.result == 'success') ||
+       (needs.emu3.outputs.done == 'true' && needs.emu3.result == 'success'))
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      contents: write   # attach emulator AppImages to tagged releases
+    env:
+      OPKG_REPO_DIR: /mnt/opkg-repo
+      MACHINE: calculinux-qemuarm
+      KAS_FILE: kas-calculinux-qemuarm.yaml
+      ARTIFACTS_DIR: /mnt/opkg-repo/.build-artifacts/emulator-${{ github.run_id }}
+      DL_DIR: /mnt/runner-cache/yocto-cache/downloads
+      SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Set up build environment
-      uses: ./.github/actions/setup-build-env
+    - name: Fetch emulator
+      uses: actions/download-artifact@v4
       with:
-        dl-dir: ${{ env.DL_DIR }}
-        sstate-dir: ${{ env.SSTATE_DIR }}
-        opkg-repo-dir: ${{ env.OPKG_REPO_DIR }}
+        name: emulator-${{ env.MACHINE }}
+        path: ${{ env.ARTIFACTS_DIR }}
 
     - name: Determine feed configuration
       id: feed-config
@@ -58,70 +154,6 @@ jobs:
         fi
         bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh "$KAS_FILE" "${{ github.ref_name }}" "$REF_TYPE"
 
-    - name: Prepare build configuration
-      id: prepare-config
-      run: |
-        set -euo pipefail
-        bash .github/scripts/load-script-output.sh -- bash .github/scripts/prepare-build-config.sh \
-          "$KAS_FILE" \
-          "${{ steps.feed-config.outputs.distro_codename }}" \
-          "${{ steps.feed-config.outputs.feed_subfolder }}" \
-          "${{ github.ref_name }}" \
-          "${{ steps.feed-config.outputs.is_tagged_release }}"
-
-    - name: Build calculinux-qemuarm image
-      run: ./kas-container build "${{ steps.prepare-config.outputs.kas_override_file }}"
-
-    - name: Boot test (runqemu)
-      run: |
-        ./kas-container shell "${{ steps.prepare-config.outputs.kas_override_file }}" -c \
-          "python3 /repo/.github/scripts/qemu-boot-test.py --log /work/qemu-boot-test.log"
-
-    - name: overlayfs ioctl test (runqemu)
-      run: |
-        ./kas-container shell "${{ steps.prepare-config.outputs.kas_override_file }}" -c \
-          "python3 /repo/.github/scripts/qemu-overlay-test.py --log /work/qemu-overlay-test.log"
-
-    - name: Build emulator AppImages
-      run: |
-        set -euo pipefail
-        for sdk_arch in x86_64 aarch64; do
-          bash .github/scripts/build-sdk.sh "$sdk_arch" "${{ steps.prepare-config.outputs.kas_override_file }}" calculinux-emulator
-        done
-        bash .github/scripts/collect-emulator.sh "$RUNNER_TEMP/artifacts"
-
-    - name: Boot test (x86_64 AppImage)
-      env:
-        APPIMAGE_EXTRACT_AND_RUN: "1"
-        CALCULINUX_EMULATOR_HOME: ${{ runner.temp }}/emulator-state
-      run: |
-        set -euo pipefail
-        appimage=$(ls "$RUNNER_TEMP"/artifacts/emulator/x86_64/*.AppImage)
-        disk="$RUNNER_TEMP/artifacts/emulator/image/calculinux-image-calculinux-qemuarm.rootfs.qcow2"
-        python3 .github/scripts/qemu-boot-test.py \
-          --cmd "$appimage --image $disk --nographic --ssh-port off" --log qemu-appimage-test.log
-
-    - name: Upload serial logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: qemu-boot-serial-logs
-        path: |
-          qemu-boot-test.log
-          qemu-overlay-test.log
-          qemu-appimage-test.log
-        if-no-files-found: ignore
-
-    - name: Upload emulator AppImages
-      if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
-      uses: actions/upload-artifact@v4
-      with:
-        name: calculinux-emulator-${{ github.run_number }}
-        path: |
-          ${{ runner.temp }}/artifacts/emulator/x86_64/*
-          ${{ runner.temp }}/artifacts/emulator/aarch64/*
-        retention-days: 30
-
     - name: Publish emulator next to the SDKs
       if: steps.feed-config.outputs.is_published_branch == 'true'
       run: |
@@ -130,17 +162,21 @@ jobs:
           "${{ steps.feed-config.outputs.feed_name }}" \
           "${{ steps.feed-config.outputs.subfolder }}" \
           "$MACHINE" \
-          "$RUNNER_TEMP/artifacts" \
+          "$ARTIFACTS_DIR" \
           "${{ steps.feed-config.outputs.is_tagged_release }}" \
           "${{ steps.feed-config.outputs.is_prerelease }}" \
           "${{ github.ref_name }}"
 
     - name: Attach emulator to release
       if: steps.feed-config.outputs.is_tagged_release == 'true'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
-          ${{ runner.temp }}/artifacts/emulator/x86_64/*
-          ${{ runner.temp }}/artifacts/emulator/aarch64/*
-          ${{ runner.temp }}/artifacts/emulator/image/*
+          ${{ env.ARTIFACTS_DIR }}/emulator/x86_64/*
+          ${{ env.ARTIFACTS_DIR }}/emulator/aarch64/*
+          ${{ env.ARTIFACTS_DIR }}/emulator/image/*
         prerelease: ${{ steps.feed-config.outputs.is_prerelease == 'true' }}
+
+    - name: Clean up
+      if: always()
+      run: rm -rf "$ARTIFACTS_DIR"
