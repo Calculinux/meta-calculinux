@@ -15,7 +15,6 @@ OVERLAYFS_CALCULINUX_SRCREV[linux-6.12] = "3b1f5624c3b1213aeb34dac88490d3501e17d
 SRC_URI = "git://github.com/Calculinux/overlayfs.git;protocol=https;branch=${OVERLAYFS_CALCULINUX_BRANCH}"
 SRCREV = "${@d.getVarFlag('OVERLAYFS_CALCULINUX_SRCREV', d.getVar('OVERLAYFS_CALCULINUX_BRANCH')) or 'INVALID'}"
 
-S = "${UNPACKDIR}/git"
 PV = "${@d.getVar('OVERLAYFS_CALCULINUX_BRANCH').replace('linux-', '')}+git"
 
 inherit module

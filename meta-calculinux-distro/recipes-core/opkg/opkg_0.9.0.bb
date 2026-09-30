@@ -21,7 +21,6 @@ SRC_URI = "git://github.com/Calculinux/opkg.git;protocol=https;branch=master \
            "
 
 SRCREV = "ff71b83bcc00899cac9ef08c9689fe5ece62e989"
-S = "${WORKDIR}/git"
 
 # This needs to be before ptest inherit, otherwise all ptest files end packaged
 # in libopkg package if OPKGLIBDIR == libdir, because default

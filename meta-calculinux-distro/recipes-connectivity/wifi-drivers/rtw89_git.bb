@@ -14,7 +14,6 @@ PV = "1.0-git"
 SRC_URI = "git://github.com/Calculinux/rtw89.git;protocol=https;branch=calculinux-6.1"
 SRCREV = "1c9c1540e30352e4bc7c6ee5d4e83e1ed59eabd5"
 
-S = "${UNPACKDIR}/git"
 DEPENDS += "virtual/kernel"
 
 inherit module
