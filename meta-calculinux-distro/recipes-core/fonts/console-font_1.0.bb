@@ -11,8 +11,13 @@ PV = "1.0"
 
 TERMINUS_PV = "4.49.1"
 
+# open-relay has no releases and rewrites Fairfax.kbitx on master, so pin
+# the commit (and name the download after it so DL_DIR never holds a
+# mismatched copy).
+FAIRFAX_REV = "89fc5391c3ce510bf6537596a589fcd86183fa30"
+
 SRC_URI = "https://download.sourceforge.net/terminus-font/terminus-font-${TERMINUS_PV}.tar.gz;name=terminus \
-           https://raw.githubusercontent.com/kreativekorp/open-relay/master/Fairfax/Fairfax.kbitx;name=fairfax \
+           https://raw.githubusercontent.com/kreativekorp/open-relay/${FAIRFAX_REV}/Fairfax/Fairfax.kbitx;name=fairfax;downloadfilename=Fairfax-${FAIRFAX_REV}.kbitx \
            "
 SRC_URI[terminus.sha256sum] = "d961c1b781627bf417f9b340693d64fc219e0113ad3a3af1a3424c7aa373ef79"
 SRC_URI[fairfax.sha256sum] = "439247d7e783bf4a2cf5912bc914fc64c025d53edbfa79ea1d23066275473e68"
@@ -28,7 +33,7 @@ do_compile() {
     mkdir -p ${B}
 
     TER_BDF=${UNPACKDIR}/terminus-font-${TERMINUS_PV}/ter-u12n.bdf
-    FFX_KBITX=${UNPACKDIR}/Fairfax.kbitx
+    FFX_KBITX=${UNPACKDIR}/Fairfax-${FAIRFAX_REV}.kbitx
     FFX_BDF=${B}/Fairfax.bdf
 
     [ -f "$TER_BDF" ] || bbfatal "ter-u12n.bdf not found in Terminus tarball"

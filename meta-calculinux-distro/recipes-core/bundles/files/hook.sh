@@ -1,5 +1,7 @@
 #!/bin/sh
-# RAUC slot-post-install: migrate vendor U-Boot → mainline (or bump mainline).
+# RAUC bundle hooks.
+# install-check: refuse bundles this system cannot take (see install_check).
+# slot-post-install: migrate vendor U-Boot → mainline (or bump mainline).
 # Abort with a flash-WIC message if the bootloader cannot be applied over OTA.
 set -eu
 
@@ -10,6 +12,10 @@ ROOT_A_EXPECT_BYTES=8388608      # 8 MiB (field cards / new WIC)
 VENDOR_ENV_OFFSET=6291456        # 6 MiB (same as ubootenv)
 ENV_SIZE=32768                   # 0x8000
 BLOB_PATH_REL="usr/lib/calculinux/u-boot-rockchip.bin"
+# New U-Boot's default env (u-boot-env). libubootenv's fw_setenv refuses to
+# write a never-saved (bad CRC) env without it; set in slot_post_install.
+DEFENV_PATH_REL="etc/u-boot-initial-env"
+DEFENV=
 BACKUP_PATH="/data/uboot-ota-backup.bin"
 BACKUP_SHA_PATH="/data/uboot-ota-backup.sha256"
 FW_ENV_PATH="/etc/fw_env.config"
@@ -219,17 +225,33 @@ read_vendor_boot_vars() {
 	rm -f "$cfg"
 }
 
+# Slot the running system booted from (rauc.slot= on the kernel cmdline).
+booted_slot() {
+	# shellcheck disable=SC2013
+	for arg in $(cat /proc/cmdline 2>/dev/null); do
+		case "$arg" in
+			rauc.slot=?*) echo "${arg#rauc.slot=}"; return 0 ;;
+		esac
+	done
+	echo A
+}
+
 write_migrated_env() {
 	[ -e /dev/disk/by-partlabel/ubootenv ] || return 1
 	cfg=$(mktemp)
 	printf '%s\n' "$NEW_FW_ENV" >"$cfg"
 	# Seed defaults if vendor read failed
-	order=${BOOT_ORDER:-A}
+	order=${BOOT_ORDER:-$(booted_slot)}
 	a_left=${BOOT_A_LEFT:-1}
 	b_left=${BOOT_B_LEFT:-1}
-	fw_setenv -c "$cfg" BOOT_ORDER "$order" || { rm -f "$cfg"; return 1; }
-	fw_setenv -c "$cfg" BOOT_A_LEFT "$a_left" || { rm -f "$cfg"; return 1; }
-	fw_setenv -c "$cfg" BOOT_B_LEFT "$b_left" || { rm -f "$cfg"; return 1; }
+	# A fresh WIC card's ubootenv is blank until U-Boot saves it; fw_setenv
+	# then starts from the default env (-f is ignored when the env is valid).
+	defenv_opt=
+	[ -n "$DEFENV" ] && [ -f "$DEFENV" ] && defenv_opt="-f $DEFENV"
+	# shellcheck disable=SC2086
+	fw_setenv -c "$cfg" $defenv_opt BOOT_ORDER "$order" \
+		BOOT_A_LEFT "$a_left" BOOT_B_LEFT "$b_left" \
+		|| { rm -f "$cfg"; return 1; }
 	clear_vendor_uboot_env_vars "$cfg" || { rm -f "$cfg"; return 1; }
 	rm -f "$cfg"
 	return 0
@@ -355,6 +377,7 @@ slot_post_install() {
 	[ -n "$mount_point" ] || flash_wic "RAUC_SLOT_MOUNT_POINT unset"
 
 	blob="$mount_point/$BLOB_PATH_REL"
+	DEFENV="$mount_point/$DEFENV_PATH_REL"
 	[ -f "$blob" ] || flash_wic "Missing $BLOB_PATH_REL in new rootfs"
 
 	blob_size=$(stat -c%s "$blob")
@@ -373,15 +396,10 @@ slot_post_install() {
 		flash_wic "ROOT_A starts at ${root_a_start:-unknown} bytes ($(bytes_mib "${root_a_start:-0}") MiB); need $ROOT_A_EXPECT_BYTES (8 MiB) so U-Boot at 2 MiB fits below it"
 	fi
 
-	blob_sha=$(sha256_file "$blob")
-	on_disk=$(disk_range_sha "$disk" "$UBOOT_SEEK_BYTES" "$blob_size" || true)
-	if [ -n "$on_disk" ] && [ "$on_disk" = "$blob_sha" ]; then
-		echo "U-Boot already matches $blob_sha; nothing to write"
-		exit 0
-	fi
-
 	# Env: migrate vendor→ubootenv only when partition env is not already usable.
-	# Later mainline blob bumps must leave BOOT_* alone.
+	# Later mainline blob bumps must leave BOOT_* alone. Runs even when U-Boot
+	# already matches: a fresh WIC card's env may never have been saved, and
+	# RAUC's own fw_setenv (after this hook) cannot write a blank env.
 	env_ready=0
 	start_env=$(partlabel_start_bytes ubootenv "$disk" || true)
 	if [ -n "$start_env" ] && [ "$start_env" -eq "$UBOOTENV_OFFSET_BYTES" ]; then
@@ -409,6 +427,13 @@ slot_post_install() {
 			flash_wic "Could not clear vendor U-Boot environment variables"
 		fi
 		rm -f "$cfg"
+	fi
+
+	blob_sha=$(sha256_file "$blob")
+	on_disk=$(disk_range_sha "$disk" "$UBOOT_SEEK_BYTES" "$blob_size" || true)
+	if [ -n "$on_disk" ] && [ "$on_disk" = "$blob_sha" ]; then
+		echo "U-Boot already matches $blob_sha; nothing to write"
+		exit 0
 	fi
 
 	retarget_fw_env_config
@@ -450,9 +475,149 @@ slot_post_install() {
 	flash_wic "Bootloader write failed before backup could be used"
 }
 
+# --- install-check: runs from the bundle before RAUC writes any slot --------
+#
+# Enforces the bundle's MIN_CALCULINUX_VERSION even for a plain `rauc install`,
+# and checks the running system really has what the update relies on (the
+# overlayfs upper-state ioctls and a calculinux-update that uses them). RAUC
+# skips its own compatible check when a bundle has an install-check hook, so
+# that is done here too. `cup install --force` (or creating the flag file by
+# hand) overrides the version and capability checks, never compatible.
+INSTALL_CHECK_OVERRIDE=/run/calculinux-update/allow-install-check-override
+RUNNING_MANIFEST=/var/lib/calculinux/version-manifest.env
+VERSION_CHECK=version_meets_minimum
+CAPABILITY_CHECK=system_capable
+
+# Value of KEY="value" (quotes optional) from a manifest on stdin.
+manifest_value() {
+	sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}\$/\1/p" | head -n 1
+}
+
+# 0 when running version $1 (build timestamp $2) meets minimum $3 (build
+# timestamp $4). Uses the running calculinux-update so the rule matches cup's.
+version_meets_minimum() {
+	python3 - "$@" 2>/dev/null <<'PY'
+import sys
+from calculinux_update.version_compat import version_meets_minimum
+cur, cur_ts, minimum, min_ts = sys.argv[1:5]
+ok = version_meets_minimum(cur, minimum, current_timestamp=cur_ts, minimum_timestamp=min_ts)
+sys.exit(0 if ok else 1)
+PY
+}
+
+system_capable() {
+	ovl-restore --state /etc /etc/hostname >/dev/null 2>&1 || return 1
+	python3 -c 'import calculinux_update.opkg.overlayfs as o; o.OVL_IOC_UPPER_STATE' \
+		>/dev/null 2>&1
+}
+
+# Args: system compatible, bundle compatible, bundle manifest text, running
+# manifest text, override (1/0). Prints why to refuse and returns 1, or
+# returns 0.
+install_check_verdict() {
+	sys_compat=$1
+	mf_compat=$2
+	bundle_manifest=$3
+	running_manifest=$4
+	override=$5
+
+	if [ "$sys_compat" != "$mf_compat" ]; then
+		echo "Compatible mismatch: this system is '$sys_compat', the bundle is for '$mf_compat'"
+		return 1
+	fi
+	minimum=$(printf '%s\n' "$bundle_manifest" | manifest_value MIN_CALCULINUX_VERSION)
+	[ -n "$minimum" ] || return 0
+	[ "$override" != 1 ] || return 0
+
+	current=$(printf '%s\n' "$running_manifest" | manifest_value CALCULINUX_VERSION)
+	if [ -z "$current" ]; then
+		echo "This update requires Calculinux $minimum or newer and the running version is unknown. Install Calculinux $minimum first."
+		return 1
+	fi
+	current_ts=$(printf '%s\n' "$running_manifest" | manifest_value BUILD_TIMESTAMP)
+	minimum_ts=$(printf '%s\n' "$bundle_manifest" | manifest_value MIN_BUILD_TIMESTAMP)
+	if ! "$VERSION_CHECK" "$current" "$current_ts" "$minimum" "$minimum_ts"; then
+		echo "This update requires Calculinux $minimum or newer (running $current). Install Calculinux $minimum first."
+		return 1
+	fi
+	if ! "$CAPABILITY_CHECK"; then
+		echo "Calculinux $current lacks the overlayfs ioctls or calculinux-update this update relies on. Install Calculinux $minimum first."
+		return 1
+	fi
+	return 0
+}
+
+install_check() {
+	extras="$(dirname "$0")/bundle-extras.tar.gz"
+	bundle_manifest=$(tar -xzOf "$extras" extras/version-manifest.env 2>/dev/null || true)
+	running_manifest=$(cat "$RUNNING_MANIFEST" 2>/dev/null || true)
+	override=0
+	[ ! -e "$INSTALL_CHECK_OVERRIDE" ] || override=1
+
+	if ! reason=$(install_check_verdict "${RAUC_SYSTEM_COMPATIBLE:-}" \
+		"${RAUC_MF_COMPATIBLE:-}" "$bundle_manifest" "$running_manifest" "$override"); then
+		# RAUC reports the last line on stderr when the exit code is >= 10.
+		echo "$reason" >&2
+		exit 10
+	fi
+	if [ "$override" = 1 ]; then
+		echo "install-check: version checks overridden by $INSTALL_CHECK_OVERRIDE" >&2
+	fi
+	exit 0
+}
+
+install_check_self_check() {
+	fail=0
+	good='CALCULINUX_VERSION="1.2.0"
+BUILD_TIMESTAMP="2026-09-01T00:00:00Z"'
+	needs='MIN_CALCULINUX_VERSION="1.2.0"
+MIN_BUILD_TIMESTAMP=""'
+
+	check() {
+		name=$1
+		want=$2
+		shift 2
+		if out=$(install_check_verdict "$@"); then got=ok; else got=refuse; fi
+		if [ "$got" = "$want" ]; then
+			echo "ok: install-check $name"
+		else
+			echo "FAIL: install-check $name: got $got ($out)" >&2
+			fail=1
+		fi
+	}
+
+	VERSION_CHECK=true
+	CAPABILITY_CHECK=true
+	check "accepts a matching system" ok lyra lyra "$needs" "$good" 0
+	check "refuses another compatible" refuse lyra qemu "" "$good" 0
+	check "refuses another compatible even with override" refuse lyra qemu "$needs" "$good" 1
+	check "accepts a bundle without minimum" ok lyra lyra "" "" 0
+	check "refuses an unknown running version" refuse lyra lyra "$needs" "" 0
+	check "override skips the version checks" ok lyra lyra "$needs" "" 1
+	VERSION_CHECK=false
+	check "refuses a too-old version" refuse lyra lyra "$needs" "$good" 0
+	VERSION_CHECK=true
+	CAPABILITY_CHECK=false
+	check "refuses a system without the ioctls" refuse lyra lyra "$needs" "$good" 0
+	VERSION_CHECK=version_meets_minimum
+	CAPABILITY_CHECK=system_capable
+
+	got=$(printf 'A="x y"\nB=plain\nMIN_CALCULINUX_VERSION="1.0"\n' | manifest_value B)
+	if [ "$got" = plain ]; then
+		echo "ok: manifest_value reads unquoted values"
+	else
+		echo "FAIL: manifest_value got '$got'" >&2
+		fail=1
+	fi
+	[ "$fail" -eq 0 ]
+}
+
 case "${1:-}" in
 	--self-check)
-		run_self_check
+		run_self_check && install_check_self_check
+		;;
+	install-check)
+		install_check
 		;;
 	slot-post-install)
 		slot_post_install

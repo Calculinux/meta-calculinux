@@ -1,0 +1,213 @@
+# Publish a PR build: RAUC bundle and WIC image to the PR channel, and the
+# packages it built to the shared testing feed (ipk/<feed>/testing/<arch>/).
+# Cleanup happens in pr-rauc-cleanup.yml when the PR closes.
+#
+# Runs from the default branch and never checks out PR code; the PR build's
+# artifact is only data. The PR number and head repo come from the API, never
+# from the artifact. Same-repo PRs publish; fork PRs need the
+# 'publish-testing' label, and adding it publishes the latest successful
+# build of the PR's head commit.
+name: Publish PR build
+
+on:
+  workflow_run:
+    workflows: ["Build Calculinux"]
+    types: [completed]
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+env:
+  MACHINE: luckfox-lyra
+  KAS_FILE: kas-luckfox-lyra-bundle.yaml
+  PUBLISH_LABEL: publish-testing
+
+jobs:
+  resolve:
+    name: Resolve PR
+    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.label.name == 'publish-testing')
+    outputs:
+      pr: ${{ steps.resolve.outputs.pr }}
+      run_id: ${{ steps.resolve.outputs.run_id }}
+      publish: ${{ steps.resolve.outputs.publish }}
+      reason: ${{ steps.resolve.outputs.reason }}
+    steps:
+    - id: resolve
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const label = process.env.PUBLISH_LABEL;
+          let pr, runId, headSha;
+
+          if (context.eventName === 'workflow_run') {
+            const run = context.payload.workflow_run;
+            runId = run.id;
+            headSha = run.head_sha;
+            // workflow_run.pull_requests is empty for forks; look the PR up.
+            const open = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 });
+            pr = open.find((p) => p.head.sha === headSha);
+            if (!pr) {
+              core.info(`No open PR has head ${headSha} (superseded or closed); nothing to publish.`);
+              core.setOutput('publish', 'false');
+              return;
+            }
+          } else {
+            pr = context.payload.pull_request;
+            headSha = pr.head.sha;
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: 'build-hosted.yml',
+              event: 'pull_request', head_sha: headSha, status: 'success', per_page: 1,
+            });
+            if (!runs.data.workflow_runs.length) {
+              core.info(`No successful build for ${headSha} yet; it will publish when it finishes.`);
+              core.setOutput('publish', 'false');
+              return;
+            }
+            runId = runs.data.workflow_runs[0].id;
+          }
+
+          const sameRepo = pr.head.repo?.full_name === `${owner}/${repo}`;
+          const labelled = (pr.labels ?? []).some((l) => l.name === label);
+          core.setOutput('pr', String(pr.number));
+          core.setOutput('run_id', String(runId));
+          if (sameRepo || labelled) {
+            core.setOutput('publish', 'true');
+          } else {
+            core.setOutput('publish', 'false');
+            core.setOutput('reason', 'fork');
+          }
+          core.info(`PR #${pr.number}, run ${runId}, same repo: ${sameRepo}, labelled: ${labelled}`);
+
+  publish:
+    name: Publish to PR channel and testing feed
+    needs: resolve
+    if: needs.resolve.outputs.publish == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    env:
+      OPKG_REPO_DIR: /mnt/opkg-repo
+      UPDATE_BASE_URL: https://opkg.calculinux.org
+      PR_NUMBER: ${{ needs.resolve.outputs.pr }}
+      ARTIFACTS_DIR: /mnt/opkg-repo/.build-artifacts/pr-${{ needs.resolve.outputs.run_id }}
+      DL_DIR: /mnt/runner-cache/yocto-cache/downloads
+      SSTATE_DIR: /mnt/runner-cache/yocto-cache/sstate-cache
+    outputs:
+      feed: ${{ steps.feed-config.outputs.feed_name }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+
+    - name: Fetch PR build output
+      uses: actions/download-artifact@v4
+      with:
+        name: pr-output-${{ env.MACHINE }}
+        run-id: ${{ needs.resolve.outputs.run_id }}
+        github-token: ${{ github.token }}
+        path: ${{ env.ARTIFACTS_DIR }}
+
+    - name: Determine feed configuration
+      id: feed-config
+      # PRs target main, so use main's feed (as pr-rauc-cleanup.yml does).
+      run: |
+        bash .github/scripts/load-script-output.sh -- bash .github/scripts/determine-feed-config.sh \
+          "$KAS_FILE" main branch
+
+    - name: Publish PR bundle and WIC image
+      env:
+        FEED_NAME: ${{ steps.feed-config.outputs.feed_name }}
+      run: |
+        bash .github/scripts/publish-pr-bundle.sh "$MACHINE" "$PR_NUMBER" \
+          "$ARTIFACTS_DIR" "$OPKG_REPO_DIR" "$UPDATE_BASE_URL"
+
+    - name: Publish packages to the testing feed
+      run: |
+        bash .github/scripts/publish-testing-packages.sh "$OPKG_REPO_DIR" \
+          "${{ steps.feed-config.outputs.feed_name }}" "$PR_NUMBER" "$ARTIFACTS_DIR"
+
+    - name: Describe what was published
+      run: |
+        feed="${{ steps.feed-config.outputs.feed_name }}"
+        base="$UPDATE_BASE_URL/ipk/$feed/testing"
+        out="$RUNNER_TEMP/published.md"
+        {
+          echo "🧪 **Published for testing** (removed when this PR closes)"
+          echo
+          echo "- RAUC bundle: $UPDATE_BASE_URL/update/$feed/pr/$MACHINE-pr$PR_NUMBER.raucb"
+          echo "- WIC image: $UPDATE_BASE_URL/image/$feed/pr/$MACHINE-pr$PR_NUMBER.wic.gz"
+          manifest="$OPKG_REPO_DIR/ipk/$feed/testing/.manifests/pr$PR_NUMBER.txt"
+          if [ -s "$manifest" ]; then
+            echo
+            echo "**Packages this PR built** ($(wc -l < "$manifest")), in the shared testing feed:"
+            echo
+            echo '```'
+            sed 's|.*/||' "$manifest"
+            echo '```'
+            echo
+            echo "To try them on a device, add the testing feed and install:"
+            echo
+            echo '```sh'
+            for arch in $(cut -d/ -f1 "$manifest" | sort -u); do
+              echo "echo 'src/gz calculinux-testing-$arch $base/$arch' >> /etc/opkg/testing.conf"
+            done
+            echo "opkg update"
+            echo "opkg install <package>   # same version as installed? add --force-reinstall"
+            echo '```'
+            echo
+            echo "Remove \`/etc/opkg/testing.conf\` afterwards. The feed is shared by all open PRs."
+          else
+            echo
+            echo "This PR built no new packages."
+          fi
+        } > "$out"
+        cat "$out"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: published-summary
+        path: ${{ runner.temp }}/published.md
+        retention-days: 1
+
+    - name: Clean up
+      if: always()
+      run: rm -rf "$ARTIFACTS_DIR"
+
+  comment:
+    name: Comment on PR
+    needs: [resolve, publish]
+    if: always() && needs.resolve.outputs.pr != ''
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+
+    - name: Fetch publish summary
+      if: needs.publish.result == 'success'
+      uses: actions/download-artifact@v4
+      with:
+        name: published-summary
+        path: ${{ runner.temp }}
+
+    - name: Note for unlabelled fork PRs
+      if: needs.resolve.outputs.reason == 'fork'
+      run: |
+        echo "ℹ️ This PR comes from a fork, so its build is not published to the PR channel or testing feed. A maintainer can add the \`$PUBLISH_LABEL\` label to publish it." \
+          > "$RUNNER_TEMP/published.md"
+
+    - uses: ./.github/actions/comment-artifacts
+      with:
+        github-token: ${{ github.token }}
+        pr-number: ${{ needs.resolve.outputs.pr }}
+        run-id: ${{ needs.resolve.outputs.run_id }}
+        extra-body-file: ${{ runner.temp }}/published.md
