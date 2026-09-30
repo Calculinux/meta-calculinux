@@ -7,15 +7,18 @@
 # the remainder is built.
 #
 # Lanes:
-#   image  the image, bundle and package feed (kas targets)
-#   sdk    the SDK for each SDKMACHINE in turn; an SDK finished in an earlier
-#          pass is all sstate hits, so rerunning it costs little
+#   image     the kas targets (image, bundle, packages)
+#   sdk       the SDK for each SDKMACHINE in turn; an SDK finished in an
+#             earlier pass is all sstate hits, so rerunning it costs little
+#   emulator  the kas targets again (sstate hits after the image lane; brings
+#             back the disk image and U-Boot the AppImage needs), then the
+#             calculinux-emulator AppImage for each SDKMACHINE
 #
 # Writes done=true|false to $GITHUB_OUTPUT (or stdout outside Actions).
 set -euo pipefail
 
 if [ $# -lt 3 ]; then
-  echo "Usage: $0 <kas-override-file> <deadline-epoch> <image|sdk>" >&2
+  echo "Usage: $0 <kas-override-file> <deadline-epoch> <image|sdk|emulator>" >&2
   exit 1
 fi
 
@@ -51,15 +54,24 @@ run_step() {
 }
 
 rc=0
+# build_sdks <recipe>: populate_sdk for each SDKMACHINE; stops on failure.
+build_sdks() {
+  local sdk_machine
+  for sdk_machine in $SDK_MACHINES; do
+    run_step "Build $1 SDK ($sdk_machine)" bash .github/scripts/build-sdk.sh "$sdk_machine" "$KAS_FILE" "$1" || return $?
+  done
+}
+
 case "$LANE" in
   image)
     run_step "Build image and packages" ./kas-container build "$KAS_FILE" || rc=$?
     ;;
   sdk)
-    for sdk_machine in $SDK_MACHINES; do
-      run_step "Build SDK ($sdk_machine)" bash .github/scripts/build-sdk.sh "$sdk_machine" "$KAS_FILE" || rc=$?
-      [ "$rc" -eq 0 ] || break
-    done
+    build_sdks calculinux-image || rc=$?
+    ;;
+  emulator)
+    run_step "Build image" ./kas-container build "$KAS_FILE" || rc=$?
+    [ "$rc" -ne 0 ] || build_sdks calculinux-emulator || rc=$?
     ;;
   *)
     echo "Unknown lane: $LANE" >&2
