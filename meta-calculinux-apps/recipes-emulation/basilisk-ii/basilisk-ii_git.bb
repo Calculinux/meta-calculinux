@@ -1,6 +1,6 @@
 DESCRIPTION = "Basilisk II — 680x0 Apple Macintosh emulator (build from macemu)"
 HOMEPAGE = "https://github.com/kanjitalk755/macemu"
-SECTION = "emulator"
+SECTION = "emulation"
 LICENSE = "GPL-2.0-or-later"
 LIC_FILES_CHKSUM = "file://BasiliskII/COPYING;md5=0636e73ff0215e8d672dc4c32c317bb3"
 
