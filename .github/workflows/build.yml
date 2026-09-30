@@ -1,11 +1,8 @@
 name: Build Calculinux Images and Packages
 
+# Manual fallback on the self-hosted runners. Regular builds run on
+# GitHub-hosted runners in build-hosted.yml ("Build Calculinux").
 on:
-  push:
-    branches: [ main, develop ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       sync_all_packages:
@@ -308,7 +305,7 @@ jobs:
 
     - name: Create release
       if: env.IS_TAGGED_RELEASE == 'true'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           ${{ env.SHARED_ARTIFACTS_DIR }}/calculinux-bundle-${{ matrix.machine }}-*.raucb
