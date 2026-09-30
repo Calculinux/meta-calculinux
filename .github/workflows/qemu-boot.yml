@@ -71,6 +71,10 @@ jobs:
       post_build_minutes: 45
 
   # Needs the image lane to have finished and passed its tests.
+  #
+  # emu2/emu3 need always(): without a status function, if: implies
+  # success(), which is false when any upstream job was skipped, and pass3
+  # (or pass2) usually is, so the chain would stop after emu1.
   emu1:
     needs: [pass1, pass2, pass3]
     if: >-
@@ -89,7 +93,7 @@ jobs:
 
   emu2:
     needs: emu1
-    if: needs.emu1.outputs.done == 'false'
+    if: always() && !cancelled() && needs.emu1.result == 'success' && needs.emu1.outputs.done == 'false'
     uses: ./.github/workflows/yocto-pass.yml
     with:
       pass: 2
@@ -101,7 +105,7 @@ jobs:
 
   emu3:
     needs: emu2
-    if: needs.emu2.outputs.done == 'false'
+    if: always() && !cancelled() && needs.emu2.result == 'success' && needs.emu2.outputs.done == 'false'
     uses: ./.github/workflows/yocto-pass.yml
     with:
       pass: 3
