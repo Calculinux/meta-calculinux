@@ -403,6 +403,11 @@ static int ili9488_bind(struct udevice *dev)
 	struct video_uc_plat *plat = dev_get_uclass_plat(dev);
 
 	plat->size = ILI9488_FB_SIZE;
+	/* This driver paints its own Calculinux splash; keep the stock
+	 * U-Boot logo (shown by video_post_probe() when VIDEO_LOGO is on)
+	 * from over-writing the frame buffer.
+	 */
+	plat->hide_logo = true;
 	return 0;
 }
 
