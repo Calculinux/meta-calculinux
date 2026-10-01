@@ -1,0 +1,98 @@
+From: Calculinux <noreply@calculinux.org>
+Subject: [PATCH] ui/sdl2: add a scale option for the window size
+
+The SDL window is created (and reset with Ctrl-Alt-u) at the size of the
+guest display. The Calculinux emulator's display is the PicoCalc's 320x320
+panel, which is tiny on a desktop. Add "-display sdl,scale=<n>" to open
+guest display windows n times larger; SDL already stretches the guest
+picture to the window. Text consoles keep their natural size.
+
+Upstream-Status: Pending
+---
+--- a/qapi/ui.json
++++ b/qapi/ui.json
+@@ -1465,10 +1465,14 @@
+ # @grab-mod: Modifier keys that should be pressed together with the
+ #     "G" key to release the mouse grab.
+ #
++# @scale: Integer factor by which the window of a guest display is
++#     larger than the display itself (default: 1).
++#
+ # Since: 7.1
+ ##
+ { 'struct'  : 'DisplaySDL',
+-  'data'    : { '*grab-mod'   : 'HotKeyMod' } }
++  'data'    : { '*grab-mod'   : 'HotKeyMod',
++                '*scale'      : 'uint8' } }
+ 
+ ##
+ # @DisplayType:
+--- a/qemu-options.hx
++++ b/qemu-options.hx
+@@ -2047,7 +2047,7 @@
+ #endif
+ #if defined(CONFIG_SDL)
+     "-display sdl[,gl=on|core|es|off][,grab-mod=<mod>][,show-cursor=on|off]\n"
+-    "            [,window-close=on|off]\n"
++    "            [,window-close=on|off][,scale=<n>]\n"
+ #endif
+ #if defined(CONFIG_GTK)
+     "-display gtk[,full-screen=on|off][,gl=on|off][,grab-on-hover=on|off]\n"
+--- a/ui/sdl2.c
++++ b/ui/sdl2.c
+@@ -45,6 +45,7 @@
+ 
+ static int gui_saved_grab;
+ static int gui_fullscreen;
++static int gui_scale = 1;
+ static int gui_grab_code = KMOD_LALT | KMOD_LCTRL;
+ static SDL_Cursor *sdl_cursor_normal;
+ static SDL_Cursor *sdl_cursor_hidden;
+@@ -76,6 +77,12 @@
+     return NULL;
+ }
+ 
++/* Text consoles keep their natural size; only guest displays are scaled. */
++static int sdl2_window_scale(struct sdl2_console *scon)
++{
++    return qemu_console_is_graphic(scon->dcl.con) ? gui_scale : 1;
++}
++
+ void sdl2_window_create(struct sdl2_console *scon)
+ {
+     int flags = 0;
+@@ -101,8 +108,10 @@
+ 
+     scon->real_window = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED,
+-                                         surface_width(scon->surface),
+-                                         surface_height(scon->surface),
++                                         surface_width(scon->surface) *
++                                         sdl2_window_scale(scon),
++                                         surface_height(scon->surface) *
++                                         sdl2_window_scale(scon),
+                                          flags);
+     if (scon->opengl) {
+         const char *driver = "opengl";
+@@ -148,8 +157,8 @@
+     }
+ 
+     SDL_SetWindowSize(scon->real_window,
+-                      surface_width(scon->surface),
+-                      surface_height(scon->surface));
++                      surface_width(scon->surface) * sdl2_window_scale(scon),
++                      surface_height(scon->surface) * sdl2_window_scale(scon));
+ }
+ 
+ static void sdl2_redraw(struct sdl2_console *scon)
+@@ -883,6 +892,10 @@
+ 
+     gui_fullscreen = o->has_full_screen && o->full_screen;
+ 
++    if (o->u.sdl.has_scale && o->u.sdl.scale) {
++        gui_scale = o->u.sdl.scale;
++    }
++
+     if (o->u.sdl.has_grab_mod) {
+         if (o->u.sdl.grab_mod == HOT_KEY_MOD_LSHIFT_LCTRL_LALT) {
+             alt_grab = true;

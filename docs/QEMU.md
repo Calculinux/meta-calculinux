@@ -56,7 +56,8 @@ a compressed qcow2 checked against its `.sha256`) with the host's `curl` or
 
 ```bash
 chmod +x calculinux-emulator-x86_64.AppImage
-./calculinux-emulator-x86_64.AppImage                   # 320x320 window (resizable) + serial on the terminal
+./calculinux-emulator-x86_64.AppImage                   # 320x320 display in a 640x640 window + serial on the terminal
+./calculinux-emulator-x86_64.AppImage --scale 3         # 960x960 window (1 = actual size); resizing scales too
 ./calculinux-emulator-x86_64.AppImage --nographic       # serial console only
 ssh -p 2222 root@localhost                              # guest SSH (--ssh-port to change, "off" to disable)
 ./calculinux-emulator-x86_64.AppImage --update-image    # fetch a newer published image

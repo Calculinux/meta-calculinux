@@ -24,6 +24,8 @@ Usage: ${ARGV0:-calculinux-emulator} [options] [-- extra QEMU arguments]
                     downloaded one; e.g. your own calculinux-qemuarm build
   --update-image    download the latest published image if it changed
   --nographic       no window; serial console on this terminal (Ctrl-a x quits)
+  --scale N         open the window at N times the 320x320 display (default 2);
+                    resizing the window scales it too
   --ssh-port PORT   forward localhost:PORT to the guest's SSH (default 2222,
                     "off" for none)
   --reset           discard saved state (disk changes, U-Boot environment)
@@ -37,6 +39,7 @@ EOF
 }
 
 nographic=0
+scale=2
 ssh_port=2222
 reset=0
 update=0
@@ -46,6 +49,7 @@ while [ $# -gt 0 ]; do
         --image) image="$(readlink -f "$2")"; shift ;;
         --update-image) update=1 ;;
         --nographic) nographic=1 ;;
+        --scale) scale="$2"; shift ;;
         --ssh-port) ssh_port="$2"; shift ;;
         --reset) reset=1 ;;
         -h|--help) usage; exit 0 ;;
@@ -58,6 +62,11 @@ done
 say() {
     echo "calculinux-emulator: $*" >&2
 }
+
+case "$scale" in
+    [1-9]) ;;
+    *) say "--scale takes a whole number from 1 to 9"; exit 2 ;;
+esac
 
 # The bundled binaries are nativesdk builds: run them through the bundled
 # dynamic loader so they use only the libraries shipped here.
@@ -165,7 +174,7 @@ fi
 if [ "$nographic" = 1 ]; then
     set -- -nographic "$@"
 else
-    set -- -display sdl -device virtio-gpu-pci,xres=320,yres=320 "$@"
+    set -- -display "sdl,scale=$scale" -device virtio-gpu-pci,xres=320,yres=320 "$@"
     if [ -t 0 ]; then
         set -- -serial mon:stdio "$@"
     fi
