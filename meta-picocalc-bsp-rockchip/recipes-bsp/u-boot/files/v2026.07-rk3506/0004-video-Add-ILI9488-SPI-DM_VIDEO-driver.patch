@@ -17,15 +17,15 @@ index c2acc13139c..7b405f7e09d 100644
  	Say Y here if you want to enable support for Himax HX8394
  	dsi 4dl panel.
  
-+	config VIDEO_ILI9488_SPI
-+	bool "Ilitek ILI9488 SPI panel (PicoCalc)"
-+	depends on VIDEO && DM_SPI && DM_GPIO
-+	select VIDEO_BPP16
-+	select BMP_24BPP
-+	help
-+	  Enable a VIDEO driver for the Ilitek ILI9488 SPI LCD used on
-+	  PicoCalc (320x320 RGB565). Shows a centered Calculinux splash then
-+	  a text vidconsole. Requires ROCKCHIP_SPI / board DT panel node.
++config VIDEO_ILI9488_SPI
++bool "Ilitek ILI9488 SPI panel (PicoCalc)"
++depends on VIDEO && DM_SPI && DM_GPIO
++select VIDEO_BPP16
++select BMP_24BPP
++help
++  Enable a VIDEO driver for the Ilitek ILI9488 SPI LCD used on
++  PicoCalc (320x320 RGB565). Shows a centered Calculinux splash then
++  a text vidconsole. Requires ROCKCHIP_SPI / board DT panel node.
 +
  config VIDEO_LCD_ILITEK_ILI9806E
  	bool "Ilitek ILI9806E-based panels"
