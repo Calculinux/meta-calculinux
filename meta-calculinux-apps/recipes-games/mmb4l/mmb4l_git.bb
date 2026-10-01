@@ -20,6 +20,7 @@ PV = "0.8.0_alpha1"
 SRC_URI = "git://github.com/thwill1000/mmb4l.git;protocol=https;tag=v0.8-alpha.1 \
            file://0001-CMake-Allow-disabling-unit-tests.patch \
            file://0002-CMake-Do-not-treat-warnings-as-errors.patch \
+           file://0003-CMake-Discover-SDL2-via-pkg-config.patch \
            "
 SRCREV = "8e98d84627c49fe95e5d3fb958080ac6cbd02d88"
 S = "${WORKDIR}/git"
@@ -48,4 +49,6 @@ do_install() {
 FILES:${PN} = "${bindir}/mmbasic"
 FILES:${PN}-doc = "${docdir}/mmb4l/*"
 
-COMPATIBLE_MACHINE = "luckfox-lyra"
+# MMB4L is a generic SDL2 Linux application; intentionally not restricted
+# to specific hardware so every machine that builds calculinux-image
+# (including the QEMU emulation targets) has a provider for it.
