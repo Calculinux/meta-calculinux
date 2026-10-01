@@ -40,9 +40,11 @@ TOOLCHAIN_TARGET_TASK = ""
 TOOLCHAIN_OUTPUTNAME = "calculinux-emulator-${SDK_ARCH}-${DISTRO_VERSION}"
 SDK_TITLE = "Calculinux emulator"
 
-# Host-only SDK, as in buildtools-tarball.
+# Host-only SDK, as in buildtools-tarball. PACKAGE_ARCH must be an entry of
+# SSTATE_ARCHS (as buildtools-tarball's is), or do_create_spdx cannot find
+# the recipe's own static SPDX document.
 MULTIMACH_TARGET_SYS = "${SDK_ARCH}-nativesdk${SDK_VENDOR}-${SDK_OS}"
-PACKAGE_ARCH = "${SDK_ARCH}_${SDK_OS}"
+PACKAGE_ARCH = "${SDK_ARCH}-${SDKPKGSUFFIX}"
 PACKAGE_ARCHS = ""
 TARGET_ARCH = "none"
 TARGET_OS = "none"
