@@ -21,7 +21,7 @@ QEMU pflash: U-Boot (qemu_arm_defconfig + calculinux.cfg)
 | Base DTB | Lyra DTS | dumped from QEMU at build time |
 | Disk | SD card, GPT `ROOT_A/ROOT_B/SWAP/OVERLAY_DATA` | virtio disk, same labels |
 | U-Boot env | GPT `ubootenv` partition | second pflash bank (`/dev/mtd0` in Linux) |
-| Display | 320x320 SPI LCD | 320x320 virtio-gpu |
+| Display | 320x320 SPI LCD | 320x320 virtio-gpu (`video=Virtual-1:320x320`; resizing the window scales it) |
 | RAUC compatible | `calculinux-luckfox-lyra` | `calculinux-qemuarm` |
 
 ## Build and run
