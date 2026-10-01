@@ -275,19 +275,24 @@ jobs:
       run: |
         started=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" -q .run_started_at)
         echo "Run started $started"
-        # What this ref changes vs main: lets list-new-packages.sh exempt a
-        # package that merely rebuilds every commit when the ref really
-        # touches its recipe. Empty (best effort) if main is not fetched.
-        if git rev-parse --quiet --verify origin/main >/dev/null; then
-          git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/changed-files.txt"
-        else
-          echo "::warning::could not resolve origin/main; applying the always-rebuilding skips without the recipe-touch exemption"
-          : > "$RUNNER_TEMP/changed-files.txt"
-        fi
         build_tmp=$(bash .github/scripts/build-dir.sh)
-        bash .github/scripts/list-new-packages.sh "$build_tmp/deploy/ipk" \
-          "$(date -d "$started" +%s)" "$RUNNER_TEMP/packages-new.txt" \
-          "$RUNNER_TEMP/changed-files.txt"
+        if [ "${{ github.event_name }}" = pull_request ]; then
+          # What this ref changes vs main: lets list-new-packages.sh exempt a
+          # package that merely rebuilds every commit when the ref really
+          # touches its recipe. Empty (best effort) if main is not fetched.
+          if git rev-parse --quiet --verify origin/main >/dev/null; then
+            git diff --name-only origin/main...HEAD > "$RUNNER_TEMP/changed-files.txt"
+          else
+            echo "::warning::could not resolve origin/main; applying the always-rebuilding skips without the recipe-touch exemption"
+            : > "$RUNNER_TEMP/changed-files.txt"
+          fi
+          bash .github/scripts/list-new-packages.sh "$build_tmp/deploy/ipk" \
+            "$(date -d "$started" +%s)" "$RUNNER_TEMP/packages-new.txt" \
+            "$RUNNER_TEMP/changed-files.txt"
+        else
+          bash .github/scripts/list-new-packages.sh "$build_tmp/deploy/ipk" \
+            "$(date -d "$started" +%s)" "$RUNNER_TEMP/packages-new.txt"
+        fi
 
     - name: Collect build outputs
       if: inputs.lane == 'image' && inputs.collect && steps.build.outputs.done == 'true'
