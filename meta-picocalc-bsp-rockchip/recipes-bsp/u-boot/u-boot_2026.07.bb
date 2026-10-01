@@ -113,6 +113,9 @@ from pathlib import Path
 src, cfg, patch = (Path(p).read_text() for p in sys.argv[1:])
 assert "depends on VIDEO && DM_SPI && DM_GPIO" in patch
 assert "depends on DM_VIDEO" not in patch
+# An indented 'config' is absorbed as help text and silently kills the
+# symbol in kconfig (kconfig requires 'config' at column 0).
+assert "+\tconfig " not in patch
 assert "CONFIG_DM_VIDEO" not in cfg
 assert "CONFIG_BMP_24BPP=y" in cfg
 assert "CONFIG_VIDEO_LOGO=y" in cfg
