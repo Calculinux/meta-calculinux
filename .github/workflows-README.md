@@ -28,7 +28,7 @@ This directory contains the GitHub Actions workflows, reusable actions, and scri
     ├── prune-sstate.sh             # Shrink sstate to the build's working set before caching
     ├── select-sdk-sstate.sh        # Stage the SDK lane's own sstate for its cache entry
     ├── rotate-caches.sh            # Keep the newest N Actions cache entries per prefix
-    ├── list-new-packages.sh        # List the IPKs a workflow run built
+    ├── list-new-packages.sh        # List the IPKs a workflow run built (drops per-commit churners)
     ├── publish-testing-packages.sh # Publish a PR's packages to the testing feed
     ├── cleanup-testing-packages.sh # Remove a closed PR's packages from the testing feed
     ├── sync-source-mirror.sh       # Keep the /.sources download mirror current
@@ -92,7 +92,12 @@ Runs after a successful PR build of "Build Calculinux", from `main`'s code only
 - RAUC bundle and WIC image go to the PR channel (`update|image/<feed>/pr/`).
 - The packages the PR built (new or changed relative to `main`'s cache) go to
   the shared **testing feed**, `ipk/<feed>/testing/<arch>/`. The PR comment
-  lists them with the `src/gz` lines to add on a device.
+  lists them with the `src/gz` lines to add on a device. Packages that
+  rebuild on every commit because their content embeds
+  `DISTRO_VERSION`/`MACHINE` (today: `os-release`, `base-files` and their
+  split/sub packages — see `SKIP_PKGS` in `scripts/list-new-packages.sh`)
+  are dropped from the list, unless the PR's diff touches the package's
+  recipe, in which case they are kept.
 - Same-repo PRs always publish. Fork PRs publish only once a maintainer adds
   the `publish-testing` label, which publishes the PR head's latest build.
 
