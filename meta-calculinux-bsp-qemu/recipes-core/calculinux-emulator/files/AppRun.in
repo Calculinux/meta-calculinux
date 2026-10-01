@@ -49,7 +49,7 @@ while [ $# -gt 0 ]; do
         --image) image="$(readlink -f "$2")"; shift ;;
         --update-image) update=1 ;;
         --nographic) nographic=1 ;;
-        --scale) scale="$2"; shift ;;
+        --scale) [ "$#" -ge 2 ] || { echo "calculinux-emulator: --scale requires an argument" >&2; exit 2; }; scale="$2"; shift ;;
         --ssh-port) ssh_port="$2"; shift ;;
         --reset) reset=1 ;;
         -h|--help) usage; exit 0 ;;
