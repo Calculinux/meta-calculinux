@@ -40,14 +40,27 @@ struct ili9488_priv {
 	struct gpio_desc dc;
 	struct gpio_desc reset;
 	ulong last_sync_ms;
+	ulong splash_ms;
 	bool splash_done;
 	bool sync_active;
 };
 
+static int ili9488_spi_write_flags(struct udevice *dev, const void *buf,
+				   size_t len, unsigned long flags)
+{
+	return dm_spi_xfer(dev, len * 8, buf, NULL, flags);
+}
+
 static int ili9488_spi_write(struct udevice *dev, const void *buf, size_t len)
 {
-	return dm_spi_xfer(dev, len * 8, buf, NULL, SPI_XFER_BEGIN | SPI_XFER_END);
+	return ili9488_spi_write_flags(dev, buf, len,
+				       SPI_XFER_BEGIN | SPI_XFER_END);
 }
+
+/* BEGIN on first scanline, END on last — hold CS for the RAMWR payload. */
+#define ILI9488_PIXEL_FLAGS(y) \
+	(((y) == 0 ? SPI_XFER_BEGIN : 0) | \
+	 ((y) == (ILI9488_HEIGHT - 1) ? SPI_XFER_END : 0))
 
 static int ili9488_write_cmd(struct udevice *dev, u8 cmd)
 {
@@ -182,7 +195,7 @@ static int ili9488_init_display(struct udevice *dev)
 	ret = ili9488_write_cmd(dev, 0x29); /* display on */
 	if (ret)
 		return ret;
-	mdelay(20);
+	mdelay(120);
 
 	return 0;
 }
@@ -208,7 +221,7 @@ static int ili9488_flush_fb(struct udevice *dev)
 	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
 	struct ili9488_priv *priv = dev_get_priv(dev);
 	u16 *fb = uc_priv->fb;
-	u8 line[ILI9488_WIDTH * 2];
+	static u8 line[ILI9488_WIDTH * 2];
 	int y, x, ret;
 
 	ret = ili9488_set_addr_win(dev, 0, 0, ILI9488_WIDTH - 1,
@@ -233,7 +246,8 @@ static int ili9488_flush_fb(struct udevice *dev)
 			line[x * 2] = px >> 8;
 			line[x * 2 + 1] = px & 0xff;
 		}
-		ret = ili9488_spi_write(dev, line, sizeof(line));
+		ret = ili9488_spi_write_flags(dev, line, sizeof(line),
+					      ILI9488_PIXEL_FLAGS(y));
 		if (ret)
 			return ret;
 	}
@@ -294,8 +308,8 @@ static int ili9488_show_splash(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	mdelay(LOGO_HOLD_MS);
-	priv->last_sync_ms = get_timer(0);
+	priv->splash_ms = get_timer(0);
+	priv->last_sync_ms = priv->splash_ms;
 	return 0;
 }
 
@@ -318,6 +332,12 @@ static int ili9488_video_sync(struct udevice *vid)
 
 	if (!priv->splash_done) {
 		ret = ili9488_show_splash(vid);
+		goto out;
+	}
+
+	/* Keep the logo on the panel; console still writes the FB. */
+	if (get_timer(priv->splash_ms) < LOGO_HOLD_MS) {
+		ret = 0;
 		goto out;
 	}
 

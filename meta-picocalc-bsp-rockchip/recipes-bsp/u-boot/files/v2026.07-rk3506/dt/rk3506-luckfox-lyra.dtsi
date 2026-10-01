@@ -84,23 +84,11 @@
 	};
 };
 
-/* RMIO syscon used by PicoCalc remux SPI0 / I2C2 pinmux */
+/* RMIO syscon used by PicoCalc remux SPI0 / I2C2 pinmux.
+ * pcfg_* nodes come from rockchip-pinconf.dtsi (via rk3506-pinctrl.dtsi).
+ */
 &pinctrl {
 	rockchip,rmio = <&grf_pmu>;
-
-	/* Minimal pinconf (WIP rk3506 DT omits rockchip-pinconf.dtsi) */
-	pcfg_pull_none: pcfg-pull-none {
-		bias-disable;
-	};
-
-	pcfg_pull_up: pcfg-pull-up {
-		bias-pull-up;
-	};
-
-	pcfg_pull_none_drv_level_3: pcfg-pull-none-drv-level-3 {
-		bias-disable;
-		drive-strength = <3>;
-	};
 
 	leds {
 		/omit-if-no-ref/

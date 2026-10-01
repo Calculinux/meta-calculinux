@@ -7,6 +7,7 @@ LICENSE = "GPL-2.0-or-later"
 LIC_FILES_CHKSUM = "file://Licenses/README;md5=2ca5f2c35c8cc335f0a19756634782f1"
 
 require recipes-bsp/u-boot/u-boot.inc
+inherit python3native
 
 DEPENDS += "bc-native bison-native dtc-native flex-native gnutls-native python3-pyelftools-native python3-setuptools-native"
 
@@ -72,7 +73,7 @@ do_configure:prepend() {
        ${UNPACKDIR}/v2026.07-rk3506/dt/rk3506-luckfox-lyra-plus-u-boot.dtsi \
         ${S}/arch/arm/dts/
     cp ${UNPACKDIR}/v2026.07-rk3506/drivers/video/ili9488-spi.c ${S}/drivers/video/
-    python3 - "${UNPACKDIR}/calculinux-logo.bmp" "${S}/drivers/video/calculinux-logo.c" <<'PY'
+    ${PYTHON} - "${UNPACKDIR}/calculinux-logo.bmp" "${S}/drivers/video/calculinux-logo.c" <<'PY'
 import sys
 from pathlib import Path
 
@@ -102,6 +103,26 @@ lines += [
 ]
 out.write_text("\n".join(lines))
 print(f"Wrote {out} ({len(data)} bytes)")
+PY
+    ${PYTHON} - "${S}/drivers/video/ili9488-spi.c" \
+        "${UNPACKDIR}/calculinux.cfg" \
+        "${UNPACKDIR}/v2026.07-rk3506/0004-video-Add-ILI9488-SPI-DM_VIDEO-driver.patch" <<'PY'
+import sys
+from pathlib import Path
+
+src, cfg, patch = (Path(p).read_text() for p in sys.argv[1:])
+assert "depends on VIDEO && DM_SPI && DM_GPIO" in patch
+assert "depends on DM_VIDEO" not in patch
+assert "CONFIG_DM_VIDEO" not in cfg
+assert "CONFIG_BMP_24BPP=y" in cfg
+assert "mdelay(LOGO_HOLD_MS)" not in src
+assert "ILI9488_PIXEL_FLAGS" in src
+assert "get_timer(priv->splash_ms) < LOGO_HOLD_MS" in src
+BEGIN, END = 1, 2
+def flags(y, h=320):
+    return (BEGIN if y == 0 else 0) | (END if y == h - 1 else 0)
+assert flags(0) == BEGIN and flags(160) == 0 and flags(319) == END
+print("ili9488 review invariants ok")
 PY
 }
 
