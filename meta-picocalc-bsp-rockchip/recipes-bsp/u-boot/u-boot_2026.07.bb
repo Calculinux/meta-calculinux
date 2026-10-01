@@ -116,6 +116,10 @@ assert "depends on DM_VIDEO" not in patch
 assert "CONFIG_DM_VIDEO" not in cfg
 assert "CONFIG_BMP_24BPP=y" in cfg
 assert "CONFIG_VIDEO_LOGO=y" in cfg
+assert "CONFIG_SPI=y" in cfg
+assert "CONFIG_DM_SPI=y" in cfg
+assert "CONFIG_ROCKCHIP_SPI=y" in cfg
+assert "CONFIG_VIDEO_ILI9488_SPI=y" in cfg
 assert "mdelay(LOGO_HOLD_MS)" not in src
 assert "ILI9488_PIXEL_FLAGS" in src
 assert "get_timer(priv->splash_ms) < LOGO_HOLD_MS" in src
