@@ -61,6 +61,7 @@ IMAGE_INSTALL += " \
     freetype \
     links \
     man-db \
+    mmb4l \
     mtd-utils \
     musl-locales \
     nano \
