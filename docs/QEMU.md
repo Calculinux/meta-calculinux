@@ -21,7 +21,7 @@ QEMU pflash: U-Boot (qemu_arm_defconfig + calculinux.cfg)
 | Base DTB | Lyra DTS | dumped from QEMU at build time |
 | Disk | SD card, GPT `ROOT_A/ROOT_B/SWAP/OVERLAY_DATA` | virtio disk, same labels |
 | U-Boot env | GPT `ubootenv` partition | second pflash bank (`/dev/mtd0` in Linux) |
-| Display | 320x320 SPI LCD | 320x320 virtio-gpu |
+| Display | 320x320 SPI LCD | 320x320 virtio-gpu (`video=Virtual-1:320x320`; resizing the window scales it) |
 | RAUC compatible | `calculinux-luckfox-lyra` | `calculinux-qemuarm` |
 
 ## Build and run
@@ -56,7 +56,8 @@ a compressed qcow2 checked against its `.sha256`) with the host's `curl` or
 
 ```bash
 chmod +x calculinux-emulator-x86_64.AppImage
-./calculinux-emulator-x86_64.AppImage                   # 320x320 window (resizable) + serial on the terminal
+./calculinux-emulator-x86_64.AppImage                   # 320x320 display in a 640x640 window + serial on the terminal
+./calculinux-emulator-x86_64.AppImage --scale 3         # 960x960 window (1 = actual size); resizing scales too
 ./calculinux-emulator-x86_64.AppImage --nographic       # serial console only
 ssh -p 2222 root@localhost                              # guest SSH (--ssh-port to change, "off" to disable)
 ./calculinux-emulator-x86_64.AppImage --update-image    # fetch a newer published image
