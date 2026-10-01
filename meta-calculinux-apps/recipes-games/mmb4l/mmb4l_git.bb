@@ -17,8 +17,10 @@ LIC_FILES_CHKSUM = "file://LICENSE.MMBasic;md5=c0ad0b6f0d9d01ea45125a1821518deb;
 # v0.8-alpha.1 tag; the numeric version encoding is documented in MM.INFO(VERSION)
 PV = "0.8.0_alpha1"
 
-# SRCREV pins the v0.8-alpha.1 tag (which sits on main's tip)
-SRC_URI = "git://github.com/thwill1000/mmb4l.git;protocol=https;branch=main \
+# The git fetcher requires a branch parameter; tag= identifies the release
+# and the fetcher verifies at unpack time that the tag still resolves to
+# SRCREV (which is what actually pins the revision).
+SRC_URI = "git://github.com/thwill1000/mmb4l.git;protocol=https;branch=main;tag=v0.8-alpha.1 \
            file://0001-CMake-Allow-disabling-unit-tests.patch \
            file://0002-CMake-Do-not-treat-warnings-as-errors.patch \
            file://0003-CMake-Discover-SDL2-via-pkg-config.patch \
