@@ -64,6 +64,7 @@ do_install() {
 
 RDEPENDS:${PN} = " \
     libpng \
+    alsa-lib \
     libsdl2 \
     zlib \
     bash \
