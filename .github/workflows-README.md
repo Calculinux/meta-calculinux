@@ -81,7 +81,10 @@ GitHub-hosted runners, with the same pass chains and caches as
   they boot; the finishing pass boot-tests the x86_64 AppImage
   (`qemu-appimage-test.sh`).
 - `publish` (self-hosted, published refs only): publishes the emulator next
-  to the SDKs and attaches it to tagged releases.
+  to the SDKs and attaches it to tagged releases, then rebuilds
+  `emulator/calculinux-qemuarm/index.json` (`generate-emulator-index.py`):
+  one index of every tagged disk image under `image/<feed>/release/` and the
+  current `main` and `develop` images, whichever ref published last.
 
 Test time is reserved out of each pass's build budget (`post_build_minutes`),
 so tests always fit in the job. Serial logs are uploaded as `test-logs-*`.
