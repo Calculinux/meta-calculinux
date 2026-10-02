@@ -59,6 +59,7 @@ RDEPENDS:${PN} = " \
     ntp \
     patch \
     patchelf \
+    pcsx-rearmed \
     pcsx-rearmed-libretro \
     picoarch \
     picocalc-kbd-test \
