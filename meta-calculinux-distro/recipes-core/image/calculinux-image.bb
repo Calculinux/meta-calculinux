@@ -11,7 +11,7 @@ PICO_PASSWORD = "\$6\$G4enDnQY4liXfauo\$UUz007.Y/oxzq6A5.LaTizALFZVjlEA3iDbMqHhq
 
 EXTRA_USERS_PARAMS = "\
     useradd -G wheel,video,render,input -s /bin/bash pico; \
-    usermod -p '${PASSWD}' root; \
+    usermod -s /bin/bash -p '${PASSWD}' root; \
     usermod -p '${PICO_PASSWORD}' pico; \
 "
 
@@ -30,7 +30,6 @@ IMAGE_INSTALL += " \
     bash \
     bash-completion \
     btrfs-tools \
-    busybox \
     calculinux-config \
     calculinux-update \
     cloud-utils-growpart \

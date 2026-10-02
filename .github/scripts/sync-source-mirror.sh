@@ -48,7 +48,10 @@ echo "Source files in DL_DIR: $(wc -l < "$list")"
 
 # --ignore-existing: sources are immutable by name (checksummed, or keyed by
 # revision for mirror tarballs), so never rewrite what clients may be reading.
-rsync -a --ignore-existing --itemize-changes --files-from="$list" "$DL_DIR"/ "$MIRROR_DIR"/ \
+# -rt, not -a: the NFS export refuses chgrp, so preserving owner/group fails
+# the copy (exit 23) even though every file arrives; the server's defaults are
+# what nginx needs anyway.
+rsync -rt --ignore-existing --itemize-changes --files-from="$list" "$DL_DIR"/ "$MIRROR_DIR"/ \
   | awk '{n++} END {print n+0 " new files copied to the mirror"}'
 rm -f "$list" "$overlay"
 
