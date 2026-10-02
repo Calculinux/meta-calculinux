@@ -1,0 +1,27 @@
+Makefile: store emulator state under $HOME, skin in datadir
+
+Upstream compiles libpicofe's plat.o with -DNO_HOME_DIR, which makes
+configs, memcards and save states resolve relative to the executable.
+That only works for the classic "extract the release archive and run
+from there" flow; in a packaged install the state would land in /usr,
+which ordinary users cannot write to.
+
+Define PICO_HOME_DIR instead, so plat_get_root_dir() puts all emulator
+state in $HOME/.pcsx_rearmed/ (mirrors how picoarch keeps its data in
+$HOME/.picoarch-<core>/). Also define PACKAGE_DATA_SKIN, picked up by
+plat_get_skin_dir() (see the companion libpicofe patch), so the skin
+loads from the packaged location. The path uses the distribution's
+fixed /usr prefix, consistent with the rest of the emulation stack
+(e.g. retroarch-paths.bbclass).
+--- a/Makefile
++++ b/Makefile
+@@ -422,7 +422,8 @@ ifeq "$(USE_PLUGIN_LIB)" "1"
+ OBJS += frontend/plugin_lib.o
+ OBJS += frontend/libpicofe/linux/plat.o
+ OBJS += frontend/libpicofe/readpng.o frontend/libpicofe/fonts.o
+-frontend/libpicofe/linux/plat.o: CFLAGS += -DNO_HOME_DIR
++frontend/libpicofe/linux/plat.o: CFLAGS += -DPICO_HOME_DIR=\"/.pcsx_rearmed/\"
++frontend/libpicofe/linux/plat.o: CFLAGS += -DPACKAGE_DATA_SKIN=\"/usr/share/pcsx_rearmed/skin\"
+ ifeq "$(HAVE_NEON_ASM)" "1"
+ OBJS += frontend/libpicofe/arm/neon_scale2x.o
+ OBJS += frontend/libpicofe/arm/neon_eagle2x.o
