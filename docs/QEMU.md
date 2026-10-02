@@ -52,7 +52,9 @@ attached to tagged releases. No QEMU install is needed on the host. On first
 launch it downloads the system image for its feed
 (`image/<feed>/<subfolder>/calculinux-image-calculinux-qemuarm.rootfs.qcow2`,
 a compressed qcow2 checked against its `.sha256`) with the host's `curl` or
-`wget`.
+`wget`. An AppImage built from a tag downloads that tag's image
+(`...rootfs-<tag>.qcow2`). All published images are listed in
+`https://opkg.calculinux.org/emulator/calculinux-qemuarm/index.json`.
 
 ```bash
 chmod +x calculinux-emulator-x86_64.AppImage
