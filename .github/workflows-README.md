@@ -78,8 +78,8 @@ GitHub-hosted runners, with the same pass chains and caches as
 - `pass1..3`: the image; the finishing pass runs the runqemu boot and
   overlayfs tests (`qemu-image-tests.sh`) and hands its sstate to the next lane.
 - `emu1..3` (`emulator` lane): the AppImages for both hosts and the disk image
-  they boot; the finishing pass boot-tests the x86_64 AppImage
-  (`qemu-appimage-test.sh`).
+  they boot; the finishing pass checks the x86_64 AppImage's image launcher
+  and boot-tests it (`qemu-appimage-test.sh`).
 - `publish` (self-hosted, published refs only): publishes the emulator next
   to the SDKs and attaches it to tagged releases, then rebuilds
   `emulator/calculinux-qemuarm/index.json` (`generate-emulator-index.py`):

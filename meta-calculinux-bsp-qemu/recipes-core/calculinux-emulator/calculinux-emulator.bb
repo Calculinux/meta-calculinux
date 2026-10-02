@@ -1,8 +1,8 @@
 SUMMARY = "Calculinux emulator AppImage"
-DESCRIPTION = "Self-contained AppImage for ${SDKMACHINE} hosts: QEMU (SDL window) \
-and U-Boot. The calculinux-qemuarm disk image is downloaded on first launch \
-(or given with --image). Built like an SDK: \
-bitbake calculinux-emulator -c populate_sdk (SDKMACHINE selects the host)."
+DESCRIPTION = "Self-contained AppImage for ${SDKMACHINE} hosts: QEMU (SDL window), \
+U-Boot and a launcher that lists the published calculinux-qemuarm disk images \
+and downloads the chosen one (or boot your own with --image). Built like an \
+SDK: bitbake calculinux-emulator -c populate_sdk (SDKMACHINE selects the host)."
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
@@ -24,19 +24,29 @@ SRC_URI[runtime-aarch64.sha256sum] = "00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1
 
 # Bootloader bundled in the AppImage.
 EMULATOR_BIOS = "${DEPLOY_DIR_IMAGE}/u-boot.bin"
-# Disk image downloaded on first launch: the latest wic.qcow2c that CI
-# publishes for this feed (see .github/scripts/publish-emulator.sh). A
-# release build (DISTRO_VERSION is the tag) fetches its own tag's image:
-# prerelease tags publish no un-versioned copy.
+# The launcher offers the disk images listed in this index (written by
+# .github/scripts/generate-emulator-index.py on every emulator publish) and
+# preselects this build's own: its tag for a release build (DISTRO_VERSION
+# is the tag), else the latest image of its branch.
+EMULATOR_INDEX_URL ?= "${PACKAGE_FEED_URIS}emulator/${MACHINE}/index.json"
+EMULATOR_DEFAULT_ID ?= "${@d.getVar('DISTRO_VERSION') if d.getVar('CALCULINUX_FEED_SUBFOLDER') == 'release' else 'continuous-develop' if d.getVar('DISTRO_CODENAME') == 'develop' else 'continuous-main'}"
+# The same image by URL, offered when the index cannot be fetched: the
+# wic.qcow2c that CI publishes for this feed (see publish-emulator.sh). A
+# release build names its tag's image: prerelease tags publish no
+# un-versioned copy.
 EMULATOR_IMAGE ?= "calculinux-image"
 EMULATOR_IMAGE_TAG = "${@'-' + d.getVar('DISTRO_VERSION') if d.getVar('CALCULINUX_FEED_SUBFOLDER') == 'release' else ''}"
 EMULATOR_IMAGE_URL ?= "${PACKAGE_FEED_URIS}image/${DISTRO_CODENAME}/${CALCULINUX_FEED_SUBFOLDER}/${EMULATOR_IMAGE}-${MACHINE}.rootfs${EMULATOR_IMAGE_TAG}.qcow2"
 
 # Host side: QEMU and what it needs at runtime (see the qemu/libsdl2
-# bbappends in this layer for the trimmed-down configuration).
+# bbappends in this layer for the trimmed-down configuration), and the
+# launcher with CA certificates for its downloads (it prefers the host's,
+# but a minimal host may have none).
 TOOLCHAIN_HOST_TASK = " \
     nativesdk-sdk-provides-dummy \
     nativesdk-qemu-system-arm \
+    nativesdk-calculinux-emulator-launcher \
+    nativesdk-ca-certificates \
 "
 TOOLCHAIN_TARGET_TASK = ""
 
@@ -70,7 +80,7 @@ do_populate_sdk[depends] += "virtual/bootloader:do_deploy"
 # Package the host sysroot and images as an AppImage instead of the usual
 # tarball + shell installer.
 SDK_POSTPROCESS_COMMAND = "build_appimage"
-build_appimage[vardeps] += "CALCULINUX_QEMU_MACHINE CALCULINUX_QEMU_CPU CALCULINUX_QEMU_SMP CALCULINUX_QEMU_MEM DISTRO_VERSION EMULATOR_IMAGE_URL"
+build_appimage[vardeps] += "CALCULINUX_QEMU_MACHINE CALCULINUX_QEMU_CPU CALCULINUX_QEMU_SMP CALCULINUX_QEMU_MEM DISTRO_VERSION EMULATOR_IMAGE_URL EMULATOR_INDEX_URL EMULATOR_DEFAULT_ID"
 
 fakeroot build_appimage() {
     appdir="${WORKDIR}/AppDir"
@@ -93,6 +103,23 @@ fakeroot build_appimage() {
         [ -e "$appdir/sysroot/usr/lib/$lib" ] || \
             bbfatal "$lib missing from the AppImage (SDL display backend)"
     done
+    [ -x "$appdir/sysroot/usr/bin/calculinux-emulator-launcher" ] || \
+        bbfatal "launcher missing from the AppImage"
+    [ -e "$appdir/sysroot/usr/lib/libcurl.so.4" ] || \
+        bbfatal "libcurl.so.4 missing from the AppImage (launcher downloads)"
+
+    # Of ca-certificates only the bundle is used (the launcher is told where
+    # it is); drop the single certificates, the links to them and the tools
+    # that maintain them.
+    [ -f "$appdir/sysroot/etc/ssl/certs/ca-certificates.crt" ] && \
+        [ ! -L "$appdir/sysroot/etc/ssl/certs/ca-certificates.crt" ] && \
+        [ -s "$appdir/sysroot/etc/ssl/certs/ca-certificates.crt" ] || \
+        bbfatal "CA bundle missing from the AppImage (launcher downloads)"
+    find "$appdir/sysroot/etc/ssl/certs" -mindepth 1 ! -name ca-certificates.crt -delete
+    rm -rf "$appdir/sysroot/usr/share/ca-certificates" \
+           "$appdir/sysroot/usr/sbin/update-ca-certificates" \
+           "$appdir/sysroot/usr/bin/openssl" \
+           "$appdir/sysroot/usr/bin/c_rehash"
 
     sed -e 's|@QEMU_MACHINE@|${CALCULINUX_QEMU_MACHINE}|' \
         -e 's|@QEMU_CPU@|${CALCULINUX_QEMU_CPU}|' \
@@ -106,6 +133,8 @@ fakeroot build_appimage() {
 
     install -m 0644 "${EMULATOR_BIOS}" "$appdir/images/u-boot.bin"
     echo "${EMULATOR_IMAGE_URL}" > "$appdir/images/image-url"
+    echo "${EMULATOR_INDEX_URL}" > "$appdir/images/index-url"
+    echo "${EMULATOR_DEFAULT_ID}" > "$appdir/images/default-id"
     echo "${DISTRO_VERSION}" > "$appdir/images/version"
 
     mksquashfs "$appdir" "${WORKDIR}/emulator.squashfs" \

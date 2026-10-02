@@ -20,6 +20,9 @@ if [ -z "$appimage" ] || [ ! -f "$disk" ]; then
   exit 1
 fi
 
+# The bundled image launcher: index, download, window.
+bash .github/scripts/emulator-launcher-test.sh "$appimage" "$disk"
+
 # Runs without FUSE; keep emulator state out of the home directory.
 export APPIMAGE_EXTRACT_AND_RUN=1
 export CALCULINUX_EMULATOR_HOME="${RUNNER_TEMP:-/tmp}/emulator-state"

@@ -46,33 +46,53 @@ on the next run.
 ## Emulator AppImage
 
 `calculinux-emulator` is one AppImage per host architecture containing QEMU
-(SDL window) and U-Boot, published next to the SDKs
+(SDL window), U-Boot and an image launcher, published next to the SDKs
 (`sdk/<feed>/<subfolder>/<arch>/calculinux-emulator-<arch>.AppImage`) and
-attached to tagged releases. No QEMU install is needed on the host. On first
-launch it downloads the system image for its feed
-(`image/<feed>/<subfolder>/calculinux-image-calculinux-qemuarm.rootfs.qcow2`,
-a compressed qcow2 checked against its `.sha256`) with the host's `curl` or
-`wget`. An AppImage built from a tag downloads that tag's image
-(`...rootfs-<tag>.qcow2`). All published images are listed in
-`https://opkg.calculinux.org/emulator/calculinux-qemuarm/index.json`.
+attached to tagged releases. No QEMU install is needed on the host.
+
+Started without options it opens the launcher: a list of the published system
+images (every tagged release, and the latest build of `main` and `develop`).
+Pick one and press Enter to boot it; it is downloaded first if needed, with a
+progress bar, and an interrupted download resumes. The image used last time
+is preselected, so Enter alone boots it again. The same window deletes
+downloaded images and discards the changes made in one.
 
 ```bash
 chmod +x calculinux-emulator-x86_64.AppImage
-./calculinux-emulator-x86_64.AppImage                   # 320x320 display in a 640x640 window + serial on the terminal
+./calculinux-emulator-x86_64.AppImage                   # launcher, then the 320x320 display in a 640x640 window + serial on the terminal
+./calculinux-emulator-x86_64.AppImage --no-launcher     # boot the image used last time straight away
+./calculinux-emulator-x86_64.AppImage --list            # published images and which are downloaded
+./calculinux-emulator-x86_64.AppImage --select v1.0.0   # boot that image (downloading it if needed), no launcher
+./calculinux-emulator-x86_64.AppImage --download v1.0.0 # download only; --remove ID deletes one
+./calculinux-emulator-x86_64.AppImage --update-image    # download the image again if a newer one was published
 ./calculinux-emulator-x86_64.AppImage --scale 3         # 960x960 window (1 = actual size); resizing scales too
-./calculinux-emulator-x86_64.AppImage --nographic       # serial console only
+./calculinux-emulator-x86_64.AppImage --nographic       # serial console only, no launcher
 ssh -p 2222 root@localhost                              # guest SSH (--ssh-port to change, "off" to disable)
-./calculinux-emulator-x86_64.AppImage --update-image    # fetch a newer published image
 ./calculinux-emulator-x86_64.AppImage --image build/tmp/deploy/images/calculinux-qemuarm/calculinux-image-calculinux-qemuarm.rootfs.wic.qcow2c
                                                         # boot your own build (qcow2/qcow2c or raw .wic)
 ./calculinux-emulator-x86_64.AppImage --reset           # start over from the base image
 ```
 
-The downloaded image, disk changes (a qcow2 overlay on the read-only image)
-and the U-Boot environment (RAUC slot state) live in
-`~/.local/share/calculinux-emulator` (`CALCULINUX_EMULATOR_HOME` overrides);
-switching to a different base image resets the changes. Without FUSE, run
-with `APPIMAGE_EXTRACT_AND_RUN=1`.
+The images are listed in
+`https://opkg.calculinux.org/emulator/calculinux-qemuarm/index.json`
+(`CALCULINUX_EMULATOR_INDEX_URL` overrides; `.github/scripts/generate-emulator-index.py`
+writes it on every emulator publish). An image id is the release tag, or
+`continuous-main` / `continuous-develop`. Downloads are compressed qcow2
+files checked against their `.sha256`. If the index cannot be fetched, the
+downloaded images are still offered. `CALCULINUX_EMULATOR_IMAGE_URL` boots
+the image at that URL instead, without the launcher.
+
+State lives in `~/.local/share/calculinux-emulator` (`CALCULINUX_EMULATOR_HOME`
+overrides): `images/<id>/` holds each downloaded image with its own disk
+changes (a qcow2 overlay on the read-only image) and U-Boot environment (RAUC
+slot state), so switching images keeps the changes made in each; `local/`
+holds those for `--image`. Updating an image to a newer build resets its
+changes. A state directory from an older AppImage is converted on first run.
+Without FUSE, run with `APPIMAGE_EXTRACT_AND_RUN=1`.
+
+The launcher is [calculinux-emulator-launcher](https://github.com/Calculinux/calculinux-emulator-launcher)
+(Dear ImGui on SDL2's software renderer, and libcurl), built by the
+`calculinux-emulator-launcher` recipe.
 
 Build it like an SDK (`SDKMACHINE` picks the host):
 
@@ -95,7 +115,10 @@ to `/data` and U-Boot boots it after a reboot.
 ```
 
 The same checks run against the AppImage with
-`--cmd "./calculinux-emulator-x86_64.AppImage --image <disk> --nographic --ssh-port off"`.
+`--cmd "./calculinux-emulator-x86_64.AppImage --image <disk> --nographic --ssh-port off"`,
+after `.github/scripts/emulator-launcher-test.sh` has listed, downloaded and
+removed that disk image through the bundled launcher and opened its window on
+SDL's dummy video driver.
 CI (`.github/workflows/qemu-boot.yml`) runs both, builds the x86_64 and
 aarch64 AppImages, and keeps the serial logs as the `qemu-boot-serial-logs`
 artifact.
