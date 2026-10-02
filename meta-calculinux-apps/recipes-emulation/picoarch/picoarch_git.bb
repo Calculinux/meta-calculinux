@@ -7,7 +7,7 @@ LICENSE = "BSD-3-Clause & GPL-2.0-or-later & LGPL-2.1-or-later"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=cf9f0edc6d0921306fabede20ebb4306"
 
 SRC_URI = "gitsm://github.com/gurubook/picoarch.git;protocol=https;branch=feature/calculinux"
-SRCREV = "9c490045083264e51446d00d55009662d4a0fa73"
+SRCREV = "6a6bbbd8a5359ed4ec45c91e40f7ec88dc55b621"
 
 S = "${WORKDIR}/git"
 
@@ -62,6 +62,10 @@ do_install() {
     install -d ${D}${datadir}/picoarch/system
 }
 
+# alsa-lib is not linked by the binary: this SDL build uses
+# SDL_ALSA_SHARED, so the audio backend is loaded dynamically by SDL and
+# shlibdeps cannot see it (the launcher also forces SDL_AUDIODRIVER=alsa
+# and picoarch quits if audio init fails).
 RDEPENDS:${PN} = " \
     libpng \
     alsa-lib \
