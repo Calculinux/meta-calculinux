@@ -1,5 +1,7 @@
 # M0 delta-sigma audio firmware for RK3506 (Cortex-M0)
-# Built from picocalc-drivers repo; ELF loaded by rk3506_rproc at 0xFFF88000
+# Built from picocalc-drivers repo; linked at 0 (the M0 sees its image there).
+# rk3506_rproc loads it into system SRAM: 0xFFF84000 as TCM with the m0-audio
+# overlay as shipped (rockchip,tcm), 0xFFF88000 without.
 
 SUMMARY = "RK3506 M0 audio firmware (delta-sigma)"
 DESCRIPTION = "Bare-metal Cortex-M0 firmware for PicoCalc M0 audio driver. Loaded via remoteproc."
