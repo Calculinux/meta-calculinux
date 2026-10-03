@@ -1,0 +1,65 @@
+From 5b7aa53b26d2d41080889e172617d5ffedeacc63 Mon Sep 17 00:00:00 2001
+From: Yocto Build System <noreply@yoctoproject.org>
+Date: Thu, 1 Oct 2026 15:51:31 -0400
+Subject: [PATCH] CMake: allow disabling unit tests
+
+Add a MMB4L_BUILD_TESTS option (default ON, preserving upstream
+behaviour) that gates the GoogleTest FetchContent download and stops
+processing before the unit-test targets are defined. Packaging
+systems (e.g. Yocto) build with -DMMB4L_BUILD_TESTS=OFF to avoid
+network access at configure time and to skip building ~30 test
+binaries they do not ship.
+
+Signed-off-by: Yocto Build System <noreply@yoctoproject.org>
+---
+ CMakeLists.txt | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d61b0fd..57f0547 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -47,6 +47,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ set(CMAKE_CXX_EXTENSIONS OFF)
+ 
+ include(FetchContent)
++
++# Whether to build the unit tests. Enabling requires GoogleTest to be
++# downloaded from the internet via CMake FetchContent at configure time,
++# so packaging systems (e.g. Yocto) should build with
++# -DMMB4L_BUILD_TESTS=OFF.
++option(MMB4L_BUILD_TESTS "Build unit tests" ON)
++
+ #FetchContent_Declare(
+ #  googletest
+ #  URL https://github.com/google/googletest/archive/e2239ee6043f73722e7aa812a459f54a28552929.zip
+@@ -56,9 +63,11 @@ FetchContent_Declare(
+   GIT_REPOSITORY https://github.com/google/googletest.git
+   GIT_TAG        v1.17.0
+ )
+-# For Windows: Prevent overriding the parent project's compiler/linker settings
+-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+-FetchContent_MakeAvailable(googletest)
++if(MMB4L_BUILD_TESTS)
++    # For Windows: Prevent overriding the parent project's compiler/linker settings
++    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
++    FetchContent_MakeAvailable(googletest)
++endif()
+ 
+ if(WIN32)
+     set(PLATFORM "windows")
+@@ -399,6 +408,11 @@ if(NOT WIN32)
+     )
+ endif()
+ 
++if(NOT MMB4L_BUILD_TESTS)
++    # Everything below this point builds unit tests; stop before reaching it
++    return()
++endif()
++
+ ################################################################################
+ # test_keybuf_get
+ ################################################################################
+-- 
+2.55.0
+

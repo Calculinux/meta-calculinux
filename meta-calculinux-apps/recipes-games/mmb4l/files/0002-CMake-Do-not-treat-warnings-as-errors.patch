@@ -1,0 +1,33 @@
+From 6b02c3dc0e5bb5efbaf90cff1b830f82c4df4bb0 Mon Sep 17 00:00:00 2001
+From: Yocto Build System <noreply@yoctoproject.org>
+Date: Thu, 1 Oct 2026 15:51:54 -0400
+Subject: [PATCH] CMake: do not treat warnings as errors
+
+The upstream build pins specific GCC/Clang versions on a fixed set of
+host distributions and enables -Werror for them. Different compiler
+versions shipped with other toolchains (e.g. Yocto cross-builds) emit
+different warnings, which -Werror turns into hard build failures for
+reasons unrelated to the packaged code. Drop -Werror but keep the
+existing warning flags so the warnings stay visible.
+
+Signed-off-by: Yocto Build System <noreply@yoctoproject.org>
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d61b0fd..eb04fb5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -109,7 +109,7 @@ if (MSVC)
+ else()
+     # GCC/Clang compiler flags (Linux/macOS)
+     add_compile_options(
+-        "-Wwrite-strings;-Wall;-Wextra;-Wno-unused-parameter;-Wno-missing-field-initializers;-Wno-unused-function;-Wno-unused-result;-Werror"
++        "-Wwrite-strings;-Wall;-Wextra;-Wno-unused-parameter;-Wno-missing-field-initializers;-Wno-unused-function;-Wno-unused-result"
+         ${GCC_COVERAGE_COMPILE_FLAGS}
+         -funsigned-char
+     )
+-- 
+2.55.0
+
