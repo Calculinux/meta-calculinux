@@ -7,5 +7,5 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   that corrects for late pin writes. The m0-audio overlay runs the M0 at
 #   375 MHz and turns that loop on; the base dtsi asks for 4-word DMA bursts on
 #   the display's SPI controller (needs spi-rockchip-tx-dma-burst-from-dt.patch).
-SRCREV = "de267edd5f28c53dca0a4207ee1318b0d7cab0c6"
+SRCREV = "ba6bc6e8db8ae9dc38bdff3271831fbe617b9fad"
 S = "${WORKDIR}/git"
