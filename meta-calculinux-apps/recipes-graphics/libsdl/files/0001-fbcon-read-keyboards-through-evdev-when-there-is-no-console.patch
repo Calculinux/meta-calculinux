@@ -24,19 +24,20 @@ Medium-raw scancodes are the evdev key codes, so the events go through the
 existing translation tables. Those are loaded from the kernel keymaps when
 /dev/tty0 can be opened, and are a US layout otherwise.
 
-In this mode no VT is switched or put in graphics mode. Leaving graphics
-mode clears the terminal SDL was started from, since SDL has just blanked
-the framebuffer it draws on and it would only repaint lines as they
-change (skipped with SDL_FBCON_DONT_CLEAR, and over ssh). A missing mouse
-is not an error either: there is no gpm without a console, so SDL_NOMOUSE
-isn't needed.
+In this mode no VT is switched or put in graphics mode. The terminal SDL
+was started from draws on the same framebuffer, so it is asked to stop
+while SDL is in graphics mode and to repaint its screen afterwards (cruft's
+OSC 8901, which carries our pid so the terminal resumes by itself if the
+app dies). Other terminals ignore the sequence. A missing mouse is not an
+error either: there is no gpm without a console, so SDL_NOMOUSE isn't
+needed.
 
 Starting from a kernel console is unchanged.
 
 Upstream-Status: Inappropriate [Calculinux-specific; SDL 1.2 is unmaintained]
 
 diff --git a/src/video/fbcon/SDL_fbevents.c b/src/video/fbcon/SDL_fbevents.c
-index 5e369a4..ac010f8 100644
+index 5e369a4..5699a1c 100644
 --- a/src/video/fbcon/SDL_fbevents.c
 +++ b/src/video/fbcon/SDL_fbevents.c
 @@ -39,6 +39,7 @@
@@ -47,7 +48,7 @@ index 5e369a4..ac010f8 100644
  
  #include "SDL_timer.h"
  #include "SDL_mutex.h"
-@@ -147,6 +148,275 @@ static void FB_vgainitkeymaps(int fd)
+@@ -147,6 +148,279 @@ static void FB_vgainitkeymaps(int fd)
  	}
  }
  
@@ -295,20 +296,24 @@ index 5e369a4..ac010f8 100644
 +	keyboard_fd = -1;
 +}
 +
-+/* The terminal we were started from draws on the framebuffer we just
-+   cleared, and only repaints the lines that change. Have it start over
-+   with a clean screen. */
-+static void FB_evdev_reset_terminal(void)
++/* The terminal we were started from draws on the same framebuffer. Ask it
++   to stop while we are in graphics mode (cruft's OSC 8901), so that what
++   the app prints isn't painted over the picture, and to repaint its screen
++   when we leave. It resumes by itself if this process dies. Terminals that
++   don't know the sequence ignore it. */
++static void FB_evdev_suspend_terminal(int suspend)
 +{
-+	static const char clear[] = "\033[H\033[2J";
++	char seq[32];
 +	int fd;
 +
-+	if ( SDL_getenv("SDL_FBCON_DONT_CLEAR") || SDL_getenv("SSH_CONNECTION") ) {
-+		return;
++	if ( suspend ) {
++		SDL_snprintf(seq, SDL_arraysize(seq), "\033]8901;1;%d\007", (int)getpid());
++	} else {
++		SDL_strlcpy(seq, "\033]8901;0\007", SDL_arraysize(seq));
 +	}
 +	fd = open("/dev/tty", O_WRONLY|O_NOCTTY|O_CLOEXEC, 0);
 +	if ( fd >= 0 ) {
-+		if ( write(fd, clear, sizeof(clear)-1) < 0 ) {
++		if ( write(fd, seq, SDL_strlen(seq)) < 0 ) {
 +			/* Nothing to be done about it */;
 +		}
 +		close(fd);
@@ -323,7 +328,7 @@ index 5e369a4..ac010f8 100644
  int FB_InGraphicsMode(_THIS)
  {
  	return((keyboard_fd >= 0) && (saved_kbd_mode >= 0));
-@@ -156,6 +426,15 @@ int FB_EnterGraphicsMode(_THIS)
+@@ -156,6 +430,16 @@ int FB_EnterGraphicsMode(_THIS)
  {
  	struct termios keyboard_termios;
  
@@ -331,6 +336,7 @@ index 5e369a4..ac010f8 100644
 +	if ( evdev_active ) {
 +		if ( !FB_InGraphicsMode(this) ) {
 +			FB_evdev_grab(1);
++			FB_evdev_suspend_terminal(1);
 +			saved_kbd_mode = K_XLATE;
 +		}
 +		return(keyboard_fd);
@@ -339,7 +345,7 @@ index 5e369a4..ac010f8 100644
  	/* Set medium-raw keyboard mode */
  	if ( (keyboard_fd >= 0) && !FB_InGraphicsMode(this) ) {
  
-@@ -217,6 +496,14 @@ int FB_EnterGraphicsMode(_THIS)
+@@ -217,6 +501,14 @@ int FB_EnterGraphicsMode(_THIS)
  
  void FB_LeaveGraphicsMode(_THIS)
  {
@@ -347,14 +353,14 @@ index 5e369a4..ac010f8 100644
 +		if ( FB_InGraphicsMode(this) ) {
 +			FB_evdev_grab(0);
 +			saved_kbd_mode = -1;
-+			FB_evdev_reset_terminal();
++			FB_evdev_suspend_terminal(0);
 +		}
 +		return;
 +	}
  	if ( FB_InGraphicsMode(this) ) {
  		ioctl(keyboard_fd, KDSETMODE, KD_TEXT);
  		ioctl(keyboard_fd, KDSKBMODE, saved_kbd_mode);
-@@ -233,6 +520,11 @@ void FB_LeaveGraphicsMode(_THIS)
+@@ -233,6 +525,11 @@ void FB_LeaveGraphicsMode(_THIS)
  
  void FB_CloseKeyboard(_THIS)
  {
@@ -366,7 +372,7 @@ index 5e369a4..ac010f8 100644
  	if ( keyboard_fd >= 0 ) {
  		FB_LeaveGraphicsMode(this);
  		if ( keyboard_fd > 0 ) {
-@@ -250,6 +542,12 @@ int FB_OpenKeyboard(_THIS)
+@@ -250,6 +547,12 @@ int FB_OpenKeyboard(_THIS)
  		static const char * const vcs[] = { "/dev/vc/%d", "/dev/tty%d", NULL };
  		int i, tty0_fd;
  
@@ -379,7 +385,7 @@ index 5e369a4..ac010f8 100644
  		/* Try to query for a free virtual terminal */
  		tty0_fd = -1;
  		for ( i=0; tty0[i] && (tty0_fd < 0); ++i ) {
-@@ -305,6 +603,9 @@ int FB_OpenKeyboard(_THIS)
+@@ -305,6 +608,9 @@ int FB_OpenKeyboard(_THIS)
  		  if ( ioctl(keyboard_fd, KDGKBMODE, &dummy) < 0 ) {
  			close(keyboard_fd);
  			keyboard_fd = -1;
@@ -389,7 +395,7 @@ index 5e369a4..ac010f8 100644
  			SDL_SetError("Unable to open a console terminal");
  		  }
  		}
-@@ -1037,10 +1338,30 @@ static void handle_keyboard(_THIS)
+@@ -1037,10 +1343,30 @@ static void handle_keyboard(_THIS)
  	}
  }
  
@@ -420,7 +426,7 @@ index 5e369a4..ac010f8 100644
  	static struct timeval zero;
  
  	do {
-@@ -1060,7 +1381,14 @@ void FB_PumpEvents(_THIS)
+@@ -1060,7 +1386,14 @@ void FB_PumpEvents(_THIS)
  
  		FD_ZERO(&fdset);
  		max_fd = 0;
@@ -436,7 +442,7 @@ index 5e369a4..ac010f8 100644
  			FD_SET(keyboard_fd, &fdset);
  			if ( max_fd < keyboard_fd ) {
  				max_fd = keyboard_fd;
-@@ -1073,7 +1401,13 @@ void FB_PumpEvents(_THIS)
+@@ -1073,7 +1406,13 @@ void FB_PumpEvents(_THIS)
  			}
  		}
  		if ( select(max_fd+1, &fdset, NULL, NULL, &zero) > 0 ) {
