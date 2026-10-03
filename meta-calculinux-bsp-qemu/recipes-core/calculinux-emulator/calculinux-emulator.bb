@@ -79,7 +79,9 @@ fakeroot build_appimage() {
     rm -rf "$appdir"
     install -d "$appdir/images"
 
-    cp -a "${SDK_OUTPUT}${SDKPATHNATIVE}" "$appdir/sysroot"
+    # AppDir is outside PSEUDO_INCLUDE_PATHS, so pseudo's root ownership of
+    # the SDK tree cannot be carried over (mksquashfs -all-root sets it).
+    cp -a --no-preserve=ownership "${SDK_OUTPUT}${SDKPATHNATIVE}" "$appdir/sysroot"
     rm -rf "$appdir/sysroot/usr/include" \
            "$appdir/sysroot/usr/share/man" \
            "$appdir/sysroot/usr/share/doc" \
