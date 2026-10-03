@@ -1,0 +1,43 @@
+From e571994c4a45c692117f64c9e1d52e1a99ec0ab5 Mon Sep 17 00:00:00 2001
+From: Yocto Build System <noreply@yoctoproject.org>
+Date: Thu, 1 Oct 2026 18:28:50 -0400
+Subject: [PATCH] CMake: discover SDL2 via pkg-config instead of a host include
+ path
+
+configure_sdl2() hard-coded /usr/include/SDL2 and linked the plain
+library name SDL2, which assumes the build host's SDL2 installation.
+Cross-build environments such as Yocto stage SDL2 inside the recipe
+sysroot, where the absolute host path does not resolve (or would
+silently pick up host headers). Locate SDL2 through pkg-config and
+consume the imported target instead, which supplies the correct
+include directories and link flags on both native and cross builds.
+
+Signed-off-by: Yocto Build System <noreply@yoctoproject.org>
+---
+ CMakeLists.txt | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 31c83d1..ceed3ef 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -33,8 +33,14 @@ function(configure_sdl2 target_name link_sdl2main)
+                 $<TARGET_FILE_DIR:${target_name}>
+         )
+     else()
+-        target_include_directories(${target_name} PUBLIC /usr/include/SDL2)
+-        target_link_libraries(${target_name} SDL2)
++        # Locate SDL2 via pkg-config so the headers and library come from the
++        # correct location in cross-build environments (e.g. Yocto), where
++        # the hard-coded /usr/include/SDL2 host path would not exist.
++        # The CMake-based SDL2 build installs sdl2.pc, hence the lowercase
++        # pkg-config module name (module names are case-sensitive).
++        find_package(PkgConfig REQUIRED)
++        pkg_check_modules(SDK_SDL2 REQUIRED IMPORTED_TARGET sdl2)
++        target_link_libraries(${target_name} PkgConfig::SDK_SDL2)
+     endif()
+ endfunction()
+ 
+-- 
+2.55.0
+
