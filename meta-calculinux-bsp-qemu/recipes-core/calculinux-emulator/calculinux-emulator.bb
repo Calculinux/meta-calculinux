@@ -25,9 +25,12 @@ SRC_URI[runtime-aarch64.sha256sum] = "00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1
 # Bootloader bundled in the AppImage.
 EMULATOR_BIOS = "${DEPLOY_DIR_IMAGE}/u-boot.bin"
 # Disk image downloaded on first launch: the latest wic.qcow2c that CI
-# publishes for this feed (see .github/scripts/publish-emulator.sh).
+# publishes for this feed (see .github/scripts/publish-emulator.sh). A
+# release build (DISTRO_VERSION is the tag) fetches its own tag's image:
+# prerelease tags publish no un-versioned copy.
 EMULATOR_IMAGE ?= "calculinux-image"
-EMULATOR_IMAGE_URL ?= "${PACKAGE_FEED_URIS}image/${DISTRO_CODENAME}/${CALCULINUX_FEED_SUBFOLDER}/${EMULATOR_IMAGE}-${MACHINE}.rootfs.qcow2"
+EMULATOR_IMAGE_TAG = "${@'-' + d.getVar('DISTRO_VERSION') if d.getVar('CALCULINUX_FEED_SUBFOLDER') == 'release' else ''}"
+EMULATOR_IMAGE_URL ?= "${PACKAGE_FEED_URIS}image/${DISTRO_CODENAME}/${CALCULINUX_FEED_SUBFOLDER}/${EMULATOR_IMAGE}-${MACHINE}.rootfs${EMULATOR_IMAGE_TAG}.qcow2"
 
 # Host side: QEMU and what it needs at runtime (see the qemu/libsdl2
 # bbappends in this layer for the trimmed-down configuration).
