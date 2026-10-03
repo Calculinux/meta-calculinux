@@ -1,0 +1,35 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] Let SDL2 pick the video driver when SDL_VIDEODRIVER names an
+ SDL 1.2 console driver
+
+Launchers written for real SDL 1.2 on a framebuffer console export
+SDL_VIDEODRIVER=fbcon. sdl12-compat hands the name to SDL2, which has no
+such driver, and the app fails with "fbcon not available".
+
+Treat the SDL 1.2 console drivers SDL2 never had (fbcon, svgalib, dga) as
+"no preference": an empty hint makes SDL2 choose a driver itself, which on
+Calculinux is kmsdrm.
+
+Upstream-Status: Inappropriate [Calculinux-specific]
+
+diff --git a/src/SDL12_compat.c b/src/SDL12_compat.c
+index 7942ff4..42717d3 100644
+--- a/src/SDL12_compat.c
++++ b/src/SDL12_compat.c
+@@ -2835,6 +2835,16 @@ SDL_InitSubSystem(Uint32 sdl12flags)
+        have this problem, so we're ignoring the parachute until a reasonable
+        need arises. */
+ 
++    /* SDL 1.2 video drivers that SDL2 doesn't have. Launchers written for
++       real SDL 1.2 on a framebuffer console force these; SDL2 would fail
++       with "fbcon not available". An empty hint lets SDL2 choose. */
++    if (videodriver &&
++        (SDL20_strcmp(videodriver, "fbcon") == 0 ||
++         SDL20_strcmp(videodriver, "svgalib") == 0 ||
++         SDL20_strcmp(videodriver, "dga") == 0)) {
++        videodriver = "";
++    }
++
+     #define SETFLAG(flag) { \
+         const Uint32 f12 = SDL12_INIT_##flag; \
+         const Uint32 f20 = SDL_INIT_##flag; \
