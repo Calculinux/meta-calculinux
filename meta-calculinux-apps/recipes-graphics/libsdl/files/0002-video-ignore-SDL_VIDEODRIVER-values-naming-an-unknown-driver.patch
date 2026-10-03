@@ -1,0 +1,41 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] video: ignore SDL_VIDEODRIVER values naming an unknown driver
+
+SDL_VIDEODRIVER is read by both SDL 1.2 and SDL 2. Calculinux exports
+SDL_VIDEODRIVER=kmsdrm for SDL 2 (sdl2-defaults.sh), which names no SDL 1.2
+driver, so every SDL 1.2 app started from a login shell failed with "No
+available video device" unless it overrode the variable.
+
+When the named driver doesn't exist in this build, pick one automatically
+as if the variable was unset. Naming an existing driver that turns out to
+be unavailable still fails as before.
+
+Upstream-Status: Inappropriate [Calculinux-specific; SDL 1.2 is unmaintained]
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 46285c9..9ce7e3a 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -188,7 +188,21 @@ int SDL_VideoInit (const char *driver_name, Uint32 flags)
+ 				}
+ 			}
+ 		}
+-	} else {
++		/* SDL_VIDEODRIVER is shared with SDL 2, whose driver names
++		   ("kmsdrm", "wayland") mean nothing here. Don't let a value
++		   meant for SDL 2 keep every SDL 1.2 app from starting. */
++		if ( video == NULL ) {
++			for ( i=0; bootstrap[i]; ++i ) {
++				if ( SDL_strcasecmp(bootstrap[i]->name, driver_name) == 0) {
++					break;
++				}
++			}
++			if ( bootstrap[i] == NULL ) {
++				driver_name = NULL;
++			}
++		}
++	}
++	if ( driver_name == NULL ) {
+ 		for ( i=0; bootstrap[i]; ++i ) {
+ 			if ( bootstrap[i]->available() ) {
+ 				video = bootstrap[i]->create(index);

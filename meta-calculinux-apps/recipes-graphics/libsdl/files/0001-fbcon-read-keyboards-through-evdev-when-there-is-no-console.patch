@@ -1,0 +1,481 @@
+From: Ben Klopfenstein <benklop@gmail.com>
+Subject: [PATCH] fbcon: read keyboards through evdev when there is no console
+
+The fbcon driver reads the keyboard from a virtual terminal in medium-raw
+mode, and refuses to start without one ("Unable to open a console
+terminal"). When an app is started from a terminal emulator drawing on the
+framebuffer (cruft), its tty is a pty: there is no VT to read from, and
+none to mute either.
+
+When the controlling terminal is not a console, or no console can be
+opened, read the keyboards through evdev instead and grab them with
+EVIOCGRAB while in graphics mode, so the keys only reach SDL and not the
+VT, the terminal and the shell behind it. The kernel drops the grab when
+the device is closed, even if the app crashes. This is the SDL 1.2
+counterpart of the SDL 2 patch "evdev: grab keyboards when KMSDRM owns the
+display", and takes the same settings:
+
+  SDL_EVDEV_DEVICES        class:/path[,class:/path...], class 2 = keyboard.
+                           Without it /dev/input/event* is searched for
+                           keyboards.
+  SDL_EVDEV_GRAB_KEYBOARD  set to 0 to share the keyboards with the console.
+
+Medium-raw scancodes are the evdev key codes, so the events go through the
+existing translation tables. Those are loaded from the kernel keymaps when
+/dev/tty0 can be opened, and are a US layout otherwise.
+
+In this mode no VT is switched or put in graphics mode. Leaving graphics
+mode clears the terminal SDL was started from, since SDL has just blanked
+the framebuffer it draws on and it would only repaint lines as they
+change (skipped with SDL_FBCON_DONT_CLEAR, and over ssh). A missing mouse
+is not an error either: there is no gpm without a console, so SDL_NOMOUSE
+isn't needed.
+
+Starting from a kernel console is unchanged.
+
+Upstream-Status: Inappropriate [Calculinux-specific; SDL 1.2 is unmaintained]
+
+diff --git a/src/video/fbcon/SDL_fbevents.c b/src/video/fbcon/SDL_fbevents.c
+index 5e369a4..ac010f8 100644
+--- a/src/video/fbcon/SDL_fbevents.c
++++ b/src/video/fbcon/SDL_fbevents.c
+@@ -39,6 +39,7 @@
+ #include <linux/vt.h>
+ #include <linux/kd.h>
+ #include <linux/keyboard.h>
++#include <linux/input.h>
+ 
+ #include "SDL_timer.h"
+ #include "SDL_mutex.h"
+@@ -147,6 +148,275 @@ static void FB_vgainitkeymaps(int fd)
+ 	}
+ }
+ 
++/* Keyboard input from evdev, for when there is no console terminal.
++
++   The console keyboard can only be read, and muted, through a virtual
++   terminal. When the app is started from a terminal emulator drawing on the
++   framebuffer (cruft) its tty is a pty, so there is no VT to put in
++   medium-raw mode. Read the keyboards through evdev instead, and grab them
++   (EVIOCGRAB) while in graphics mode so the keys don't also reach the VT and
++   the shell behind the terminal. The kernel drops the grab when the device
++   is closed, even if the app crashes.
++
++   Medium-raw scancodes are the evdev key codes (below 128), so the events
++   go through the same translation tables as the console keyboard.
++
++   SDL_EVDEV_DEVICES and SDL_EVDEV_GRAB_KEYBOARD work as they do in SDL 2.
++ */
++#define FB_EVDEV_MAX	8
++#define FB_EVDEV_CLASS_KEYBOARD	2	/* as in SDL_EVDEV_DEVICES for SDL 2 */
++
++static int evdev_active = 0;
++static int evdev_count = 0;
++static int evdev_fds[FB_EVDEV_MAX];
++
++#define EVDEV_TEST_BIT(bit, array) \
++	((array)[(bit)/8] & (1<<((bit)%8)))
++
++static int FB_evdev_is_keyboard(int fd)
++{
++	unsigned char keybits[KEY_MAX/8 + 1];
++
++	SDL_memset(keybits, 0, sizeof(keybits));
++	if ( ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits) < 0 ) {
++		return(0);
++	}
++	/* Power buttons and the like have EV_KEY too; want some real keys */
++	return(EVDEV_TEST_BIT(KEY_ENTER, keybits) ||
++	       EVDEV_TEST_BIT(KEY_SPACE, keybits) ||
++	       EVDEV_TEST_BIT(KEY_ESC, keybits) ||
++	       EVDEV_TEST_BIT(KEY_A, keybits));
++}
++
++static void FB_evdev_add(const char *path, int probe)
++{
++	int fd;
++
++	if ( evdev_count >= FB_EVDEV_MAX ) {
++		return;
++	}
++	fd = open(path, O_RDONLY|O_NONBLOCK|O_CLOEXEC, 0);
++	if ( fd < 0 ) {
++		return;
++	}
++	if ( probe && !FB_evdev_is_keyboard(fd) ) {
++		close(fd);
++		return;
++	}
++#ifdef DEBUG_KEYBOARD
++	fprintf(stderr, "evdev keyboard %s, fd = %d\n", path, fd);
++#endif
++	evdev_fds[evdev_count++] = fd;
++}
++
++static void FB_evdev_grab(int grab)
++{
++	const char *env = SDL_getenv("SDL_EVDEV_GRAB_KEYBOARD");
++	int i;
++
++	if ( grab && env && (SDL_atoi(env) == 0) ) {
++		return;
++	}
++	for ( i=0; i<evdev_count; ++i ) {
++		ioctl(evdev_fds[i], EVIOCGRAB, grab);
++	}
++}
++
++/* The US layout, for when the kernel keymaps can't be read */
++static void FB_evdev_defaultkeymaps(void)
++{
++	static const struct {
++		Uint8 first;
++		const char *plain;
++		const char *shift;
++	} rows[] = {
++		{ KEY_1,         "1234567890-=", "!@#$%^&*()_+" },
++		{ KEY_Q,         "qwertyuiop[]", "QWERTYUIOP{}" },
++		{ KEY_A,         "asdfghjkl;'`", "ASDFGHJKL:\"~" },
++		{ KEY_BACKSLASH, "\\zxcvbnm,./", "|ZXCVBNM<>?" },
++		{ KEY_SPACE,     " ",            " " }
++	};
++	static const struct {
++		Uint8 code;
++		Uint16 value;
++	} others[] = {
++		{ KEY_ESC, K(KT_LATIN,27) }, { KEY_BACKSPACE, K(KT_LATIN,127) },
++		{ KEY_TAB, K(KT_LATIN,9) }, { KEY_ENTER, K_ENTER },
++		{ KEY_LEFTCTRL, K_CTRL }, { KEY_RIGHTCTRL, K_CTRL },
++		{ KEY_LEFTSHIFT, K_SHIFT }, { KEY_RIGHTSHIFT, K_SHIFT },
++		{ KEY_LEFTALT, K_ALT }, { KEY_RIGHTALT, K_ALTGR },
++		{ KEY_CAPSLOCK, K_CAPS }, { KEY_NUMLOCK, K_NUM },
++		{ KEY_SCROLLLOCK, K_HOLD }, { KEY_PAUSE, K_PAUSE },
++		{ KEY_F1, K_F1 }, { KEY_F2, K_F2 }, { KEY_F3, K_F3 },
++		{ KEY_F4, K_F4 }, { KEY_F5, K_F5 }, { KEY_F6, K_F6 },
++		{ KEY_F7, K_F7 }, { KEY_F8, K_F8 }, { KEY_F9, K_F9 },
++		{ KEY_F10, K_F10 }, { KEY_F11, K_F11 }, { KEY_F12, K_F12 },
++		{ KEY_KP0, K_P0 }, { KEY_KP1, K_P1 }, { KEY_KP2, K_P2 },
++		{ KEY_KP3, K_P3 }, { KEY_KP4, K_P4 }, { KEY_KP5, K_P5 },
++		{ KEY_KP6, K_P6 }, { KEY_KP7, K_P7 }, { KEY_KP8, K_P8 },
++		{ KEY_KP9, K_P9 }, { KEY_KPPLUS, K_PPLUS },
++		{ KEY_KPMINUS, K_PMINUS }, { KEY_KPASTERISK, K_PSTAR },
++		{ KEY_KPSLASH, K_PSLASH }, { KEY_KPENTER, K_PENTER },
++		{ KEY_KPDOT, K_PDOT },
++		{ KEY_UP, K_UP }, { KEY_DOWN, K_DOWN },
++		{ KEY_LEFT, K_LEFT }, { KEY_RIGHT, K_RIGHT },
++		{ KEY_INSERT, K_INSERT }, { KEY_DELETE, K_REMOVE },
++		{ KEY_HOME, K_FIND }, { KEY_END, K_SELECT },
++		{ KEY_PAGEUP, K_PGUP }, { KEY_PAGEDOWN, K_PGDN }
++	};
++	const int shift = (1<<KG_SHIFT);
++	const int ctrl = (1<<KG_CTRL);
++	int i, j;
++
++	for ( i=0; i<NUM_VGAKEYMAPS; ++i ) {
++		SDL_memset(vga_keymap[i], 0, NR_KEYS*sizeof(Uint16));
++	}
++	SDL_memset(keymap_temp, 0, sizeof(keymap_temp));
++
++	for ( i=0; i<SDL_arraysize(rows); ++i ) {
++		for ( j=0; rows[i].plain[j]; ++j ) {
++			int code = rows[i].first + j;
++			Uint8 c = (Uint8)rows[i].plain[j];
++			int type = ((c >= 'a') && (c <= 'z')) ? KT_LETTER : KT_LATIN;
++
++			vga_keymap[0][code] = K(type, c);
++			vga_keymap[shift][code] = K(type, (Uint8)rows[i].shift[j]);
++			if ( type == KT_LETTER ) {
++				vga_keymap[ctrl][code] = K(KT_LATIN, c & 0x1F);
++			}
++			keymap_temp[code] = vga_keymap[0][code];
++		}
++	}
++	for ( i=0; i<SDL_arraysize(others); ++i ) {
++		int code = others[i].code;
++		Uint16 value = others[i].value;
++
++		keymap_temp[code] = value;
++		if ( value == K_ENTER ) {
++			value = K(KT_ASCII,13);
++		}
++		if ( (KTYP(value) == KT_LATIN) || (KTYP(value) == KT_ASCII) ) {
++			for ( j=0; j<NUM_VGAKEYMAPS; ++j ) {
++				vga_keymap[j][code] = value;
++			}
++		}
++	}
++}
++
++static void FB_evdev_initkeymaps(void)
++{
++	struct kbentry entry;
++	int fd;
++
++	/* The keymaps can be read from any console, when we may open one */
++	fd = open("/dev/tty0", O_RDONLY|O_NOCTTY|O_CLOEXEC, 0);
++	if ( fd >= 0 ) {
++		entry.kb_table = 0;
++		entry.kb_index = KEY_ENTER;
++		if ( ioctl(fd, KDGKBENT, &entry) == 0 ) {
++			FB_vgainitkeymaps(fd);
++			close(fd);
++			return;
++		}
++		close(fd);
++	}
++	FB_evdev_defaultkeymaps();
++}
++
++/* 1 if our terminal is a console, 0 if it is something else (a pty),
++   -1 if we have no terminal at all */
++static int FB_tty_is_console(void)
++{
++	int fd, dummy, is_console;
++
++	fd = open("/dev/tty", O_RDWR|O_NOCTTY|O_CLOEXEC, 0);
++	if ( fd < 0 ) {
++		return(-1);
++	}
++	is_console = (ioctl(fd, KDGKBMODE, &dummy) == 0);
++	close(fd);
++	return(is_console);
++}
++
++static int FB_evdev_open(_THIS)
++{
++	const char *devices = SDL_getenv("SDL_EVDEV_DEVICES");
++	char path[PATH_MAX];
++	int i;
++
++	evdev_count = 0;
++	if ( devices && *devices ) {
++		/* class:/path/to/dev1[,class:/path/to/dev2,...] */
++		while ( *devices ) {
++			const char *end = SDL_strchr(devices, ',');
++			size_t len = end ? (size_t)(end-devices) : SDL_strlen(devices);
++
++			if ( (len > 2) && (len < sizeof(path)) && (devices[1] == ':') &&
++			     (SDL_atoi(devices) & FB_EVDEV_CLASS_KEYBOARD) ) {
++				SDL_memcpy(path, devices+2, len-2);
++				path[len-2] = '\0';
++				FB_evdev_add(path, 0);
++			}
++			devices += len;
++			if ( *devices == ',' ) {
++				++devices;
++			}
++		}
++	} else {
++		for ( i=0; i<32; ++i ) {
++			SDL_snprintf(path, SDL_arraysize(path), "/dev/input/event%d", i);
++			FB_evdev_add(path, 1);
++		}
++	}
++	if ( evdev_count == 0 ) {
++		return(-1);
++	}
++
++	FB_evdev_initkeymaps();
++	evdev_active = 1;
++	keyboard_fd = evdev_fds[0];
++	current_vt = 0;
++	saved_kbd_mode = -1;
++	return(keyboard_fd);
++}
++
++static void FB_evdev_close(_THIS)
++{
++	int i;
++
++	for ( i=0; i<evdev_count; ++i ) {
++		close(evdev_fds[i]);
++	}
++	evdev_count = 0;
++	evdev_active = 0;
++	keyboard_fd = -1;
++}
++
++/* The terminal we were started from draws on the framebuffer we just
++   cleared, and only repaints the lines that change. Have it start over
++   with a clean screen. */
++static void FB_evdev_reset_terminal(void)
++{
++	static const char clear[] = "\033[H\033[2J";
++	int fd;
++
++	if ( SDL_getenv("SDL_FBCON_DONT_CLEAR") || SDL_getenv("SSH_CONNECTION") ) {
++		return;
++	}
++	fd = open("/dev/tty", O_WRONLY|O_NOCTTY|O_CLOEXEC, 0);
++	if ( fd >= 0 ) {
++		if ( write(fd, clear, sizeof(clear)-1) < 0 ) {
++			/* Nothing to be done about it */;
++		}
++		close(fd);
++	}
++}
++
++int FB_UsingEvdevKeyboard(_THIS)
++{
++	return(evdev_active);
++}
++
+ int FB_InGraphicsMode(_THIS)
+ {
+ 	return((keyboard_fd >= 0) && (saved_kbd_mode >= 0));
+@@ -156,6 +426,15 @@ int FB_EnterGraphicsMode(_THIS)
+ {
+ 	struct termios keyboard_termios;
+ 
++	/* No console to switch: just keep the keys to ourselves */
++	if ( evdev_active ) {
++		if ( !FB_InGraphicsMode(this) ) {
++			FB_evdev_grab(1);
++			saved_kbd_mode = K_XLATE;
++		}
++		return(keyboard_fd);
++	}
++
+ 	/* Set medium-raw keyboard mode */
+ 	if ( (keyboard_fd >= 0) && !FB_InGraphicsMode(this) ) {
+ 
+@@ -217,6 +496,14 @@ int FB_EnterGraphicsMode(_THIS)
+ 
+ void FB_LeaveGraphicsMode(_THIS)
+ {
++	if ( evdev_active ) {
++		if ( FB_InGraphicsMode(this) ) {
++			FB_evdev_grab(0);
++			saved_kbd_mode = -1;
++			FB_evdev_reset_terminal();
++		}
++		return;
++	}
+ 	if ( FB_InGraphicsMode(this) ) {
+ 		ioctl(keyboard_fd, KDSETMODE, KD_TEXT);
+ 		ioctl(keyboard_fd, KDSKBMODE, saved_kbd_mode);
+@@ -233,6 +520,11 @@ void FB_LeaveGraphicsMode(_THIS)
+ 
+ void FB_CloseKeyboard(_THIS)
+ {
++	if ( evdev_active ) {
++		FB_LeaveGraphicsMode(this);
++		FB_evdev_close(this);
++		return;
++	}
+ 	if ( keyboard_fd >= 0 ) {
+ 		FB_LeaveGraphicsMode(this);
+ 		if ( keyboard_fd > 0 ) {
+@@ -250,6 +542,12 @@ int FB_OpenKeyboard(_THIS)
+ 		static const char * const vcs[] = { "/dev/vc/%d", "/dev/tty%d", NULL };
+ 		int i, tty0_fd;
+ 
++		/* Started from a terminal emulator or a remote login: leave the
++		   virtual terminals alone and read the keyboards directly */
++		if ( (FB_tty_is_console() == 0) && (FB_evdev_open(this) >= 0) ) {
++			return(keyboard_fd);
++		}
++
+ 		/* Try to query for a free virtual terminal */
+ 		tty0_fd = -1;
+ 		for ( i=0; tty0[i] && (tty0_fd < 0); ++i ) {
+@@ -305,6 +603,9 @@ int FB_OpenKeyboard(_THIS)
+ 		  if ( ioctl(keyboard_fd, KDGKBMODE, &dummy) < 0 ) {
+ 			close(keyboard_fd);
+ 			keyboard_fd = -1;
++			if ( FB_evdev_open(this) >= 0 ) {
++				return(keyboard_fd);
++			}
+ 			SDL_SetError("Unable to open a console terminal");
+ 		  }
+ 		}
+@@ -1037,10 +1338,30 @@ static void handle_keyboard(_THIS)
+ 	}
+ }
+ 
++static void handle_evdev_keyboard(_THIS, int fd)
++{
++	struct input_event events[32];
++	int i, nread;
++	SDL_keysym keysym;
++
++	nread = read(fd, events, sizeof(events));
++	for ( i=0; i<(int)(nread/sizeof(events[0])); ++i ) {
++		/* Value 2 is the kernel's autorepeat, SDL does its own */
++		if ( (events[i].type != EV_KEY) || (events[i].value > 1) ||
++		     (events[i].code >= SDL_arraysize(keymap)) ) {
++			continue;
++		}
++		TranslateKey(events[i].code, &keysym);
++		posted += SDL_PrivateKeyboard(events[i].value ?
++		                SDL_PRESSED : SDL_RELEASED, &keysym);
++	}
++}
++
+ void FB_PumpEvents(_THIS)
+ {
+ 	fd_set fdset;
+ 	int max_fd;
++	int i;
+ 	static struct timeval zero;
+ 
+ 	do {
+@@ -1060,7 +1381,14 @@ void FB_PumpEvents(_THIS)
+ 
+ 		FD_ZERO(&fdset);
+ 		max_fd = 0;
+-		if ( keyboard_fd >= 0 ) {
++		if ( evdev_active ) {
++			for ( i=0; i<evdev_count; ++i ) {
++				FD_SET(evdev_fds[i], &fdset);
++				if ( max_fd < evdev_fds[i] ) {
++					max_fd = evdev_fds[i];
++				}
++			}
++		} else if ( keyboard_fd >= 0 ) {
+ 			FD_SET(keyboard_fd, &fdset);
+ 			if ( max_fd < keyboard_fd ) {
+ 				max_fd = keyboard_fd;
+@@ -1073,7 +1401,13 @@ void FB_PumpEvents(_THIS)
+ 			}
+ 		}
+ 		if ( select(max_fd+1, &fdset, NULL, NULL, &zero) > 0 ) {
+-			if ( keyboard_fd >= 0 ) {
++			if ( evdev_active ) {
++				for ( i=0; i<evdev_count; ++i ) {
++					if ( FD_ISSET(evdev_fds[i], &fdset) ) {
++						handle_evdev_keyboard(this, evdev_fds[i]);
++					}
++				}
++			} else if ( keyboard_fd >= 0 ) {
+ 				if ( FD_ISSET(keyboard_fd, &fdset) ) {
+ 					handle_keyboard(this);
+ 				}
+diff --git a/src/video/fbcon/SDL_fbevents_c.h b/src/video/fbcon/SDL_fbevents_c.h
+index fe8b09c..2694d6b 100644
+--- a/src/video/fbcon/SDL_fbevents_c.h
++++ b/src/video/fbcon/SDL_fbevents_c.h
+@@ -32,6 +32,7 @@ extern int FB_OpenMouse(_THIS);
+ extern void FB_CloseMouse(_THIS);
+ extern int FB_EnterGraphicsMode(_THIS);
+ extern int FB_InGraphicsMode(_THIS);
++extern int FB_UsingEvdevKeyboard(_THIS);
+ extern void FB_LeaveGraphicsMode(_THIS);
+ 
+ extern void FB_InitOSKeymap(_THIS);
+diff --git a/src/video/fbcon/SDL_fbvideo.c b/src/video/fbcon/SDL_fbvideo.c
+index 5e58809..f6d644d 100644
+--- a/src/video/fbcon/SDL_fbvideo.c
++++ b/src/video/fbcon/SDL_fbvideo.c
+@@ -800,8 +800,10 @@ static int FB_VideoInit(_THIS, SDL_PixelFormat *vformat)
+ 	if ( FB_OpenMouse(this) < 0 ) {
+ 		const char *sdl_nomouse;
+ 
++		/* Without a console there is no gpm either, and a device with
++		   only a keyboard shouldn't need SDL_NOMOUSE for every app */
+ 		sdl_nomouse = SDL_getenv("SDL_NOMOUSE");
+-		if ( ! sdl_nomouse ) {
++		if ( ! sdl_nomouse && ! FB_UsingEvdevKeyboard(this) ) {
+ 			SDL_SetError("Unable to open mouse");
+ 			FB_VideoQuit(this);
+ 			return(-1);
