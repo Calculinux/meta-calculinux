@@ -11,8 +11,6 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main"
 SRCREV = "d4a83c30caa33de9c11f145a8fe362ee025ea4c1"
 PV = "0.1.0+git${SRCPV}"
 
-S = "${WORKDIR}/git"
-
 inherit native
 
 do_configure[noexec] = "1"

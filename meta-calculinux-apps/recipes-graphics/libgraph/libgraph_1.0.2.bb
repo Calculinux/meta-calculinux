@@ -15,9 +15,6 @@ SRC_URI = "https://download.savannah.nongnu.org/releases/libgraph/libgraph-${PV}
            file://0003-automatic-quit.patch \
 "
 SRC_URI[sha256sum] = "0bacaab6dd6f54446a6c4e203167011cb18b23f83c665cdabca48ffc40c6536e"
-
-S = "${WORKDIR}/${BP}"
-
 # SDL 1.2 provides the graphics backend; SDL_image provides font/image loading
 DEPENDS = "libsdl libsdl-image"
 

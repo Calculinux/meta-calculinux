@@ -10,6 +10,11 @@ import time
 
 PROMPT = "CALCULINUX-TEST# "
 
+# Terminal escape sequences in command output: OSC (e.g. systemd >= 258's
+# shell integration wraps every command in "\e]3008;...\e\\" context
+# markers) and CSI (colours, cursor movement).
+ESCAPES = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]")
+
 
 def boot_command(args):
     """Command that boots the machine on this terminal (see add_boot_args)."""
@@ -78,7 +83,7 @@ class Console:
         self.send("%s; echo \"@@RC=$?@@\"" % command)
         m = self.expect(r"([\s\S]*?)@@RC=(\d+)@@", timeout)
         self.expect(re.escape(PROMPT), 30)
-        return int(m.group(2)), m.group(1)
+        return int(m.group(2)), ESCAPES.sub("", m.group(1))
 
     def close(self):
         if self.proc.poll() is None:

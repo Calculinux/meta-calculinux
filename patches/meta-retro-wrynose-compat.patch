@@ -1,0 +1,145 @@
+From: Calculinux <calculinux@example.com>
+Subject: [PATCH] Wrynose compat for meta-retro
+
+Add wrynose to LAYERSERIES_COMPAT, move wks files under files/wic, and
+drop S = "${WORKDIR}/git" so git checkouts resolve via UNPACKDIR.
+
+diff --git a/classes/retroarch-allarch.bbclass b/classes/retroarch-allarch.bbclass
+index 0b226b8..7ed8ec4 100644
+--- a/classes/retroarch-allarch.bbclass
++++ b/classes/retroarch-allarch.bbclass
+@@ -4,4 +4,3 @@ do_configure[noexec] = "1"
+ do_compile[noexec] = "1"
+ 
+ SRCREV ?= "${AUTOREV}"
+-S = "${WORKDIR}/git"
+diff --git a/conf/layer.conf b/conf/layer.conf
+index 78b1db7..5433f09 100644
+--- a/conf/layer.conf
++++ b/conf/layer.conf
+@@ -13,7 +13,7 @@ BBFILE_COLLECTIONS += "meta-libretro"
+ BBFILE_PATTERN_meta-libretro := "^${LAYERDIR}/"
+ BBFILE_PRIORITY_meta-libretro = "100"
+ 
+-LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap"
++LAYERSERIES_COMPAT_meta-libretro = "dunfell gatesgarth hardknott honister kirkstone langdale mickledore nanbield scarthgap wrynose"
+ 
+ # Additional license directories.
+ RETRO_LICENSE_DIR = "${LAYERDIR}/files/custom-licenses"
+diff --git a/files/libretro-git-fetcher.inc b/files/libretro-git-fetcher.inc
+index 98be081..dfcf308 100644
+--- a/files/libretro-git-fetcher.inc
++++ b/files/libretro-git-fetcher.inc
+@@ -4,7 +4,6 @@ LIBRETRO_GIT_FETCHER ?= "gitsm://"
+ LIBRETRO_GIT_REV ??= "${AUTOREV}"
+ LIBRETRO_CORE_PATCHES ??= ""
+ 
+-S = "${WORKDIR}/git"
+ SRC_URI = "${LIBRETRO_GIT_FETCHER}${LIBRETRO_GIT_REPO};protocol=${LIBRETRO_GIT_PROTOCOL};branch=${LIBRETRO_GIT_BRANCH} ${LIBRETRO_CORE_PATCHES}"
+ 
+ require files/libretro-tested-revs.inc
+diff --git a/wic/retro-rpi-sdimage.wks b/files/wic/retro-rpi-sdimage.wks
+similarity index 100%
+rename from wic/retro-rpi-sdimage.wks
+rename to files/wic/retro-rpi-sdimage.wks
+diff --git a/wic/retro-systemd-bootdisk.wks b/files/wic/retro-systemd-bootdisk.wks
+similarity index 100%
+rename from wic/retro-systemd-bootdisk.wks
+rename to files/wic/retro-systemd-bootdisk.wks
+diff --git a/wic/sdimage-dual-raspberrypi-retro.wks b/files/wic/sdimage-dual-raspberrypi-retro.wks
+similarity index 100%
+rename from wic/sdimage-dual-raspberrypi-retro.wks
+rename to files/wic/sdimage-dual-raspberrypi-retro.wks
+diff --git a/recipes-extended/slipr/libslipr_git.bb b/recipes-extended/slipr/libslipr_git.bb
+index 5a21273..3eebc14 100644
+--- a/recipes-extended/slipr/libslipr_git.bb
++++ b/recipes-extended/slipr/libslipr_git.bb
+@@ -9,7 +9,6 @@ LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=bca0186b14e6b05e338e729f106db727"
+ 
+ SRC_URI = "git://gitlab.freedesktop.org/slirp/libslirp.git;protocol=https;nobranch=1"
+ SRCREV = "v4.4.0"
+-S = "${WORKDIR}/git"
+ 
+ inherit meson
+ 
+diff --git a/recipes-graphics/sfml/sfml_2.5.1.bb b/recipes-graphics/sfml/sfml_2.5.1.bb
+index 2d96c73..6cc052c 100644
+--- a/recipes-graphics/sfml/sfml_2.5.1.bb
++++ b/recipes-graphics/sfml/sfml_2.5.1.bb
+@@ -9,7 +9,6 @@ SRC_URI = "git://github.com/SFML/SFML.git;protocol=https;nobranch=1"
+ SRCREV = "2f11710abc5aa478503a7ff3f9e654bd2078ebab"
+ PV = "2.5.1+git${SRCPV}"
+ 
+-S = "${WORKDIR}/git"
+ 
+ inherit cmake features_check
+ 
+diff --git a/recipes-libretro-extra/superflappybirds-libretro/superflappybirds-libretro.bb b/recipes-libretro-extra/superflappybirds-libretro/superflappybirds-libretro.bb
+index 0ac256a..ed1e425 100644
+--- a/recipes-libretro-extra/superflappybirds-libretro/superflappybirds-libretro.bb
++++ b/recipes-libretro-extra/superflappybirds-libretro/superflappybirds-libretro.bb
+@@ -5,7 +5,6 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=d0a46c0360eccca3e48801dc2333a3c2"
+ 
+ inherit cmake retroarch-paths
+ 
+-S = "${WORKDIR}/git"
+ SRC_URI = "gitsm://github.com/IgniparousTempest/libretro-superflappybirds.git;protocol=https;branch=master"
+ SRCREV = "${AUTOREV}"
+ 
+diff --git a/recipes-multimedia/libshake/libshake_git.bb b/recipes-multimedia/libshake/libshake_git.bb
+index 952f303..788a6ed 100644
+--- a/recipes-multimedia/libshake/libshake_git.bb
++++ b/recipes-multimedia/libshake/libshake_git.bb
+@@ -8,7 +8,6 @@ LIC_FILES_CHKSUM = "file://LICENSE.txt;md5=c49bb48e5987c0801be634da2ff4707e"
+ PV = "0.3.2"
+ SRC_URI = "git://github.com/zear/libShake.git;protocol=https;branch=master"
+ SRCREV = "7f643c813f1ffea659fb85a47b14d8fbda18cce1"
+-S = "${WORKDIR}/git"
+ 
+ inherit autotools-brokensep
+ 
+diff --git a/recipes-multimedia/recalbox-emulationstation/recalbox-emulationstation_7.0.bb b/recipes-multimedia/recalbox-emulationstation/recalbox-emulationstation_7.0.bb
+index a84adbb..219307b 100644
+--- a/recipes-multimedia/recalbox-emulationstation/recalbox-emulationstation_7.0.bb
++++ b/recipes-multimedia/recalbox-emulationstation/recalbox-emulationstation_7.0.bb
+@@ -7,7 +7,6 @@ SRCREV = "7.0-Reloaded"
+ SRC_URI = "gitsm://gitlab.com/recalbox/recalbox-emulationstation.git;protocol=https;branch=master \
+            file://0001-Fixed-missing-string-include.patch \
+            "
+-S = "${WORKDIR}/git"
+ 
+ DEPENDS = " \
+   boost \
+diff --git a/recipes-multimedia/soundtouch/soundtouch_2.3.1.bb b/recipes-multimedia/soundtouch/soundtouch_2.3.1.bb
+index b24ad6c..7cb160a 100644
+--- a/recipes-multimedia/soundtouch/soundtouch_2.3.1.bb
++++ b/recipes-multimedia/soundtouch/soundtouch_2.3.1.bb
+@@ -11,4 +11,3 @@ SRC_URI = " \
+ "
+ SRCREV = "e1f315f5358d9db5cee35a7a2886425489fcefe8"
+ PV = "2.3.1"
+-S = "${WORKDIR}/git"
+diff --git a/recipes-retroarch/retroarch/retroarch_1.19.1.bb b/recipes-retroarch/retroarch/retroarch_1.19.1.bb
+index d9d27e7..380af4b 100644
+--- a/recipes-retroarch/retroarch/retroarch_1.19.1.bb
++++ b/recipes-retroarch/retroarch/retroarch_1.19.1.bb
+@@ -14,7 +14,6 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
+ 
+ SRC_URI = "gitsm://github.com/libretro/RetroArch.git;protocol=https;branch=master"
+ SRCREV = "0792144fe3a7b59908b0afdb2c01722e79040360"
+-S = "${WORKDIR}/git"
+ 
+ PR = "r1"
+ 
+diff --git a/recipes-support/rtkit/rtkit_0.13.bb b/recipes-support/rtkit/rtkit_0.13.bb
+index 2beec2f..fa3dae3 100644
+--- a/recipes-support/rtkit/rtkit_0.13.bb
++++ b/recipes-support/rtkit/rtkit_0.13.bb
+@@ -14,7 +14,6 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=a8e768468b658b3ed44971b53d4a6716"
+ SRC_URI += "git://github.com/heftig/rtkit.git;protocol=https;branch=master"
+ SRCREV = "b9169402fe5e82d20efb754509eb0b191f214599"
+ 
+-S = "${WORKDIR}/git"
+ 
+ inherit meson systemd useradd features_check pkgconfig
+ 

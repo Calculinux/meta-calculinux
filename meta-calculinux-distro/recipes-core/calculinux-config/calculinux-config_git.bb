@@ -12,8 +12,6 @@ SRC_URI = "git://github.com/Calculinux/calculinux-config.git;protocol=https;bran
 SRCREV = "0e5298f7e6658219362e76f63c3d66a0178bdc06"
 PV = "1.0+git${SRCPV}"
 
-S = "${WORKDIR}/git"
-
 inherit pkgconfig systemd
 
 DEPENDS = "ncurses"

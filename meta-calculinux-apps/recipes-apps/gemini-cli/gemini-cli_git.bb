@@ -11,12 +11,10 @@ LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=6104b260e1c764d0c6a34131
 inherit go-mod
 
 SRC_URI = "\
-    git://${GO_IMPORT};destsuffix=git/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
+    git://${GO_IMPORT};destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
 "
 
 SRCREV = "721548207f979c4ddcd016c7c8b6021970946b7c"
-
-S = "${WORKDIR}/git"
 
 GO_IMPORT = "github.com/reugn/gemini-cli"
 

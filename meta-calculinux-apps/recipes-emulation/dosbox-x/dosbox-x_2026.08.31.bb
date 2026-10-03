@@ -24,7 +24,6 @@ SRC_URI = " \
 SRC_URI[font.sha256sum] = "b8e77940e4e1769dc47ef1805918d8c9be37c708735832a07204258bacc11794"
 SRCREV = "4f19017c5f565dc40d01fede0f1382892e7243d7"
 
-S = "${WORKDIR}/git"
 
 # needed because the upstream project uses a non-standard Git tag format for releases
 UPSTREAM_CHECK_GITTAGREGEX = "dosbox-x-v(?P<pver>\d+(\.\d+)+)$"
