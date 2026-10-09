@@ -9,6 +9,19 @@ require picocalc-drivers-source.inc
 
 COMPATIBLE_MACHINE = "luckfox-lyra"
 
+# Kernel module virtual names for RPROVIDES and RDEPENDS:remove.
+# Use explicit vars with ${KERNEL_VERSION} so expansion is deferred and deterministic
+# (python() + d.getVar at parse time caused basehash to change between parses).
+PICOCALC_MODULE_VIRTUALS_MFD = "kernel-module-picocalc-mfd-${KERNEL_VERSION} kernel-module-picocalc-mfd-bms-${KERNEL_VERSION} kernel-module-picocalc-mfd-bkl-${KERNEL_VERSION} kernel-module-picocalc-mfd-kbd-${KERNEL_VERSION} kernel-module-picocalc-mfd-led-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_KBD = "kernel-module-picocalc-kbd-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_LCD_FB = "kernel-module-ili9488-fb-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_LCD_DRM = "kernel-module-ili9488-drm-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_SND_PWM = "kernel-module-picocalc-snd-pwm-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM = "kernel-module-picocalc-snd-softpwm-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_RPROC = "kernel-module-rk3506-rproc-${KERNEL_VERSION}"
+PICOCALC_MODULE_VIRTUALS_SND_M0 = "kernel-module-picocalc-snd-m0-${KERNEL_VERSION}"
+PICOCALC_ALL_MODULE_VIRTUALS = "${PICOCALC_MODULE_VIRTUALS_MFD} ${PICOCALC_MODULE_VIRTUALS_KBD} ${PICOCALC_MODULE_VIRTUALS_LCD_FB} ${PICOCALC_MODULE_VIRTUALS_LCD_DRM} ${PICOCALC_MODULE_VIRTUALS_SND_PWM} ${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM} ${PICOCALC_MODULE_VIRTUALS_RPROC} ${PICOCALC_MODULE_VIRTUALS_SND_M0}"
+
 ####### Build with local checkout for development
 #inherit module externalsrc
 #PV = "1.0"
@@ -49,7 +62,7 @@ SUMMARY:${PN}-rproc = "RK3506 Cortex-M0 remoteproc driver"
 DESCRIPTION:${PN}-rproc = "Remoteproc driver for RK3506 M0 core (required for M0 audio)"
 
 SUMMARY:${PN}-snd-m0 = "PicoCalc M0 delta-sigma audio driver"
-DESCRIPTION:${PN}-snd-m0 = "ALSA driver for M0-driven audio on GPIO4_B2/B3"
+DESCRIPTION:${PN}-snd-m0 = "ALSA driver for M0-driven audio on GPIO4_B2/B3 (default sound)"
 
 # Package file assignments - group MFD drivers together
 FILES:${PN}-mfd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_mfd.ko \
@@ -66,20 +79,37 @@ FILES:${PN}-snd-softpwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extr
 FILES:${PN}-rproc = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/rk3506_rproc.ko"
 FILES:${PN}-snd-m0 = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_m0.ko"
 
+# Satisfy kernel-module-* virtuals: we ship these out-of-tree; nothing in kernel provides them.
+# Module class adds RDEPENDS on kernel-module-<name>-${KERNEL_VERSION} per .ko; our split
+# packages provide those via RPROVIDES. Remove the virtual deps from the main package
+# so it uses our split packages only.
+RPROVIDES:${PN}-mfd = "${PICOCALC_MODULE_VIRTUALS_MFD}"
+RPROVIDES:${PN}-kbd = "${PICOCALC_MODULE_VIRTUALS_KBD}"
+RPROVIDES:${PN}-lcd-fb = "${PICOCALC_MODULE_VIRTUALS_LCD_FB}"
+RPROVIDES:${PN}-lcd-drm = "${PICOCALC_MODULE_VIRTUALS_LCD_DRM}"
+RPROVIDES:${PN}-snd-pwm = "${PICOCALC_MODULE_VIRTUALS_SND_PWM}"
+RPROVIDES:${PN}-snd-softpwm = "${PICOCALC_MODULE_VIRTUALS_SND_SOFTPWM}"
+RPROVIDES:${PN}-rproc = "${PICOCALC_MODULE_VIRTUALS_RPROC}"
+RPROVIDES:${PN}-snd-m0 = "${PICOCALC_MODULE_VIRTUALS_SND_M0}"
+
+# Remove auto-added kernel-module-* RDEPENDS from main package; we already RDEPEND on split packages.
+RDEPENDS:${PN}:remove = "${PICOCALC_ALL_MODULE_VIRTUALS}"
+
 # Runtime dependencies - MFD sub-drivers are always loaded together as a unit via the core module
 # No inter-package dependencies needed since they're all in one package
 
 # Note: We allow both legacy keyboard and MFD keyboard packages to be installed simultaneously.
 # Device tree 'compatible' selection and driver probe order determine which driver binds at runtime.
 
-# Main package pulls in stock drivers; rproc/snd-m0 stay feed-only until M0 firmware lands.
+# Main package pulls in default drivers; users can still install PWM sound packages.
 RDEPENDS:${PN} = " \
     ${PN}-lcd-fb \
     ${PN}-lcd-drm \
-    ${PN}-snd-pwm \
-    ${PN}-snd-softpwm \
+    ${PN}-snd-m0 \
+    ${PN}-rproc \
     ${PN}-mfd \
 "
+RDEPENDS:${PN}-snd-m0 = "${PN}-rproc picocalc-m0-firmware"
 
 # Main package itself is empty - all content is in sub-packages
 FILES:${PN} = ""

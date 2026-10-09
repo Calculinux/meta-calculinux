@@ -7,12 +7,11 @@ LICENSE = "BSD-3-Clause & GPL-2.0-or-later & LGPL-2.1-or-later"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=cf9f0edc6d0921306fabede20ebb4306"
 
 SRC_URI = "gitsm://github.com/gurubook/picoarch.git;protocol=https;branch=feature/calculinux"
-SRCREV = "c62605eb0621f35bb54a394cebcd0f65a13253c6"
+SRCREV = "6a6bbbd8a5359ed4ec45c91e40f7ec88dc55b621"
 
 DEPENDS = " \
-    alsa-lib \
     libpng \
-    libsdl \
+    libsdl2 \
     zlib \
     bash \
 "
@@ -23,7 +22,11 @@ inherit pkgconfig
 # Use -Wa,-mimplicit-it=thumb to allow conditional instructions in Thumb mode without explicit IT blocks
 # ARM_INSTRUCTION_SET = "arm" would switch to ARM mode but adds interworking overhead
 # Pass the assembler flag via TARGET_CFLAGS to allow Makefile's CFLAGS += to work properly
-# Don't override LDFLAGS - let Makefile add SDL/ALSA libs via pkg-config
+# Don't override LDFLAGS - let Makefile add SDL2 libs via pkg-config
+#
+# Display/input run on the target through the Calculinux SDL2 build
+# (KMSDRM dumb-buffer video + evdev input); the run_picoarch.sh wrapper
+# exports the matching SDL_* environment, cf. /etc/profile.d/sdl2-defaults.sh
 TARGET_CFLAGS:append = " -Wa,-mimplicit-it=thumb"
 EXTRA_OEMAKE = "CC='${CC}'"
 
@@ -57,10 +60,14 @@ do_install() {
     install -d ${D}${datadir}/picoarch/system
 }
 
+# alsa-lib is not linked by the binary: this SDL build uses
+# SDL_ALSA_SHARED, so the audio backend is loaded dynamically by SDL and
+# shlibdeps cannot see it (the launcher also forces SDL_AUDIODRIVER=alsa
+# and picoarch quits if audio init fails).
 RDEPENDS:${PN} = " \
-    alsa-lib \
-    libsdl \
     libpng \
+    alsa-lib \
+    libsdl2 \
     zlib \
     bash \
 "
