@@ -1,43 +1,148 @@
 From: Calculinux <noreply@calculinux.org>
-Subject: [PATCH] spi: rockchip: TX DMA burst length from the device tree
+Subject: [PATCH] spi: rockchip: DMA burst lengths from the device tree
 
 The driver hands the DMA controller a quarter of the FIFO (16 words on the
-RK3506) per TX burst. On the RK3506 a burst holds the low-speed peripheral
-bus for its whole length, and other masters wait behind it: the PicoCalc's
-M0 audio firmware, which writes a GPIO register once per output bit, was
-measured waiting up to 0.38 us for the display's 16-word bursts.
+RK3506) per TX burst, and up to 16 words per RX burst. On the RK3506 a
+burst holds the low-speed peripheral bus for its whole length, and other
+masters wait behind it: the PicoCalc's M0 audio firmware, which writes a
+GPIO register once per output bit, was measured waiting up to 0.38 us for
+the display's 16-word bursts, and loses 2.6 % of its output bits while an
+SD card on SPI1 is read at 25 MHz.
 
-"rockchip,tx-dma-burst" sets the burst length per controller, between 1
-and half the FIFO (the free space a TX DMA request guarantees). Without the
-property nothing changes. On the PicoCalc's display controller (&spi0) 4
-keeps the panel at 48 full frames a second at 93.75 MHz while the M0's
-corrected audio loop keeps pace; 1 or 2 cannot keep the FIFO full (24 and
-40 frames a second) and are worse for the M0 as well. Measurements:
-picocalc-drivers luckfox-lyra/docs/m0-audio.md.
+"rockchip,tx-dma-burst" sets the TX burst length per controller, between 1
+and half the FIFO (the free space a TX DMA request guarantees).
+"rockchip,rx-dma-burst" caps the RX burst length: 1, 2, 4, 8 or 16 (other
+values are rounded down), and with it the FIFO level at which RX DMA is
+requested. Without the properties nothing changes.
+
+Both can also be read and changed while running, for tuning, as
+tx_dma_burst and rx_dma_burst in the controller's sysfs directory
+(/sys/bus/platform/devices/ff130000.spi/); a new value is used from the
+next transfer.
+
+On the PicoCalc's display controller (&spi0) a TX burst of 4 keeps the
+panel at 48 full frames a second at 93.75 MHz while the M0's corrected
+audio loop keeps pace; 1 or 2 cannot keep the FIFO full (24 and 40 frames
+a second) and are worse for the M0 as well. Measurements: picocalc-drivers
+luckfox-lyra/docs/m0-audio.md.
 
 Upstream-Status: Pending
 Signed-off-by: Calculinux <noreply@calculinux.org>
 ---
 --- a/drivers/spi/spi-rockchip.c
 +++ b/drivers/spi/spi-rockchip.c
-@@ -212,6 +212,7 @@
+@@ -212,6 +212,9 @@ struct rockchip_spi {
  	u32 version;
  	/*depth of the FIFO buffer */
  	u32 fifo_len;
 +	u32 tx_burst;	/* words per TX DMA burst */
++	u32 rx_burst;	/* most words per RX DMA burst */
++	u32 xfer_rx_burst;	/* RX burst of the current transfer */
  	/* frequency of spiclk */
  	u32 freq;
  	/* speed of io rate */
-@@ -535,7 +536,7 @@
+@@ -500,6 +503,14 @@ static u32 rockchip_spi_calc_burst_size(
+ 	return i;
+ }
+ 
++/* The RX burst divides the transfer's length, so that the last words leave
++ * the FIFO too; no longer than the device tree allows.
++ */
++static u32 rockchip_spi_rx_burst(struct rockchip_spi *rs, u32 data_len)
++{
++	return min(rockchip_spi_calc_burst_size(data_len), READ_ONCE(rs->rx_burst));
++}
++
+ static int rockchip_spi_prepare_dma(struct rockchip_spi *rs,
+ 		struct spi_controller *ctlr, struct spi_transfer *xfer)
+ {
+@@ -513,7 +524,7 @@ static int rockchip_spi_prepare_dma(stru
+ 			.direction = DMA_DEV_TO_MEM,
+ 			.src_addr = rs->dma_addr_rx,
+ 			.src_addr_width = rs->n_bytes,
+-			.src_maxburst = rockchip_spi_calc_burst_size(xfer->len / rs->n_bytes),
++			.src_maxburst = rs->xfer_rx_burst,
+ 		};
+ 
+ 		dmaengine_slave_config(ctlr->dma_rx, &rxconf);
+@@ -535,7 +546,7 @@ static int rockchip_spi_prepare_dma(stru
  			.direction = DMA_MEM_TO_DEV,
  			.dst_addr = rs->dma_addr_tx,
  			.dst_addr_width = rs->n_bytes,
 -			.dst_maxburst = rs->fifo_len / 4,
-+			.dst_maxburst = rs->tx_burst,
++			.dst_maxburst = READ_ONCE(rs->tx_burst),
  		};
  
  		dmaengine_slave_config(ctlr->dma_tx, &txconf);
-@@ -1116,6 +1117,12 @@
+@@ -723,8 +734,8 @@ static int rockchip_spi_config(struct ro
+ 		writel_relaxed(rs->fifo_len / 2 - 1, rs->regs + ROCKCHIP_SPI_RXFTLR);
+ 
+ 	writel_relaxed(rs->fifo_len / 2 - 1, rs->regs + ROCKCHIP_SPI_DMATDLR);
+-	writel_relaxed(rockchip_spi_calc_burst_size(xfer->len / rs->n_bytes) - 1,
+-		       rs->regs + ROCKCHIP_SPI_DMARDLR);
++	rs->xfer_rx_burst = rockchip_spi_rx_burst(rs, xfer->len / rs->n_bytes);
++	writel_relaxed(rs->xfer_rx_burst - 1, rs->regs + ROCKCHIP_SPI_DMARDLR);
+ 	writel_relaxed(dmacr, rs->regs + ROCKCHIP_SPI_DMACR);
+ 
+ 	if (rs->max_baud_div_in_cpha && xfer->speed_hz != rs->speed_hz) {
+@@ -981,6 +992,56 @@ static const struct file_operations rock
+ 	.mmap		= rockchip_spi_mmap,
+ };
+ 
++/* DMA burst lengths, in words: readable and settable while running, for
++ * tuning. A new value is used from the next transfer.
++ */
++static ssize_t tx_dma_burst_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	struct rockchip_spi *rs = spi_controller_get_devdata(dev_get_drvdata(dev));
++
++	return sysfs_emit(buf, "%u\n", READ_ONCE(rs->tx_burst));
++}
++
++static ssize_t tx_dma_burst_store(struct device *dev, struct device_attribute *attr,
++				  const char *buf, size_t count)
++{
++	struct rockchip_spi *rs = spi_controller_get_devdata(dev_get_drvdata(dev));
++	u32 val;
++
++	if (kstrtou32(buf, 0, &val))
++		return -EINVAL;
++	WRITE_ONCE(rs->tx_burst, clamp(val, 1U, rs->fifo_len / 2));
++	return count;
++}
++static DEVICE_ATTR_RW(tx_dma_burst);
++
++static ssize_t rx_dma_burst_show(struct device *dev, struct device_attribute *attr, char *buf)
++{
++	struct rockchip_spi *rs = spi_controller_get_devdata(dev_get_drvdata(dev));
++
++	return sysfs_emit(buf, "%u\n", READ_ONCE(rs->rx_burst));
++}
++
++static ssize_t rx_dma_burst_store(struct device *dev, struct device_attribute *attr,
++				  const char *buf, size_t count)
++{
++	struct rockchip_spi *rs = spi_controller_get_devdata(dev_get_drvdata(dev));
++	u32 val;
++
++	if (kstrtou32(buf, 0, &val))
++		return -EINVAL;
++	WRITE_ONCE(rs->rx_burst, rounddown_pow_of_two(clamp(val, 1U, 16U)));
++	return count;
++}
++static DEVICE_ATTR_RW(rx_dma_burst);
++
++static struct attribute *rockchip_spi_attrs[] = {
++	&dev_attr_tx_dma_burst.attr,
++	&dev_attr_rx_dma_burst.attr,
++	NULL
++};
++ATTRIBUTE_GROUPS(rockchip_spi);
++
+ static int rockchip_spi_probe(struct platform_device *pdev)
+ {
+ 	int ret;
+@@ -1116,6 +1177,16 @@ static int rockchip_spi_probe(struct pla
  		ret = -EINVAL;
  		goto err_disable_sclk_in;
  	}
@@ -47,6 +152,18 @@ Signed-off-by: Calculinux <noreply@calculinux.org>
 +	rs->tx_burst = rs->fifo_len / 4;
 +	if (!of_property_read_u32(pdev->dev.of_node, "rockchip,tx-dma-burst", &rs->tx_burst))
 +		rs->tx_burst = clamp(rs->tx_burst, 1U, rs->fifo_len / 2);
++	/* RX bursts are a power of two, 16 words at most. */
++	rs->rx_burst = 16;
++	if (!of_property_read_u32(pdev->dev.of_node, "rockchip,rx-dma-burst", &rs->rx_burst))
++		rs->rx_burst = rounddown_pow_of_two(clamp(rs->rx_burst, 1U, 16U));
  	quirks_cfg = device_get_match_data(&pdev->dev);
  	if (quirks_cfg)
  		rs->max_baud_div_in_cpha = quirks_cfg->max_baud_div_in_cpha;
+@@ -1409,6 +1480,7 @@ static struct platform_driver rockchip_s
+ 		.name	= DRIVER_NAME,
+ 		.pm = &rockchip_spi_pm,
+ 		.of_match_table = of_match_ptr(rockchip_spi_dt_match),
++		.dev_groups = rockchip_spi_groups,
+ 	},
+ 	.probe = rockchip_spi_probe,
+ 	.remove = rockchip_spi_remove,
