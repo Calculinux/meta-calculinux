@@ -10,8 +10,6 @@ inherit pkgconfig
 SRCREV = "${AUTOREV}"
 SRC_URI = "git://github.com/hpsaturn/x48ng;protocol=https;branch=main"
 
-S = "${WORKDIR}/git"
-
 DEPENDS = "ncurses readline lua libsdl2"
 
 # Enable SDL support, disable X11

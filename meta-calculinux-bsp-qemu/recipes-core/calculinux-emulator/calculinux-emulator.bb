@@ -43,9 +43,11 @@ TOOLCHAIN_TARGET_TASK = ""
 TOOLCHAIN_OUTPUTNAME = "calculinux-emulator-${SDK_ARCH}-${DISTRO_VERSION}"
 SDK_TITLE = "Calculinux emulator"
 
-# Host-only SDK, as in buildtools-tarball.
+# Host-only SDK, as in buildtools-tarball. PACKAGE_ARCH must be an entry of
+# SSTATE_ARCHS (as buildtools-tarball's is), or do_create_spdx cannot find
+# the recipe's own static SPDX document.
 MULTIMACH_TARGET_SYS = "${SDK_ARCH}-nativesdk${SDK_VENDOR}-${SDK_OS}"
-PACKAGE_ARCH = "${SDK_ARCH}_${SDK_OS}"
+PACKAGE_ARCH = "${SDK_ARCH}-${SDKPKGSUFFIX}"
 PACKAGE_ARCHS = ""
 TARGET_ARCH = "none"
 TARGET_OS = "none"
@@ -77,7 +79,9 @@ fakeroot build_appimage() {
     rm -rf "$appdir"
     install -d "$appdir/images"
 
-    cp -a "${SDK_OUTPUT}${SDKPATHNATIVE}" "$appdir/sysroot"
+    # AppDir is outside PSEUDO_INCLUDE_PATHS, so pseudo's root ownership of
+    # the SDK tree cannot be carried over (mksquashfs -all-root sets it).
+    cp -a --no-preserve=ownership "${SDK_OUTPUT}${SDKPATHNATIVE}" "$appdir/sysroot"
     rm -rf "$appdir/sysroot/usr/include" \
            "$appdir/sysroot/usr/share/man" \
            "$appdir/sysroot/usr/share/doc" \

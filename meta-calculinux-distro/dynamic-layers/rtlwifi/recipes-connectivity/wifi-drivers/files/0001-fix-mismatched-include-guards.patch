@@ -1,0 +1,62 @@
+Fix mismatched include guards for GCC 15
+
+GCC 15 enables -Wheader-guard and the kernel module build treats it as
+an error, so these mismatched include guards break rtl8812au:
+
+ include/rtl8812a_sreset.h:15: error: header guard
+ '_RTL88812A_SRESET_H_' followed by '#define' of a different macro
+ [-Werror=header-guard]
+
+Make each '#ifndef' match its '#define'. rtl8192e_sreset.h was a
+copy/paste of the rtl8812a guard, so give it its own
+'_RTL8192E_SRESET_H_' name.
+
+Upstream-Status: Pending [same typo; OpenWrt fixed rtl8812au-ct in
+https://github.com/openwrt/openwrt/commit/aea3d6cee16c98b5a799a3a6f24fd2282a6de3a7]
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ include/custom_gpio.h     | 2 +-
+ include/rtl8192e_sreset.h | 4 ++--
+ include/rtl8812a_sreset.h | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/custom_gpio.h b/include/custom_gpio.h
+--- a/include/custom_gpio.h
++++ b/include/custom_gpio.h
+@@ -13,7 +13,7 @@
+  *
+  *****************************************************************************/
+ #ifndef __CUSTOM_GPIO_H__
+-#define __CUSTOM_GPIO_H___
++#define __CUSTOM_GPIO_H__
+ 
+ #include <drv_conf.h>
+ #include <osdep_service.h>
+diff --git a/include/rtl8192e_sreset.h b/include/rtl8192e_sreset.h
+--- a/include/rtl8192e_sreset.h
++++ b/include/rtl8192e_sreset.h
+@@ -12,8 +12,8 @@
+  * more details.
+  *
+  *****************************************************************************/
+-#ifndef _RTL88812A_SRESET_H_
+-#define _RTL8812A_SRESET_H_
++#ifndef _RTL8192E_SRESET_H_
++#define _RTL8192E_SRESET_H_
+ 
+ #include <rtw_sreset.h>
+ 
+diff --git a/include/rtl8812a_sreset.h b/include/rtl8812a_sreset.h
+--- a/include/rtl8812a_sreset.h
++++ b/include/rtl8812a_sreset.h
+@@ -12,7 +12,7 @@
+  * more details.
+  *
+  *****************************************************************************/
+-#ifndef _RTL88812A_SRESET_H_
++#ifndef _RTL8812A_SRESET_H_
+ #define _RTL8812A_SRESET_H_
+ 
+ #include <rtw_sreset.h>

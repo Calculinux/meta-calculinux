@@ -8,4 +8,3 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 # turns that loop on; the base dtsi asks for 4-word DMA bursts on the display's
 # SPI controller (needs spi-rockchip-tx-dma-burst-from-dt.patch).
 SRCREV = "d0fed59fd487138c535cdb0ae219ada4bda246c0"
-S = "${WORKDIR}/git"

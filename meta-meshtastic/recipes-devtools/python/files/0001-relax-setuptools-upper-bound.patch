@@ -1,0 +1,28 @@
+Relax setuptools upper bound for Wrynose
+
+pypubsub 4.0.7 requires setuptools>=68,<77. Wrynose ships setuptools
+77+ (Python 3.14), so pep517's get_requires_for_build_wheel fails
+with "Missing dependencies: setuptools<77,>=68".
+
+The <77 cap was precautionary; the deprecated license table form only
+warns on setuptools 77.
+
+Upstream-Status: Pending
+
+Signed-off-by: Ben Klopfenstein <benklop@gmail.com>
+
+---
+ pyproject.toml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pyproject.toml b/pyproject.toml
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,6 +1,6 @@
+ [build-system]
+-requires = ["setuptools>=68,<77", "wheel", "setuptools-scm>=7"]
++requires = ["setuptools>=68", "wheel", "setuptools-scm>=7"]
+ build-backend = "setuptools.build_meta"
+ 
+ [project]
+ name = "Pypubsub"

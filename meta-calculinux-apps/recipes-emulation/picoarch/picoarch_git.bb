@@ -9,8 +9,6 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=cf9f0edc6d0921306fabede20ebb4306"
 SRC_URI = "gitsm://github.com/gurubook/picoarch.git;protocol=https;branch=feature/calculinux"
 SRCREV = "6a6bbbd8a5359ed4ec45c91e40f7ec88dc55b621"
 
-S = "${WORKDIR}/git"
-
 DEPENDS = " \
     libpng \
     libsdl2 \

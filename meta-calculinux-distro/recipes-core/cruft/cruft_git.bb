@@ -20,8 +20,6 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main \
 SRCREV = "e71cda64f51e1e9a9a90ae9bab8b9c92bb418e52"
 PV = "0.1.0+git${SRCPV}"
 
-S = "${WORKDIR}/git"
-
 DEPENDS = "ncurses-native"
 RDEPENDS:${PN} = "console-font"
 RRECOMMENDS:${PN} = "miniwi-console unifont-console"
