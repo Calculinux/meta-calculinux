@@ -6,6 +6,6 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 # #37: firmware as TCM, ring in system SRAM, interpolation, and the loop that
 # corrects for late pin writes. The m0-audio overlay runs the M0 at 375 MHz and
 # turns that loop on; the base dtsi asks for 4-word DMA bursts on the display's
-# SPI controller (needs spi-rockchip-tx-dma-burst-from-dt.patch).
+# SPI controller (the kernel's rockchip,tx-dma-burst support).
 SRCREV = "d0fed59fd487138c535cdb0ae219ada4bda246c0"
 S = "${WORKDIR}/git"

@@ -2,7 +2,11 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 LICENSE = "GPL-2.0-only"
 
-SRCREV = "c26ba687e6aba9f11dbe3d96deef4cb26889c096"
+# Bump PR with every kernel change: the package version is otherwise a constant
+# 6.1-r0 and opkg sees a rebuilt kernel as already installed.
+PR = "r1"
+
+SRCREV = "822f2a390fc71e0f1cb56458b6f169984c3b9dba"
 
 # Kernel config fragments: all .cfg files in files/ are auto-included.
 # Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).
@@ -46,7 +50,6 @@ SRC_URI = " \
     file://depmod-skip-when-echo.patch \
     file://btrfs-print-tree-fix-block-group-tree-string.patch \
     file://spi-rockchip-raise-max-sclk-to-100mhz.patch \
-    file://spi-rockchip-tx-dma-burst-from-dt.patch \
     file://lib-fonts-add-terminus-6x12.patch \
     file://btrtl-firmware-format-v2-support.patch \
 "
