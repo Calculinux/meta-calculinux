@@ -7,5 +7,9 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 # corrects for late pin writes. The m0-audio overlay runs the M0 at 375 MHz and
 # turns that loop on; the base dtsi asks for 4-word DMA bursts on the display's
 # SPI controller (needs spi-rockchip-tx-dma-burst-from-dt.patch).
-SRCREV = "d0fed59fd487138c535cdb0ae219ada4bda246c0"
+# + picocalc-drivers#38 (branch fix/spi-sd-card-detect, not yet merged): the SD
+#   slot on SPI1 detects the card by GPIO and no longer polls it once a second,
+#   and asks for 4-word DMA bursts both ways (needs the same patch, which now
+#   also takes rockchip,rx-dma-burst). Re-pin to main once #38 is merged.
+SRCREV = "7f15fdafd843a2a3d750635d0aebe4371876ab14"
 S = "${WORKDIR}/git"
