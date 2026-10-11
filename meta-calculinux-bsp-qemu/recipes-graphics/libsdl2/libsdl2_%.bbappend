@@ -7,12 +7,15 @@ PACKAGECONFIG:class-nativesdk = "x11 wayland"
 # Link the X11/Wayland client libraries instead of dlopen()ing them, so they
 # become package dependencies and land in the AppImage. Leave out KMSDRM and
 # the offscreen driver: with no usable display SDL would otherwise "succeed"
-# with an invisible window.
+# with an invisible window. The dummy driver is different: SDL only uses it
+# when SDL_VIDEODRIVER=dummy asks for it, which is how CI runs the launcher
+# window without a display.
 EXTRA_OECMAKE:append:class-nativesdk = " \
     -DSDL_X11_SHARED=OFF \
     -DSDL_WAYLAND_SHARED=OFF \
     -DSDL_KMSDRM=OFF \
     -DSDL_OFFSCREEN=OFF \
+    -DSDL_DUMMYVIDEO=ON \
 "
 
 # Linking them records the build sysroot in the -dev files.
