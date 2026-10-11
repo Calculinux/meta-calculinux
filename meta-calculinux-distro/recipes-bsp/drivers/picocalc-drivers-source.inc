@@ -11,6 +11,10 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 # + picocalc-drivers#39 (branch fix/spi-sd-card-detect, not yet merged): 4-word
 #   DMA bursts both ways on SPI1 (the kernel's rockchip,tx-dma-burst and
 #   rockchip,rx-dma-burst) and, on trial, cap-sd-highspeed on the SD slot for
-#   50 MHz. Re-pin to main once #39 is merged.
-SRCREV = "c01d9af7822a1a8f79f972fbd82243ec0541c80a"
+#   50 MHz.
+# + branch sd-comp-policy (merged with #39's head; not yet a PR): the corrected
+#   loop's give-up limit raised from 1 to 20 ms/s, so reading the SD card no
+#   longer switches it off for the session, and the COMP_STATS=2 debug build.
+#   Re-pin to main once #39 and that are merged.
+SRCREV = "0782bc063b97c17f40bee51855c5680a67609b80"
 S = "${WORKDIR}/git"
