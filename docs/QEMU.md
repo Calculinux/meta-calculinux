@@ -107,7 +107,9 @@ Build it like an SDK (`SDKMACHINE` picks the host):
 whole chain: U-Boot runs the boot script and boots the `/boot` FIT, root logs
 in on slot A, `fw_printenv` and `rauc status` work, `/etc` is on overlayfs,
 systemd finishes booting, then `merge-dt-overlays-boot` writes the per-slot FIT
-to `/data` and U-Boot boots it after a reboot.
+to `/data` and U-Boot boots it after a reboot. It also simulates the RAUC
+post-install handler (`invalidate-merged-fit` + `rebuild-merged-fit`) so the
+inactive slot's merged FIT exists before its first boot (issue #239).
 
 ```bash
 ./kas-container shell kas-calculinux-qemuarm.yaml -c \

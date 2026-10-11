@@ -12,10 +12,16 @@ echo "RAUC post-install handler starting"
 echo "RAUC_BUNDLE_MOUNT_POINT=${RAUC_BUNDLE_MOUNT_POINT}"
 echo "RAUC_TARGET_SLOTS=${RAUC_TARGET_SLOTS}"
 
-# Drop the installed slot's merged DT-overlay FIT so U-Boot boots the new
-# kernel from /boot until merge-dt-overlays-boot rebuilds it. Runs first:
-# the package reconciliation below may exit early.
+# Refresh the installed slot's merged DT-overlay FIT. Dropping the old FIT
+# alone would make the new slot's first boot use /boot/zboot_merged.img
+# (its own kernel, no user overlays) until merge-dt-overlays-boot runs on
+# that boot; rebuilding right away, from the freshly installed rootfs,
+# gives the first boot the user's overlays (issue #239). Runs first: the
+# package reconciliation below may exit early.
 /usr/lib/rauc/invalidate-merged-fit
+if ! /usr/lib/rauc/rebuild-merged-fit; then
+    echo "WARNING: rebuild-merged-fit failed; new slot boots /boot/zboot_merged.img until the boot service rebuilds the user FIT" >&2
+fi
 
 # Extract bundle extras if present (tarball contains extras/ e.g. extras/opkg/status.image).
 # The bundle mount is read-only squashfs, so unpack into a scratch dir.

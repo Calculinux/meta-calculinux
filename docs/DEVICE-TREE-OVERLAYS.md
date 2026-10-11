@@ -58,7 +58,7 @@ Use `sudo calculinux-config` → Hardware → Overlays to toggle entries, or edi
 ds3231-rtc
 ```
 
-Reboot. `merge-dt-overlays-boot` rebuilds this slot’s FIT on `/data`. A RAUC update deletes that slot’s merged FIT so the first boot uses `/boot/zboot_merged.img` (same kernel, no user overlays) until merge runs again.
+Reboot. `merge-dt-overlays-boot` rebuilds this slot’s FIT on `/data`. A RAUC update invalidates the updated slot’s merged FIT and the post-install handler rebuilds it right away from that slot’s new kernel, so the first boot after an update already carries your overlays. Overlays are resolved from the new slot’s filesystem first, then from the running system — overlays you added yourself live on the persistent `/data` overlay layer, which the newly installed rootfs does not contain. If the rebuild fails (or the update path bypasses the RAUC handler), the slot first boots `/boot/zboot_merged.img` (its own kernel, no user overlays) until the boot-time merge runs again.
 
 Names resolve in `/etc/devicetree/`, then `/boot/devicetree/`, then `/lib/firmware/overlays/`.
 
