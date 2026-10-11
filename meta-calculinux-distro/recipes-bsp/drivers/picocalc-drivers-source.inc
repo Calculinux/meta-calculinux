@@ -15,8 +15,9 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 # + branch sd-comp-policy (merged with #39's head; not yet a PR): the corrected
 #   loop's give-up limit raised from 1 to 20 ms/s, so reading the SD card no
 #   longer switches it off for the session, and the COMP_STATS=2 debug build.
-#   Also hclk_lsperi_root at 125 MHz in the base dtsi (the SPI controllers'
-#   register bus: the M0 audio loop falls ~40 times less behind during SD reads).
+#   Also, in the base dtsi, hclk_lsperi_root (the SPI controllers' and GPIO4's
+#   register bus) at 187.5 MHz and 2-word SPI1 DMA bursts: SD-read noise at the
+#   headphone output follows those two, not the card or the M0's lag.
 #   Re-pin to main once #39 and that are merged.
-SRCREV = "dbb7e7e51684dd7e589c7247c1fb3f20ee14d2b4"
+SRCREV = "5c0f85f789eb07bfcb12db0e205035ef145fe1fb"
 S = "${WORKDIR}/git"

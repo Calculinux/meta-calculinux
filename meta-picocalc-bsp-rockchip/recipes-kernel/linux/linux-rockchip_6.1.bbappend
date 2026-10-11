@@ -4,7 +4,7 @@ LICENSE = "GPL-2.0-only"
 
 # Bump PR with every kernel change: the package version is otherwise a constant
 # 6.1-r0 and opkg sees a rebuilt kernel as already installed.
-PR = "r3"
+PR = "r4"
 
 SRCREV = "a5001eb8d838cdf313d99bfebec1f6f2f521cab8"
 
