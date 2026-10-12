@@ -4,9 +4,9 @@ LICENSE = "GPL-2.0-only"
 
 # Bump PR with every kernel change: the package version is otherwise a constant
 # 6.1-r0 and opkg sees a rebuilt kernel as already installed.
-PR = "r4"
+PR = "r5"
 
-SRCREV = "a5001eb8d838cdf313d99bfebec1f6f2f521cab8"
+SRCREV = "29647b68f515a09f676304b1c6f291f27d6477fb"
 
 # Kernel config fragments: all .cfg files in files/ are auto-included.
 # Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).
