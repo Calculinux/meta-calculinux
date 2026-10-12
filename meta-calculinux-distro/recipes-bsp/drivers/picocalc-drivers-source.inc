@@ -26,5 +26,5 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   4-word bursts drops from about 7 mV to about 0.65 mV; tone THD+N at 25 MHz
 #   4-word from -9.9 to -26.8 dB (docs/m0-audio.md). The core no longer sleeps
 #   between ticks while audio plays (power not yet measured).
-SRCREV = "313f80fada085ccf15d6bbd684e41534aec79b11"
+SRCREV = "e8011b8a78372d44db84b013ce74a3c724320134"
 S = "${WORKDIR}/git"
