@@ -19,5 +19,12 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   register bus) at 187.5 MHz and 2-word SPI1 DMA bursts: SD-read noise at the
 #   headphone output follows those two, not the card or the M0's lag.
 #   Re-pin to main once #39 and that are merged.
-SRCREV = "5c0f85f789eb07bfcb12db0e205035ef145fe1fb"
+# + branch sd-comp-policy at e20c3f3: the corrected loop (m0_play_comp) runs
+#   SysTick free (24-bit) and spins to each tick, so a pin write's lateness is a
+#   count difference with no -28..+99 cycle window (a write caught up 40 cycles
+#   early after a late one was misread). Jack-tip noise with the card read at
+#   4-word bursts drops from about 7 mV to about 0.65 mV; tone THD+N at 25 MHz
+#   4-word from -9.9 to -26.8 dB (docs/m0-audio.md). The core no longer sleeps
+#   between ticks while audio plays (power not yet measured).
+SRCREV = "e20c3f367d06931250db3552fa90739ad11e53ed"
 S = "${WORKDIR}/git"
