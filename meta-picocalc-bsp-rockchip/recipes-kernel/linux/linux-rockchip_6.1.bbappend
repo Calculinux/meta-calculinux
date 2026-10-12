@@ -6,7 +6,7 @@ LICENSE = "GPL-2.0-only"
 # 6.1-r0 and opkg sees a rebuilt kernel as already installed.
 PR = "r5"
 
-SRCREV = "29647b68f515a09f676304b1c6f291f27d6477fb"
+SRCREV = "cba70010f688abfb03ab4fad951f08dd188bc3f2"
 
 # Kernel config fragments: all .cfg files in files/ are auto-included.
 # Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).
