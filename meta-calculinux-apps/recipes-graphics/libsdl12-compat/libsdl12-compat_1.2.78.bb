@@ -17,8 +17,6 @@ SRC_URI = "git://github.com/libsdl-org/sdl12-compat.git;protocol=https;branch=ma
 # release-1.2.78
 SRCREV = "07043bdcfd0d16ea8f14fe2a375089d00566a5e9"
 
-S = "${WORKDIR}/git"
-
 # Only SDL 2's headers are needed to build; the library is dlopen()ed at
 # runtime, so shlibdeps doesn't see it.
 DEPENDS = "libsdl2"

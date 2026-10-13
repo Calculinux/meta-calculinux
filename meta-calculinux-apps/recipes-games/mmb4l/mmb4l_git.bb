@@ -26,7 +26,6 @@ SRC_URI = "git://github.com/thwill1000/mmb4l.git;protocol=https;branch=main;tag=
            file://0003-CMake-Discover-SDL2-via-pkg-config.patch \
            "
 SRCREV = "8e98d84627c49fe95e5d3fb958080ac6cbd02d88"
-S = "${WORKDIR}/git"
 
 # The "sptools" submodule is only used by upstream's integration tests,
 # which this package does not build, so it is intentionally not fetched.
