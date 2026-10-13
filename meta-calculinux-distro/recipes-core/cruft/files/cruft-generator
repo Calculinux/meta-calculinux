@@ -1,6 +1,7 @@
 #!/bin/sh
 # systemd generator: wire VTs to cruft or leave kernel gettys alone.
-# Reads /etc/default/console (CONSOLE, CONSOLE_TTYS, CONSOLE_FONT / CRUFT_FONT).
+# Reads /etc/default/console (CONSOLE, CONSOLE_TTYS, CONSOLE_FONT / CRUFT_FONT,
+# CRUFT_SB, SB_CLOCK) and passes the status bar knobs through to the services.
 #
 # Boot: only the first CONSOLE_TTYS entry (usually tty1) is started.
 # Further VTs are started on demand by logind as autovt@ttyN (symlink → cruft@).
@@ -14,6 +15,8 @@ CONSOLE=cruft
 CONSOLE_TTYS="1 2 3 4 5 6"
 CONSOLE_FONT=default
 CRUFT_FONT=
+CRUFT_SB=
+SB_CLOCK=
 UNITDIR="@SYSTEMD_SYSTEM_UNITDIR@"
 
 self_check=0
@@ -27,6 +30,8 @@ if [ "${1:-}" = "--self-check" ]; then
 	CONSOLE=cruft
 	CONSOLE_TTYS="1 2"
 	CONSOLE_FONT=miniwi
+	CRUFT_SB="time,battery"
+	SB_CLOCK=12
 elif [ -z "$normal_dir" ]; then
 	echo "cruft-generator: missing output directory" >&2
 	exit 1
@@ -65,6 +70,28 @@ if [ -z "${CRUFT_FONT:-}" ]; then
 	esac
 fi
 
+# Status bar knobs (cruft only): pass through to the service environment.
+sb_12h=
+case "${SB_CLOCK:-}" in
+""|24) ;;
+12) sb_12h=1 ;;
+*)
+	echo "cruft-generator: unknown SB_CLOCK='${SB_CLOCK:-}' (use 12 or 24)" >&2
+	exit 1
+	;;
+esac
+
+# Segment list: comma-joined lowercase names (time, wifi, battery,
+# brightness, all, none) - no spaces (systemd Environment= lines).
+if [ -n "${CRUFT_SB:-}" ]; then
+	case "$CRUFT_SB" in
+	*[!a-zA-Z0-9_,]*)
+		echo "cruft-generator: CRUFT_SB='$CRUFT_SB' (comma-joined names, no spaces)" >&2
+		exit 1
+		;;
+	esac
+fi
+
 # shellcheck disable=SC2086
 set -- $CONSOLE_TTYS
 boot_tty=$1
@@ -78,10 +105,17 @@ mkdir -p "$wants"
 
 font_dropin() {
 	mkdir -p "$1"
-	printf '%s\n' '[Service]' \
-		"Environment=TERM=cruft-256color" \
-		"Environment=CRUFT_FONT=$CRUFT_FONT" \
-		> "$1/10-font.conf"
+	{
+		printf '%s\n' '[Service]' \
+			"Environment=TERM=cruft-256color" \
+			"Environment=CRUFT_FONT=$CRUFT_FONT"
+		if [ -n "${CRUFT_SB:-}" ]; then
+			printf 'Environment=CRUFT_SB=%s\n' "$CRUFT_SB"
+		fi
+		if [ -n "$sb_12h" ]; then
+			printf 'Environment=CRUFT_SB_12H=1\n'
+		fi
+	} > "$1/10-font.conf"
 }
 
 # Drop-ins for both names: boot uses cruft@ttyN; on-demand uses autovt@ttyN
@@ -127,6 +161,26 @@ if [ "$self_check" -eq 1 ]; then
 	grep -q 'TERM=cruft-256color' \
 		"$normal_dir/cruft@.service.d/10-font.conf" || {
 		echo "font drop-in missing TERM=cruft-256color" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_SB=time,battery' \
+		"$normal_dir/cruft@.service.d/10-font.conf" || {
+		echo "cruft@.service.d missing CRUFT_SB pass-through" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_SB_12H=1' \
+		"$normal_dir/cruft@.service.d/10-font.conf" || {
+		echo "cruft@.service.d missing CRUFT_SB_12H pass-through" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_SB=time,battery' \
+		"$normal_dir/autovt@.service.d/10-font.conf" || {
+		echo "autovt@.service.d missing CRUFT_SB pass-through" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_SB_12H=1' \
+		"$normal_dir/autovt@.service.d/10-font.conf" || {
+		echo "autovt@.service.d missing CRUFT_SB_12H pass-through" >&2
 		exit 1
 	}
 	echo "cruft-generator: self-check ok"

@@ -2,6 +2,8 @@ SUMMARY = "Calculinux RedUced Footprint Terminal"
 DESCRIPTION = "Linux framebuffer VT terminal for Calculinux (PicoCalc / Luckfox Lyra). \
 Uses demand-paged .cruftfont blobs with runtime cell metrics (4x8 miniwi, \
 6x12 default, 8x16 Unifont), sparse sixel cell storage, and lazy DRCS. \
+Optional status bar in the top margin strip (wifi, clock, backlight, \
+battery) rendered in a second 4x8 font (miniwi-console). \
 Font is selected via CONSOLE_FONT in /etc/default/console (or CRUFT_FONT). \
 Opens the kernel framebuffer already set up by TinyDRM/fbcon. Local VTs \
 are wired via a systemd generator (CONSOLE=cruft|kernel)."
@@ -17,14 +19,16 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main \
            file://cruft-generator \
            file://console-mode \
            "
-SRCREV = "e598f7247e3d0efe5df9f6e14649925e198e0ed1"
+SRCREV = "9d3f3cf12786a68c4d297cbb758dab14364fec38"
 PV = "0.1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
 DEPENDS = "ncurses-native"
-RDEPENDS:${PN} = "console-font"
-RRECOMMENDS:${PN} = "miniwi-console unifont-console"
+# miniwi-console carries the status bar's 4x8 font; the bar is on by
+# default whenever that font is loadable, so it is a hard dependency.
+RDEPENDS:${PN} = "console-font miniwi-console"
+RRECOMMENDS:${PN} = "unifont-console"
 RPROVIDES:${PN} = "yaft"
 RREPLACES:${PN} = "yaft"
 RCONFLICTS:${PN} = "yaft"
@@ -49,7 +53,8 @@ do_compile() {
     ${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS} -std=c99 -O0 -g -I${S} \
         -o ${WORKDIR}/cruft-selftest \
         ${S}/tests/selftest.c ${S}/cell_pixmap.c ${S}/drcs.c \
-        ${S}/sixel_canvas.c ${S}/glyph_mmap.c ${S}/terminal_cell.c
+        ${S}/sixel_canvas.c ${S}/glyph_mmap.c ${S}/terminal_cell.c \
+        ${S}/status.c
     ${WORKDIR}/cruft-selftest
 
     ${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS} -std=c99 -O2 \

@@ -19,6 +19,15 @@ CONSOLE_TTYS="1 2 3 4 5 6"
 # (systemd restarts that VT's cruft; a logout is enough — no reboot needed).
 CONSOLE_FONT=default
 
+# Status bar in the top margin strip (cruft only; on by default when the
+# miniwi status font is installed). Segments, comma-joined, no spaces:
+#   time  wifi  battery  brightness  all  (default)  none
+# A segment whose data source is absent (VM, no battery, ...) is hidden.
+#CRUFT_SB=all
+# Status bar clock format: 24 (default) or 12 (shows H:MMam/pm).
+#SB_CLOCK=24
+# After changing: `console-mode apply`, then log out/in on each VT.
+
 # Optional kernel fbcon font (CONSOLE=kernel only): install terminus-font, then
 # put e.g. FONT=ter-u12n.psf.gz in /etc/vconsole.conf and reboot (or
 # systemctl restart systemd-vconsole-setup). Default image uses the built-in
