@@ -13,7 +13,11 @@ Checks, in order:
      overlayfs is mounted over /etc, systemd finished booting.
   4. merge-dt-overlays-boot writes /data/fit/zboot_merged_a.img, and after
      a reboot U-Boot boots that FIT from OVERLAY_DATA.
-  5. rauc mark-active switches BOOT_ORDER to B and the next boot runs
+  5. The RAUC post-install handler flow (invalidate-merged-fit +
+     rebuild-merged-fit, with the RAUC handler env simulated) rebuilds the
+     inactive slot B's merged FIT at "install" time, so its first boot
+     already carries the user overlays (issue #239).
+  6. rauc mark-active switches BOOT_ORDER to B and the next boot runs
      slot B (via U-Boot's by-PARTLABEL bootcmd).
 """
 
@@ -77,6 +81,23 @@ def main():
             login()
             rc, out = run("cat /proc/cmdline")
             check("still on RAUC slot A", "rauc.slot=A" in out, out)
+
+            step("post-install handler sim: rebuild inactive slot B's FIT at 'install' time")
+            # Stand-in for RAUC mounting the freshly installed slot B rootfs:
+            # A and B carry the same image on a fresh disk, so binding the live
+            # root exercises the same contract (ROOT-anchored kernel + overlays).
+            rc, out = run("mkdir -p /tmp/slotmnt/rootfs.1 && mount --bind / /tmp/slotmnt/rootfs.1")
+            check("bind-mounted live rootfs as slot rootfs.1", rc == 0, out)
+            rc, out = run(
+                "export RAUC_TARGET_SLOTS=1 RAUC_SLOT_NAME_1=rootfs.1 "
+                "RAUC_SLOT_CLASS_1=rootfs RAUC_SLOT_BOOTNAME_1=B "
+                "RAUC_MOUNT_PREFIX=/tmp/slotmnt; "
+                "/usr/lib/rauc/invalidate-merged-fit && "
+                "/usr/lib/rauc/rebuild-merged-fit", timeout=120)
+            check("rebuild-merged-fit rebuilt slot B FIT from mounted rootfs", rc == 0, out)
+            rc, out = run("ls /data/fit/zboot_merged_b.img /data/fit/kernel-B.stamp")
+            check("slot B merged FIT present before its first boot (issue #239)", rc == 0, out)
+            run("umount /tmp/slotmnt/rootfs.1 && rmdir -p /tmp/slotmnt")
 
             step("A/B switch: mark slot B active, reboot")
             rc, out = run("rauc status mark-active other", timeout=120)
