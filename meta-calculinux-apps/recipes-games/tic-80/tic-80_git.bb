@@ -10,7 +10,13 @@ inherit cmake pkgconfig
 
 PV = "1.1.2837"
 SRC_URI = "gitsm://github.com/nesbox/TIC-80.git;protocol=https;branch=main"
-SRCREV = "${AUTOREV}"
+# Pinned: upstream main stopped building against our configuration when the
+# build was retargeted to the sokol system layer, which defaults on and
+# refuses to coexist with -DBUILD_SDL=ON (FATAL_ERROR at configure). This is
+# the last revision verified to build in this tree; tracking upstream again
+# needs the recipe adaptations a release pin will bring.
+SRCREV = "ae1195a9d0fbda243bf0ebd861d6876d072a979e"
+S = "${WORKDIR}/git"
 
 DEPENDS = "\
     libsdl2 \
