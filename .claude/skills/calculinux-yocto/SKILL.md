@@ -365,6 +365,66 @@ vendored nothing) doesn't exercise it. If you do fetch crates: `FETCHCMD_wget` i
 `FETCHCMD_wget:append` would silently drop the wget binary from the command - change it as a
 whole value or not at all.
 
+### Hostile build systems: hand-rolled configure + plugin layouts
+
+Upstream projects with a bespoke `./configure` (no autotools/cmake/meson) collide with a
+fixed set of Yocto assumptions. The cmus 2.12.0 addition (PicoCalc TUI music player) hit
+every one of these; check each box before burning build cycles:
+
+- **Distros QA `src-uri-bad` rejects GitHub/GitLab archive tarballs** (codeload URLs are
+  treated as unstable/rotating). Use `git://github.com/org/proj.git;protocol=https` with a
+  pinned `SRCREV` (the tag's SHA), even when a versioned `foo_1.2.3.bb` filename is in use.
+- **Composite `$CC`/`$LD` env vars.** The task environment exports `CC="<cross-gcc> <tune+
+  security flags> --sysroot=…"` and `LD="<cross-ld> --sysroot=…"` — multiple tokens.
+  Unquoted toolchain probes in hand-rolled scripts (`check_program $CC`) word-split: CC
+  aborts loudly ("expecting 1-2 arguments"); worse, a 2-token LD sails through such a check
+  with the sysroot **silently dropped**, baking the bare `ld` into the generated config,
+  which then dies on GCC-driver `-Wl,…` flags in `LDFLAGS` at link time. Fix: generate a
+  one-off single-token launcher in `do_configure` ({ echo "#!/bin/sh";
+  printf 'exec %s "$@"\n' "$CC"; } > wrap) and pass `CC=<wrap> LD=<wrap>` — linking through
+  the compiler driver is what those scripts intend anyway (their default is `LD=$CC`).
+- **`PACKAGECONFIG` in non-autotools recipes:** the bare `PACKAGECONFIG` variable holds
+  option *names* only — no class translates the per-option arguments for you (that's what
+  `autotools`/`cmake` do internally). Lift them explicitly (python `d.getVar
+  ('PACKAGECONFIG:%s')` one-liner). Field order is
+  `enable-arg,disable-arg,deps,rdeps` — deps (field 3) land in DEPENDS *and* RDEPENDS;
+  a dep that lands in a spurious 5th field is dropped **without any warning** (symptom:
+  feature auto-disabled at configure, or a built plugin whose runtime lib nobody ships).
+- **`DEPENDS = "pkgconfig"` resolves to a TARGET-arch build** that sits in the recipe
+  sysroot and cannot execute on the build host — the probes just see no pkg-config.
+  Use `pkgconfig-native` AND advertise the sysroot yourself: the task environment sets no
+  usable `PKG_CONFIG_PATH`, so export
+  `${RECIPE_SYSROOT}/usr/lib/pkgconfig` before configure. Silent-failure mode: probes
+  that carry a `-l` fallback degrade to `check_library` and "succeed"; probes without one
+  report "no" and the feature/plugin simply **disappears** from the tree (caught late as
+  a missing `.so`). Always audit the built output against the intended plugin/feature set.
+- **GNU install-dir variables are in the task environment.** `bindir`, `datadir`, `libdir`,
+  `mandir` **and** `docdir`/`exampledir` are all exported; configure helpers that keep
+  pre-existing values (a `var_default`-style "only set if unset") will never apply
+  upstream defaults like `$datadir/doc/<proj>`. Pass every directory explicitly.
+- **Debug-info splitting happens in `do_package`, not in D.** `splitdebuginfo` runs on the
+  PKGD copy *after* the D→PKGD copy and synthesizes `.debug/` files there — the normal
+  feeder for the auto-added `-dbg` package. A single-PN recipe with no `-dbg` consumer
+  fatal-QAs on them ("installed-vs-shipped"). Cure: `INHIBIT_PACKAGE_DEBUG_SPLIT = "1"`.
+  Misdiagnosis to avoid: `rm -rf ${D}${bindir}/.debug` in `do_install` does nothing —
+  D never contained them (`gcc -g` embeds sections in the binaries; the `.debug/` files are
+  packaging-stage inventions).
+- **Host-leaking probes.** Bespoke scripts sometimes test `/usr/include/…` in the
+  *container* instead of the staged sysroot (cmus' OSS check), so "auto" features can
+  activate from build-image contents, not the target's. Read the probes, not just the
+  flags they accept.
+- **dlopen plugin layouts** (cmus ships `cmus/ip/*.so`, `cmus/op/*.so`): packaging's
+  shlib sweep *does* walk the package files and derive RDEPENDS from the plugins' link
+  deps, but keeping the codec in PACKAGECONFIG field 3 remains belt-and-braces for
+  anything the sweep can't see.
+- **Plain make installs to `/usr`:** no fakeroot is used in this flow — `oe_runmake
+  install DESTDIR=${D}` (check the in-tree install helper actually honours DESTDIR first).
+- **Diagnosis shortcuts:** `bitbake -e <pn>` emits `export CC="…"` lines (anchors like
+  `^CC=` grep nothing — expect the `export ` prefix). Failed recipes keep their workdir:
+  `temp/run.do_*` records the exact executed env/script, `temp/log.do_*` the task output,
+  and a stale-looking symptom often dissolves once you read the actual copy/scan target
+  (here it was PKGD, not D, that QA walked).
+
 Kernel options: `make kernel-config FRAGMENT=name` (menuconfig → diffconfig →
 `meta-picocalc-bsp-rockchip/recipes-kernel/linux/files/<name>.cfg`). DT overlays: follow
 `docs/DEVICE-TREE-OVERLAYS.md`.
