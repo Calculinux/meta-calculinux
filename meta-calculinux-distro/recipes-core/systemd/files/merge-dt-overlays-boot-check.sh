@@ -80,4 +80,159 @@ else
     echo "WARN: invalidate-merged-fit not found at $INVALIDATE, skipped" >&2
 fi
 
+# ROOT-anchored inputs (issue #239): the RAUC post-install merge pairs the
+# installed slot's kernel with its own .dtbo files; user-added overlays live
+# on the persistent /data overlay layer and fall back to the live system.
+SLOT_ROOT="$tmpdir/slot-root"
+mkdir -p "$SLOT_ROOT/boot/devicetree"
+printf 'placeholder-kernel\n' > "$SLOT_ROOT/boot/fit_kernel"
+printf 'placeholder-dtb\n' > "$SLOT_ROOT/boot/fit_fdt.dtb"
+printf 'KERNEL_LOAD_ADDR=0x00A00800\nFDT_LOAD_ADDR=0xA1000000\n' > "$SLOT_ROOT/boot/fit_loadaddr.env"
+printf 'board-dtbo\n' > "$SLOT_ROOT/boot/devicetree/board.dtbo"
+printf 'user-dtbo\n' > "$tmpdir/user.dtbo"
+
+# Name lookup under ROOT prefers the fresh slot's copy (LIB-mode functions)
+ROOT="$SLOT_ROOT"
+assert_eq "$(resolve_overlay board)" "$SLOT_ROOT/boot/devicetree/board.dtbo" "ROOT-first name lookup"
+# Absolute user file absent from the raw slot rootfs resolves from the live system
+assert_eq "$(resolve_overlay "$tmpdir/user.dtbo")" "$tmpdir/user.dtbo" "live fallback for absolute user file"
+# Two-phase regression (review #242): a live copy in a HIGHER-priority
+# location must not shadow the slot's own copy in a lower one - ALL
+# installed-slot locations win as a set. Needs a writable live
+# /etc/devicetree, so skip (warn) on hosts that deny it.
+mkdir -p "$SLOT_ROOT/lib/firmware/overlays"
+printf 'slot-owned\n' > "$SLOT_ROOT/lib/firmware/overlays/interleave-regression.dtbo"
+LIVE_ETC_FILE="/etc/devicetree/interleave-regression.dtbo"
+if mkdir -p /etc/devicetree 2>/dev/null && touch "$LIVE_ETC_FILE" 2>/dev/null; then
+    ROOT="$SLOT_ROOT"
+    assert_eq "$(resolve_overlay interleave-regression)" \
+        "$SLOT_ROOT/lib/firmware/overlays/interleave-regression.dtbo" \
+        "slot copy in low location beats live copy in high location"
+    rm -f "$LIVE_ETC_FILE"
+    rmdir /etc/devicetree 2>/dev/null || true
+    ROOT=""
+else
+    echo "WARN: live /etc not writable, skipped interleave-order regression" >&2
+fi
+# Outside ROOT the fresh-slot copy is not reachable
+ROOT=""
+assert_fail resolve_overlay board
+
+# Full run with a config entry that exists nowhere: must fail by name,
+# before packing, so no mkimage needed.
+MERGE_SH="$DIR/merge-dt-overlays-boot.sh"
+printf 'missing\n' > "$tmpdir/conf-anchor"
+if out=$("$MERGE_SH" "$tmpdir/conf-anchor" "$tmpdir/out-data" A "$SLOT_ROOT" 2>&1); then
+    echo "FAIL: overlay missing everywhere should fail" >&2
+    exit 1
+fi
+case "$out" in
+    *"overlay not found: missing"*) : ;;
+    *) echo "FAIL: expected 'overlay not found: missing', got: $out" >&2; exit 1 ;;
+esac
+
+: > "$tmpdir/conf-none"  # existing config without overlays
+
+# Happy-path merge packed from the ROOT (dummy kernel, no overlays); needs the
+# host's mkimage, otherwise skipped (covered end-to-end by the QEMU boot test).
+if command -v mkimage >/dev/null 2>&1; then
+    if ! out=$("$MERGE_SH" "$tmpdir/conf-none" "$tmpdir/out-data" B "$SLOT_ROOT" 2>&1); then
+        echo "FAIL: ROOT-anchored merge failed: $out" >&2
+        exit 1
+    fi
+    [ -f "$tmpdir/out-data/fit/zboot_merged_b.img" ] || { echo "FAIL: ROOT-anchored merge wrote no FIT" >&2; exit 1; }
+    assert_eq "$(cat "$tmpdir/out-data/fit/kernel-B.stamp")" \
+        "$(sha256sum "$SLOT_ROOT/boot/fit_kernel" | cut -d' ' -f1)" "stamp tracks the ROOT's kernel"
+else
+    echo "WARN: mkimage not found, skipped ROOT-anchored merge packing" >&2
+fi
+
+# rebuild-merged-fit: env handling (stub stands in for the real merge script)
+REBUILD="$DIR/../../rauc/files/rebuild-merged-fit"
+if [ -f "$REBUILD" ]; then
+    chmod +x "$REBUILD" 2>/dev/null || true
+    STUB="$tmpdir/merge-stub.sh"
+    ARGS_LOG="$tmpdir/merge-stub.args"
+    printf '#!/bin/sh\necho "$@" >> "%s"\n' "$ARGS_LOG" > "$STUB"
+    chmod +x "$STUB"
+    CONF_PRESENT="$tmpdir/conf-none"
+
+    # rootfs slot, mounted -> merge called with (CONFIG, DATA_MP, SLOT, MOUNT)
+    mkdir -p "$tmpdir/mnt/rootfs.0"
+    rm -f "$ARGS_LOG"
+    RAUC_TARGET_SLOTS=0 \
+        RAUC_SLOT_NAME_0=rootfs.0 RAUC_SLOT_CLASS_0=rootfs RAUC_SLOT_BOOTNAME_0=A \
+        RAUC_MOUNT_PREFIX="$tmpdir/mnt" \
+        MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+        "$REBUILD" || { echo "FAIL: rebuild-merged-fit exited nonzero" >&2; exit 1; }
+    assert_eq "$(cat "$ARGS_LOG" 2>/dev/null)" \
+        "$CONF_PRESENT $tmpdir/out-data A $tmpdir/mnt/rootfs.0" "rebuild merge argv"
+
+    # non-rootfs class -> untouched
+    rm -f "$ARGS_LOG"
+    RAUC_TARGET_SLOTS=0 \
+        RAUC_SLOT_NAME_0=boot.0 RAUC_SLOT_CLASS_0=boot \
+        RAUC_MOUNT_PREFIX="$tmpdir/mnt" \
+        MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+        "$REBUILD"
+    [ -f "$ARGS_LOG" ] && { echo "FAIL: non-rootfs slot must be skipped" >&2; exit 1; }
+
+    # slot not mounted and no device known -> warn and skip, still exit 0
+    # (degrade, never abort)
+    rm -f "$ARGS_LOG"
+    RAUC_TARGET_SLOTS=0 \
+        RAUC_SLOT_NAME_0=rootfs.0 RAUC_SLOT_CLASS_0=rootfs RAUC_SLOT_BOOTNAME_0=B \
+        RAUC_MOUNT_PREFIX="$tmpdir/not-mounted" \
+        MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+        "$REBUILD" || { echo "FAIL: unmounted slot must not fail rebuild" >&2; exit 1; }
+    [ -f "$ARGS_LOG" ] && { echo "FAIL: unmounted slot must be skipped" >&2; exit 1; }
+
+    # device known but not mountable (unprivileged host, bad device) ->
+    # warn and skip, still exit 0; no leftover mount point
+    rm -f "$ARGS_LOG"
+    RAUC_TARGET_SLOTS=0 \
+        RAUC_SLOT_NAME_0=rootfs.0 RAUC_SLOT_CLASS_0=rootfs RAUC_SLOT_BOOTNAME_0=B \
+        RAUC_SLOT_DEVICE_0=/dev/no-such-calculinux-device \
+        RAUC_MOUNT_PREFIX="$tmpdir/mnt-unavail" \
+        MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+        "$REBUILD" || { echo "FAIL: unmountable slot must not fail rebuild" >&2; exit 1; }
+    [ -f "$ARGS_LOG" ] && { echo "FAIL: unmountable slot must be skipped" >&2; exit 1; }
+    [ -e "$tmpdir/mnt-unavail/rootfs.0" ] && { echo "FAIL: failed mount must leave no mount point" >&2; exit 1; }
+
+    # real mount round-trip (the production path: RAUC unmounts the slot
+    # before the handler, so rebuild must mount/umount it itself). Gated on
+    # root + losetup + mkfs.ext4; covered elsewhere otherwise.
+    if [ "$(id -u)" = 0 ] && command -v losetup >/dev/null 2>&1 \
+        && command -v mkfs.ext4 >/dev/null 2>&1; then
+        DISK="$tmpdir/slot.img"
+        dd if=/dev/zero of="$DISK" bs=1M count=4 2>/dev/null
+        mkfs.ext4 -q -F "$DISK"
+        LO=""
+        LO=$(timeout 10 losetup -f --show "$DISK" 2>/dev/null) || LO=""
+        if [ -n "$LO" ]; then
+            rm -f "$ARGS_LOG"
+            RAUC_TARGET_SLOTS=1 \
+                RAUC_SLOT_NAME_1=rootfs.1 RAUC_SLOT_CLASS_1=rootfs \
+                RAUC_SLOT_BOOTNAME_1=B RAUC_SLOT_DEVICE_1="$LO" \
+                RAUC_MOUNT_PREFIX="$tmpdir/mnt-real" \
+                MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+                "$REBUILD" || { echo "FAIL: real-mount rebuild failed" >&2; losetup -d "$LO"; exit 1; }
+            assert_eq "$(cat "$ARGS_LOG" 2>/dev/null)" \
+                "$CONF_PRESENT $tmpdir/out-data B $tmpdir/mnt-real/rootfs.1" "real mount round-trip argv"
+            if awk -v p="$tmpdir/mnt-real/rootfs.1" '$2==p {found=1} END {exit !found}' /proc/mounts 2>/dev/null; then
+                echo "FAIL: slot mount leaked after rebuild" >&2
+                losetup -d "$LO"
+                exit 1
+            fi
+            losetup -d "$LO"
+        else
+            echo "WARN: no loop device, skipped real-mount rebuild round-trip" >&2
+        fi
+    else
+        echo "WARN: not root or missing losetup/mkfs.ext4, skipped real-mount rebuild round-trip" >&2
+    fi
+else
+    echo "WARN: rebuild-merged-fit not found at $REBUILD, skipped" >&2
+fi
+
 echo "merge-dt-overlays-boot-check: OK"

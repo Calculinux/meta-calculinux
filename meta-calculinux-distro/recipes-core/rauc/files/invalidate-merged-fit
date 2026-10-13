@@ -1,6 +1,7 @@
 #!/bin/sh
-# Drop the merged FIT for the slot RAUC just installed so U-Boot boots
-# /boot/zboot_merged.img (matching kernel) until merge-dt-overlays-boot rebuilds it.
+# Drop the merged FIT for the slot RAUC just installed. U-Boot then boots
+# /boot/zboot_merged.img (matching kernel); rebuild-merged-fit runs next in the
+# post-install handler and restores the user-overlay FIT for the first boot.
 set -e
 DATA_FIT="${DATA_FIT:-/data/fit}"
 
