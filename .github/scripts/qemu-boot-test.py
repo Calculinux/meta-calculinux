@@ -89,9 +89,9 @@ def main():
             rc, out = run("mkdir -p /tmp/slotmnt/rootfs.1 && mount --bind / /tmp/slotmnt/rootfs.1")
             check("bind-mounted live rootfs as slot rootfs.1", rc == 0, out)
             rc, out = run(
-                "env RAUC_TARGET_SLOTS=1 RAUC_SLOT_NAME_1=rootfs.1 "
+                "export RAUC_TARGET_SLOTS=1 RAUC_SLOT_NAME_1=rootfs.1 "
                 "RAUC_SLOT_CLASS_1=rootfs RAUC_SLOT_BOOTNAME_1=B "
-                "RAUC_MOUNT_PREFIX=/tmp/slotmnt "
+                "RAUC_MOUNT_PREFIX=/tmp/slotmnt; "
                 "/usr/lib/rauc/invalidate-merged-fit && "
                 "/usr/lib/rauc/rebuild-merged-fit", timeout=120)
             check("rebuild-merged-fit rebuilt slot B FIT from mounted rootfs", rc == 0, out)
