@@ -82,10 +82,14 @@ EXTRA_CONF_ARGS = "\
 # flag accessor and emit BOTH sides: enabled options get their enable
 # argument, disabled ones their explicit disable argument, so feature
 # selection never rests on configure's auto-probes happening to find (or
-# miss) a codec in the staged sysroot.
+# miss) a codec in the staged sysroot. Entries without a disable argument
+# (PACKAGECONFIG even carries a documentary "doc" flag) tolerate only an
+# enable side.
 CONFIGURE_ARGS_PACKAGECONFIG = "\
-    ${@' '.join(entry.split(',')[0 if pc in (d.getVar('PACKAGECONFIG') or '').split() else 1) \
-                 for pc, entry in d.getVarFlags('PACKAGECONFIG').items())} \
+    ${@' '.join(filter(None, \
+        [entry.split(',')[0] if pc in (d.getVar('PACKAGECONFIG') or '').split() \
+         else (entry.split(',')[1] if len(entry.split(',')) > 1 else '') \
+         for pc, entry in d.getVarFlags('PACKAGECONFIG').items()]))} \
 "
 
 do_configure() {

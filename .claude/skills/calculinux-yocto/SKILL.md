@@ -389,8 +389,12 @@ every one of these; check each box before burning build cycles:
   declaration through the canonical flag accessor `d.getVarFlag('PACKAGECONFIG', opt)`
   (enumerate all declarations with `d.getVarFlags('PACKAGECONFIG')`); emit BOTH sides so
   disabled options pass their explicit disable argument instead of leaning on configure
-  auto-probes: `' '.join(e.split(',')[0 if o in d.getVar('PACKAGECONFIG').split() else 1]
-                          for o, e in d.getVarFlags('PACKAGECONFIG').items())`. Field order
+  auto-probes. Index defensively: non-option flags exist (bitbake itself attaches a
+  documentary `doc` flag to PACKAGECONFIG, which has no comma and will IndexError on
+  `[1]`): `' '.join(filter(None, [e.split(',')[0] if o in d.getVar('PACKAGECONFIG').split()
+                                   else (e.split(',')[1] if len(e.split(',')) > 1 else '')
+                                   for o, e in d.getVarFlags('PACKAGECONFIG').items()]))`.
+  Field order
   is `enable-arg,disable-arg,deps,rdeps` — deps (field 3) land in DEPENDS *and* RDEPENDS;
   a dep that lands in a spurious 5th field is dropped **without any warning** (symptom:
   feature auto-disabled at configure, or a built plugin whose runtime lib nobody ships).
