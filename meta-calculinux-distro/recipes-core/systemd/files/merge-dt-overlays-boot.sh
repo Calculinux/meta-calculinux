@@ -5,10 +5,23 @@
 # One merged FIT per RAUC slot: zboot_merged_a.img / zboot_merged_b.img.
 # U-Boot loads the FIT matching rauc.slot, then /boot/zboot_merged.img.
 #
-# Usage: merge-dt-overlays-boot.sh [CONFIG] [DATA_MP] [SLOT]
-#   CONFIG   default /etc/device-tree-overlays.conf
+# Usage: merge-dt-overlays-boot.sh [CONFIG] [DATA_MP] [SLOT] [ROOT]
+#   CONFIG   default /etc/device-tree-overlays.conf; always read from the live
+#            system (the user's current overlay selection)
 #   DATA_MP  default /data (OVERLAY_DATA mount); output goes to $DATA_MP/fit/
 #   SLOT     A or B (default: rauc.slot= from /proc/cmdline, else A)
+#   ROOT     anchor for the kernel/FDT/overlay INPUTS. Default empty = the
+#            live system's own /boot, /etc and /lib/firmware. The RAUC
+#            post-install merge passes the freshly installed slot's rootfs
+#            mount, pairing the new slot's kernel with its own .dtbo files
+#            (issue #239: overlays missing on the first boot after an
+#            update). For overlay entries, EVERY search location under ROOT
+#            is tried before ANY live-system location - the new slot's
+#            .dtbo files match its own base DTB - so a stale live copy never
+#            replaces an overlay shipped with the slot. Live locations only
+#            cover what the raw slot rootfs lacks, namely user-added files
+#            that persist across slots on the /data overlay layer. CONFIG
+#            and DATA_MP never are anchored.
 
 # Load stamp helpers (fit_kernel_stamp, stamp_matches, stamp_should_drop)
 _FIT_STAMP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -38,6 +51,44 @@ merged_fit_name() {
     esac
 }
 
+# Locate one overlay entry (a name or an absolute path) from the config.
+# With ROOT set (merge for a freshly installed slot) EVERY search location
+# is tried under ROOT before ANY live-system location - the new slot's
+# .dtbo files match its own base DTB - then, if no installed-slot copy
+# exists, on the live system, where user-added files persist across slots
+# on the /data overlay layer. Location order within each phase is
+# /etc/devicetree, /boot/devicetree, /lib/firmware/overlays. Prints the
+# path found; fails otherwise.
+resolve_overlay() {
+    local line="$1" loc
+    if [[ "$line" == /* ]]; then
+        if [[ -n "$ROOT" && -f "$ROOT$line" ]]; then
+            printf '%s' "$ROOT$line"
+            return 0
+        fi
+        [[ -f "$line" ]] || return 1
+        printf '%s' "$line"
+        return 0
+    fi
+    [[ "$line" != *.dtbo ]] && line="${line}.dtbo"
+    local locs=( "/etc/devicetree/${line}" "/boot/devicetree/${line}" "/lib/firmware/overlays/${line}" )
+    if [[ -n "$ROOT" ]]; then
+        for loc in "${locs[@]}"; do
+            if [[ -f "$ROOT$loc" ]]; then
+                printf '%s' "$ROOT$loc"
+                return 0
+            fi
+        done
+    fi
+    for loc in "${locs[@]}"; do
+        if [[ -f "$loc" ]]; then
+            printf '%s' "$loc"
+            return 0
+        fi
+    done
+    return 1
+}
+
 if [ "${MERGE_DT_OVERLAYS_LIB:-}" = 1 ]; then
     return 0 2>/dev/null || exit 0
 fi
@@ -46,6 +97,14 @@ set -e
 
 CONFIG_FILE="${1:-/etc/device-tree-overlays.conf}"
 DATA_MP="${2:-/data}"
+ROOT="${4:-}"
+# Anchor input paths at ROOT ("" or a slot rootfs mount, e.g. "/" or
+# /var/run/rauc/mounts/rootfs.1); strip the trailing slash so the paths stay
+# clean.
+case "$ROOT" in
+    /) ROOT="" ;;
+    */) ROOT="${ROOT%/}" ;;
+esac
 CMDLINE=""
 [[ -r /proc/cmdline ]] && read -r CMDLINE < /proc/cmdline || true
 SLOT="$(resolve_rauc_slot "${3:-}" "$CMDLINE")"
@@ -60,12 +119,14 @@ trim() {
     printf '%s' "$s"
 }
 
-FIT_KERNEL="/boot/fit_kernel"
-FIT_FDT="/boot/fit_fdt.dtb"
-FIT_COMPRESS_FILE="/boot/fit_compression.txt"
+# Anchored at ROOT: the live system's /boot by default, the new slot's /boot
+# when refreshing the merged FIT for a freshly installed slot.
+FIT_KERNEL="$ROOT/boot/fit_kernel"
+FIT_FDT="$ROOT/boot/fit_fdt.dtb"
+FIT_COMPRESS_FILE="$ROOT/boot/fit_compression.txt"
 # Board load addresses (match the board's U-Boot memory layout); written by
 # default-merged-fit from the machine configuration.
-FIT_LOADADDR_FILE="/boot/fit_loadaddr.env"
+FIT_LOADADDR_FILE="$ROOT/boot/fit_loadaddr.env"
 
 if [[ ! -f "$FIT_KERNEL" ]] || [[ ! -f "$FIT_FDT" ]] || [[ ! -f "$FIT_LOADADDR_FILE" ]]; then
     echo "merge-dt-overlays-boot: required $FIT_KERNEL, $FIT_FDT and $FIT_LOADADDR_FILE not found (install default-merged-fit)" >&2
@@ -86,23 +147,8 @@ if [[ -f "$CONFIG_FILE" ]]; then
         line="${raw_line%%#*}"
         line="$(trim "$line")"
         [[ -z "$line" ]] && continue
-        if [[ "$line" == /* ]]; then
-            overlay_file="$line"
-        else
-            [[ "$line" != *.dtbo ]] && line="${line}.dtbo"
-            if [[ -f "/etc/devicetree/${line}" ]]; then
-                overlay_file="/etc/devicetree/${line}"
-            elif [[ -f "/boot/devicetree/${line}" ]]; then
-                overlay_file="/boot/devicetree/${line}"
-            elif [[ -f "/lib/firmware/overlays/${line}" ]]; then
-                overlay_file="/lib/firmware/overlays/${line}"
-            else
-                echo "merge-dt-overlays-boot: overlay not found: $line" >&2
-                exit 1
-            fi
-        fi
-        if [[ ! -f "$overlay_file" ]]; then
-            echo "merge-dt-overlays-boot: overlay not found: $overlay_file" >&2
+        if ! overlay_file="$(resolve_overlay "$line")"; then
+            echo "merge-dt-overlays-boot: overlay not found: $line" >&2
             exit 1
         fi
         OVERLAY_FILES+=( "$overlay_file" )

@@ -8,16 +8,6 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 # corrects for late pin writes. The m0-audio overlay runs the M0 at 375 MHz and
 # turns that loop on; the base dtsi asks for 4-word DMA bursts on the display's
 # SPI controller (the kernel's rockchip,tx-dma-burst support).
-# + picocalc-drivers#39 (branch fix/spi-sd-card-detect, not yet merged): 4-word
-#   DMA bursts both ways on SPI1 (the kernel's rockchip,tx-dma-burst and
-#   rockchip,rx-dma-burst) and, on trial, cap-sd-highspeed on the SD slot for
-#   50 MHz.
-# + (picocalc-drivers #39, merged): the corrected
-#   loop's give-up limit raised from 1 to 20 ms/s, so reading the SD card no
-#   longer switches it off for the session, and the COMP_STATS=2 debug build.
-#   Also, in the base dtsi, hclk_lsperi_root (the SPI controllers' and GPIO4's
-#   register bus) at 187.5 MHz and 2-word SPI1 DMA bursts: SD-read noise at the
-#   headphone output follows those two, not the card or the M0's lag.
 # + (picocalc-drivers #39, merged): the corrected loop (m0_play_comp) runs
 #   SysTick free (24-bit) and spins to each tick, so a pin write's lateness is a
 #   count difference with no -28..+99 cycle window (a write caught up 40 cycles
