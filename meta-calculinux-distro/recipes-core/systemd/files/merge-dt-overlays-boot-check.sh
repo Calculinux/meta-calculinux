@@ -96,6 +96,24 @@ ROOT="$SLOT_ROOT"
 assert_eq "$(resolve_overlay board)" "$SLOT_ROOT/boot/devicetree/board.dtbo" "ROOT-first name lookup"
 # Absolute user file absent from the raw slot rootfs resolves from the live system
 assert_eq "$(resolve_overlay "$tmpdir/user.dtbo")" "$tmpdir/user.dtbo" "live fallback for absolute user file"
+# Two-phase regression (review #242): a live copy in a HIGHER-priority
+# location must not shadow the slot's own copy in a lower one - ALL
+# installed-slot locations win as a set. Needs a writable live
+# /etc/devicetree, so skip (warn) on hosts that deny it.
+mkdir -p "$SLOT_ROOT/lib/firmware/overlays"
+printf 'slot-owned\n' > "$SLOT_ROOT/lib/firmware/overlays/interleave-regression.dtbo"
+LIVE_ETC_FILE="/etc/devicetree/interleave-regression.dtbo"
+if mkdir -p /etc/devicetree 2>/dev/null && touch "$LIVE_ETC_FILE" 2>/dev/null; then
+    ROOT="$SLOT_ROOT"
+    assert_eq "$(resolve_overlay interleave-regression)" \
+        "$SLOT_ROOT/lib/firmware/overlays/interleave-regression.dtbo" \
+        "slot copy in low location beats live copy in high location"
+    rm -f "$LIVE_ETC_FILE"
+    rmdir /etc/devicetree 2>/dev/null || true
+    ROOT=""
+else
+    echo "WARN: live /etc not writable, skipped interleave-order regression" >&2
+fi
 # Outside ROOT the fresh-slot copy is not reachable
 ROOT=""
 assert_fail resolve_overlay board
@@ -159,7 +177,8 @@ if [ -f "$REBUILD" ]; then
         "$REBUILD"
     [ -f "$ARGS_LOG" ] && { echo "FAIL: non-rootfs slot must be skipped" >&2; exit 1; }
 
-    # slot not mounted -> warn and skip, still exit 0 (degrade, never abort)
+    # slot not mounted and no device known -> warn and skip, still exit 0
+    # (degrade, never abort)
     rm -f "$ARGS_LOG"
     RAUC_TARGET_SLOTS=0 \
         RAUC_SLOT_NAME_0=rootfs.0 RAUC_SLOT_CLASS_0=rootfs RAUC_SLOT_BOOTNAME_0=B \
@@ -167,6 +186,51 @@ if [ -f "$REBUILD" ]; then
         MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
         "$REBUILD" || { echo "FAIL: unmounted slot must not fail rebuild" >&2; exit 1; }
     [ -f "$ARGS_LOG" ] && { echo "FAIL: unmounted slot must be skipped" >&2; exit 1; }
+
+    # device known but not mountable (unprivileged host, bad device) ->
+    # warn and skip, still exit 0; no leftover mount point
+    rm -f "$ARGS_LOG"
+    RAUC_TARGET_SLOTS=0 \
+        RAUC_SLOT_NAME_0=rootfs.0 RAUC_SLOT_CLASS_0=rootfs RAUC_SLOT_BOOTNAME_0=B \
+        RAUC_SLOT_DEVICE_0=/dev/no-such-calculinux-device \
+        RAUC_MOUNT_PREFIX="$tmpdir/mnt-unavail" \
+        MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+        "$REBUILD" || { echo "FAIL: unmountable slot must not fail rebuild" >&2; exit 1; }
+    [ -f "$ARGS_LOG" ] && { echo "FAIL: unmountable slot must be skipped" >&2; exit 1; }
+    [ -e "$tmpdir/mnt-unavail/rootfs.0" ] && { echo "FAIL: failed mount must leave no mount point" >&2; exit 1; }
+
+    # real mount round-trip (the production path: RAUC unmounts the slot
+    # before the handler, so rebuild must mount/umount it itself). Gated on
+    # root + losetup + mkfs.ext4; covered elsewhere otherwise.
+    if [ "$(id -u)" = 0 ] && command -v losetup >/dev/null 2>&1 \
+        && command -v mkfs.ext4 >/dev/null 2>&1; then
+        DISK="$tmpdir/slot.img"
+        dd if=/dev/zero of="$DISK" bs=1M count=4 2>/dev/null
+        mkfs.ext4 -q -F "$DISK"
+        LO=""
+        LO=$(timeout 10 losetup -f --show "$DISK" 2>/dev/null) || LO=""
+        if [ -n "$LO" ]; then
+            rm -f "$ARGS_LOG"
+            RAUC_TARGET_SLOTS=1 \
+                RAUC_SLOT_NAME_1=rootfs.1 RAUC_SLOT_CLASS_1=rootfs \
+                RAUC_SLOT_BOOTNAME_1=B RAUC_SLOT_DEVICE_1="$LO" \
+                RAUC_MOUNT_PREFIX="$tmpdir/mnt-real" \
+                MERGE_SCRIPT="$STUB" OVERLAY_CONF="$CONF_PRESENT" OVERLAY_DATA="$tmpdir/out-data" \
+                "$REBUILD" || { echo "FAIL: real-mount rebuild failed" >&2; losetup -d "$LO"; exit 1; }
+            assert_eq "$(cat "$ARGS_LOG" 2>/dev/null)" \
+                "$CONF_PRESENT $tmpdir/out-data B $tmpdir/mnt-real/rootfs.1" "real mount round-trip argv"
+            if awk -v p="$tmpdir/mnt-real/rootfs.1" '$2==p {found=1} END {exit !found}' /proc/mounts 2>/dev/null; then
+                echo "FAIL: slot mount leaked after rebuild" >&2
+                losetup -d "$LO"
+                exit 1
+            fi
+            losetup -d "$LO"
+        else
+            echo "WARN: no loop device, skipped real-mount rebuild round-trip" >&2
+        fi
+    else
+        echo "WARN: not root or missing losetup/mkfs.ext4, skipped real-mount rebuild round-trip" >&2
+    fi
 else
     echo "WARN: rebuild-merged-fit not found at $REBUILD, skipped" >&2
 fi

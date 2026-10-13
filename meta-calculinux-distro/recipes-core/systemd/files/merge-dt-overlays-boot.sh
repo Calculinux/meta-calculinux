@@ -15,11 +15,13 @@
 #            post-install merge passes the freshly installed slot's rootfs
 #            mount, pairing the new slot's kernel with its own .dtbo files
 #            (issue #239: overlays missing on the first boot after an
-#            update). For overlay entries, each search location is tried
-#            under ROOT first, then on the live system - user-added .dtbo
-#            files live on the persistent /data overlay layer, which the
-#            raw slot rootfs does not expose. CONFIG and DATA_MP never are
-#            anchored.
+#            update). For overlay entries, EVERY search location under ROOT
+#            is tried before ANY live-system location - the new slot's
+#            .dtbo files match its own base DTB - so a stale live copy never
+#            replaces an overlay shipped with the slot. Live locations only
+#            cover what the raw slot rootfs lacks, namely user-added files
+#            that persist across slots on the /data overlay layer. CONFIG
+#            and DATA_MP never are anchored.
 
 # Load stamp helpers (fit_kernel_stamp, stamp_matches, stamp_should_drop)
 _FIT_STAMP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -50,10 +52,13 @@ merged_fit_name() {
 }
 
 # Locate one overlay entry (a name or an absolute path) from the config.
-# With ROOT set (merge for a freshly installed slot) every search location
-# is tried under ROOT first - the new slot's .dtbo files match its own base
-# DTB - then on the live system, where user-added files persist across
-# slots on the /data overlay layer. Prints the path found; fails otherwise.
+# With ROOT set (merge for a freshly installed slot) EVERY search location
+# is tried under ROOT before ANY live-system location - the new slot's
+# .dtbo files match its own base DTB - then, if no installed-slot copy
+# exists, on the live system, where user-added files persist across slots
+# on the /data overlay layer. Location order within each phase is
+# /etc/devicetree, /boot/devicetree, /lib/firmware/overlays. Prints the
+# path found; fails otherwise.
 resolve_overlay() {
     local line="$1" loc
     if [[ "$line" == /* ]]; then
@@ -66,11 +71,16 @@ resolve_overlay() {
         return 0
     fi
     [[ "$line" != *.dtbo ]] && line="${line}.dtbo"
-    for loc in "/etc/devicetree/$line" "/boot/devicetree/$line" "/lib/firmware/overlays/$line"; do
-        if [[ -n "$ROOT" && -f "$ROOT$loc" ]]; then
-            printf '%s' "$ROOT$loc"
-            return 0
-        fi
+    local locs=( "/etc/devicetree/${line}" "/boot/devicetree/${line}" "/lib/firmware/overlays/${line}" )
+    if [[ -n "$ROOT" ]]; then
+        for loc in "${locs[@]}"; do
+            if [[ -f "$ROOT$loc" ]]; then
+                printf '%s' "$ROOT$loc"
+                return 0
+            fi
+        done
+    fi
+    for loc in "${locs[@]}"; do
         if [[ -f "$loc" ]]; then
             printf '%s' "$loc"
             return 0
