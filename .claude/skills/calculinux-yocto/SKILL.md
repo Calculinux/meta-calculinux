@@ -384,10 +384,14 @@ every one of these; check each box before burning build cycles:
   printf 'exec %s "$@"\n' "$CC"; } > wrap) and pass `CC=<wrap> LD=<wrap>` — linking through
   the compiler driver is what those scripts intend anyway (their default is `LD=$CC`).
 - **`PACKAGECONFIG` in non-autotools recipes:** the bare `PACKAGECONFIG` variable holds
-  option *names* only — no class translates the per-option arguments for you (that's what
-  `autotools`/`cmake` do internally). Lift them explicitly (python `d.getVar
-  ('PACKAGECONFIG:%s')` one-liner). Field order is
-  `enable-arg,disable-arg,deps,rdeps` — deps (field 3) land in DEPENDS *and* RDEPENDS;
+  the *enabled* option names only — no class translates the per-option arguments for you
+  (that's what `autotools`/`cmake` do internally). Lift them explicitly, reading each
+  declaration through the canonical flag accessor `d.getVarFlag('PACKAGECONFIG', opt)`
+  (enumerate all declarations with `d.getVarFlags('PACKAGECONFIG')`); emit BOTH sides so
+  disabled options pass their explicit disable argument instead of leaning on configure
+  auto-probes: `' '.join(e.split(',')[0 if o in d.getVar('PACKAGECONFIG').split() else 1]
+                          for o, e in d.getVarFlags('PACKAGECONFIG').items())`. Field order
+  is `enable-arg,disable-arg,deps,rdeps` — deps (field 3) land in DEPENDS *and* RDEPENDS;
   a dep that lands in a spurious 5th field is dropped **without any warning** (symptom:
   feature auto-disabled at configure, or a built plugin whose runtime lib nobody ships).
 - **`DEPENDS = "pkgconfig"` resolves to a TARGET-arch build** that sits in the recipe

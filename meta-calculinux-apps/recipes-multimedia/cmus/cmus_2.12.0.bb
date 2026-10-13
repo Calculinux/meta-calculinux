@@ -45,7 +45,9 @@ PACKAGECONFIG[opus]   = "CONFIG_OPUS=y,CONFIG_OPUS=n,opusfile"
 # sysroot: MPRIS wants a desktop D-Bus session, FFMPEG would bloat a
 # 128 MiB box, discid/cdio/cddb presume an optical drive, and the rest
 # are alternate audio APIs (or Android/macOS backends) with no device
-# counterpart.
+# counterpart. Note OSS is probed against the build HOST's
+# /usr/include/sys/soundcard.h rather than the staged sysroot, so it
+# would enable itself from container contents.
 EXTRA_CONF_ARGS = "\
     CONFIG_AO=n \
     CONFIG_ARTS=n \
@@ -60,6 +62,7 @@ EXTRA_CONF_ARGS = "\
     CONFIG_MP4=n \
     CONFIG_MPC=n \
     CONFIG_MPRIS=n \
+    CONFIG_OSS=n \
     CONFIG_PULSE=n \
     CONFIG_ROAR=n \
     CONFIG_SAMPLERATE=n \
@@ -73,15 +76,16 @@ EXTRA_CONF_ARGS = "\
 # WAV and CUE support is self-contained (no external decoder library),
 # keep it enabled unconditionally.
 #
-# The bare PACKAGECONFIG variable only holds the list of option NAMES;
-# no class translates the per-option arguments for us (autotools does
-# that internally), so lift each enabled option's argument out of its
-# PACKAGECONFIG:<opt> entry explicitly. Disabled options safely stay
-# off: their dependency drops out of DEPENDS too, so configure's
-# pkg-config auto-probes cannot find the codec in the staged sysroot.
+# The bare PACKAGECONFIG variable only holds the list of ENABLED option
+# names; no class translates the per-option arguments for us (autotools
+# does that internally). Read every declared option through the canonical
+# flag accessor and emit BOTH sides: enabled options get their enable
+# argument, disabled ones their explicit disable argument, so feature
+# selection never rests on configure's auto-probes happening to find (or
+# miss) a codec in the staged sysroot.
 CONFIGURE_ARGS_PACKAGECONFIG = "\
-    ${@' '.join(((d.getVar('PACKAGECONFIG:%s' % pc) or ',,,').split(',')[0]) \
-                 for pc in (d.getVar('PACKAGECONFIG') or '').split())} \
+    ${@' '.join(entry.split(',')[0 if pc in (d.getVar('PACKAGECONFIG') or '').split() else 1) \
+                 for pc, entry in d.getVarFlags('PACKAGECONFIG').items())} \
 "
 
 do_configure() {
