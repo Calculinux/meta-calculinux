@@ -12,7 +12,10 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=main \
+# TEMP (revert when cruft PR #7 merges): fetch from the PR branch instead of
+# main so this SRCREV (the branch tip) resolves; after the merge, restore
+# branch=main with the landed SHA.
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=fix/status-bar-polish \
            file://cruft@.service \
            file://cruft-budget-check.sh \
            file://console.default \
