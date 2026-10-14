@@ -18,9 +18,9 @@
 ## Build System Workflow
 
 ### CRITICAL Build Location Rules
-- **NEVER** run build commands from within `meta-calculinux/` directory - creates unwanted build artifacts
-- **ALWAYS** run from parent `calculinux-build/` directory (typically `/home/<username>/repos/calculinux/calculinux-build/`)
-- The `./build` symlink in `meta-calculinux/` points to parent directory but prefer explicit paths
+- **NEVER** run *direct* build commands (`kas-container`, `bitbake`, etc.) from within `meta-calculinux/` - KAS uses the current directory as its work dir, so this plants `src-kas/` and `build/` inside the repo
+- **ALWAYS** run direct `kas-container` / `bitbake` commands from the parent `calculinux-build/` (build root) directory (typically `/home/<username>/repos/calculinux/calculinux-build/`)
+- **The Makefile is the exception:** `make …` runs from `meta-calculinux/` (per the README) and is safe because every target `cd`s to the build root (`BUILD_ROOT`, default `..`) first - artifacts land in the parent's `build/`
 
 ### KAS Container Commands (from calculinux-build/)
 ```bash

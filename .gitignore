@@ -24,6 +24,9 @@ Thumbs.db
 .cursorrules
 meta-calculinux.code-workspace
 
+# skill eval workspace
+.claude/skills/calculinux-yocto-workspace/
+
 # Editor files
 *.swp
 *.swo

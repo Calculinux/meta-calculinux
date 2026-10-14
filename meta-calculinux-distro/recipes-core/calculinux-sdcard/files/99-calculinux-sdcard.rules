@@ -1,0 +1,23 @@
+# Automatic mounting of the external SD card.
+#
+# The boot card occupies mmc0 (ROOT_A/ROOT_B/SWAP/OVERLAY_DATA) and is
+# excluded by the KERNEL match; the external slot appears as mmcblk1,
+# which yields one fixed mountpoint, /run/media/sdcard, because the
+# board exposes a single external slot.
+#
+# Note: KEY=="value" matching in udev rules is glob(3), not regex - "*"
+# is the wildcard and a bare "+" would match a literal plus sign.
+#
+# The udev worker does no filesystem work: on add the event is tagged
+# for systemd, which starts the per-device template service; on remove
+# the matching instance is stopped (a fast private-socket IPC call).
+# All probing, fsck and mount/umount work runs in the service's
+# ExecStart/ExecStop, so a slow e2fsck can never stall other udev
+# workers (admin guide, "Triggering systemd services from udev").
+SUBSYSTEM=="block", ACTION=="add", KERNEL=="mmcblk[1-9]p[0-9]*", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="calculinux-sdcard@%k.service"
+
+# Partition and whole-disk remove uevents both fire; systemctl stop on
+# an instance that is not active is a harmless no-op.
+SUBSYSTEM=="block", ACTION=="remove", KERNEL=="mmcblk[1-9]*", \
+    RUN+="/usr/bin/systemctl stop calculinux-sdcard@%k.service"

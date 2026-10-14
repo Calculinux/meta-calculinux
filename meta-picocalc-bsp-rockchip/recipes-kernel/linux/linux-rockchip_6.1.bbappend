@@ -2,7 +2,11 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 LICENSE = "GPL-2.0-only"
 
-SRCREV = "c26ba687e6aba9f11dbe3d96deef4cb26889c096"
+# Bump PR with every kernel change: the package version is otherwise a constant
+# 6.1-r0 and opkg sees a rebuilt kernel as already installed.
+PR = "r5"
+
+SRCREV = "cba70010f688abfb03ab4fad951f08dd188bc3f2"
 
 # Kernel config fragments: all .cfg files in files/ are auto-included.
 # Add new fragments by copying to files/ (e.g. via scripts/copy-kernel-fragment.sh).

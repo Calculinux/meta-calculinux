@@ -26,6 +26,7 @@ RDEPENDS:${PN} = " \
     bluez5 \
     bombadillo \
     circumflex \
+    cmus \
     criu \
     diffutils \
     dosbox-x \
@@ -44,6 +45,7 @@ RDEPENDS:${PN} = " \
     iotop \
     jq \
     kiwix-tools \
+    kmsgrab \
     libtool \
     lsof \
     m4 \
