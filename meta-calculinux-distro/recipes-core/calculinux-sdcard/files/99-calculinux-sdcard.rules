@@ -1,0 +1,20 @@
+# Automatic mounting of the external SD card.
+#
+# The boot card occupies mmc0 (ROOT_A/ROOT_B/SWAP/OVERLAY_DATA) and is
+# excluded here by the KERNEL match; the external slot appears as
+# mmcblk1, which yields one fixed mountpoint, /run/media/sdcard,
+# because the board exposes a single external slot. The mountpoint
+# lives on the /run tmpfs (read-only rootfs): the handler creates it.
+#
+# Priority 99 is deliberate: blkid (60-persistent-storage) probes on the
+# same uevent, before any RUN handler fires, so ID_FS_* is populated in
+# the script's environment by the time it runs. All further decisions
+# (removable?, filesystem type?, already mounted?) live in the script so
+# that every rejection is logged to the journal.
+SUBSYSTEM=="block", ACTION=="add", KERNEL=="mmcblk[1-9]p[0-9]+", \
+    RUN+="/usr/lib/calculinux/calculinux-sdcard.sh"
+
+# Both the partition and the whole-disk remove uevents reach the script;
+# it deduplicates via findmnt, so the second event is a no-op.
+SUBSYSTEM=="block", ACTION=="remove", KERNEL=="mmcblk[1-9]*", \
+    RUN+="/usr/lib/calculinux/calculinux-sdcard.sh"
