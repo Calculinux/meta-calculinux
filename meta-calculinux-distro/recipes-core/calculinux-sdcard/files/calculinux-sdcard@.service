@@ -1,0 +1,16 @@
+# Drives /usr/lib/calculinux/calculinux-sdcard.sh for one partition of
+# the external card. Started from udev via TAG+="systemd" +
+# ENV{SYSTEMD_WANTS} on the partition add uevent, stopped on the remove
+# uevent. Deliberately never enabled at boot: the unit only exists while
+# the card (instance %i) exists.
+[Unit]
+Description=Calculinux external SD card mount handler (%i)
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A slow preen of a large dirty ext card can take minutes; the default
+# start timeout would kill it mid-check.
+TimeoutStartSec=600
+ExecStart=/usr/lib/calculinux/calculinux-sdcard.sh mount %i
+ExecStop=/usr/lib/calculinux/calculinux-sdcard.sh unmount %i

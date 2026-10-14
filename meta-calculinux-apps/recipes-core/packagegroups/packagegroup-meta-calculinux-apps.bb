@@ -45,6 +45,7 @@ RDEPENDS:${PN} = " \
     iotop \
     jq \
     kiwix-tools \
+    kmsgrab \
     libtool \
     lsof \
     m4 \

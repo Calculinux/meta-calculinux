@@ -51,6 +51,7 @@ IMAGE_INSTALL += " \
     i2c-tools \
     iw \
     iwd \
+    kmsgrab \
     kbd-keymaps \
     kernel-modules \
     less \
