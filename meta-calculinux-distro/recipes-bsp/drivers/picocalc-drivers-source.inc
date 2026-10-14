@@ -22,4 +22,3 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   driver's pace check starts at the first frame the M0 reads, and
 #   comp_gave_up is gone (the lag check only logs a warning).
 SRCREV = "0d07ac88e6b0ef30cdb9dc69f2da2645df9fe34a"
-S = "${WORKDIR}/git"

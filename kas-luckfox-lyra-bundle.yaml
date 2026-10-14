@@ -9,18 +9,18 @@ target:
   - calculinux-bundle
   - packagegroup-meta-calculinux-apps
 
-# walnascar checkout
+# wrynose companion layers (pinned commits)
 repos:
   meta-arm:
     url: https://git.yoctoproject.org/meta-arm
-    commit: 2de04c3d31e119d4bedbea24b9c63a8c113a1ce3
+    commit: 0979b80429099f1a42dc0026c8c466cee780bc74
     layers:
       meta-arm-bsp:
       meta-arm-toolchain:
       meta-arm:
   meta-rockchip:
     url: https://github.com/JeffyCN/meta-rockchip.git
-    commit: 71aa531a2018724a713c9587059bc53fcbd05a23
+    commit: 2e362c6c7ae50926657d762076f9ec013c406de4
     layers:
       .:
   meta-rtlwifi:
@@ -34,7 +34,7 @@ repos:
         path: patches/rtlwifi.patch
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
-    commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
+    commit: 38da0e5866a953e664001ba90b5edad68d68cd5d
   meta-calculinux:
     layers:
       meta-calculinux-distro:

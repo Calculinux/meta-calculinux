@@ -13,11 +13,9 @@ inherit go-mod
 
 # Tildegit requires HTTPS
 SRC_URI = "\
-    git://${GO_IMPORT};destsuffix=git/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
+    git://${GO_IMPORT};destsuffix=${BB_GIT_DEFAULT_DESTSUFFIX}/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
 "
 
 SRCREV = "b171dc2230fcd2dec5cf5ab9d461f2470d799bbe"
-
-S = "${WORKDIR}/git"
 
 GO_IMPORT = "tildegit.org/sloum/bombadillo"

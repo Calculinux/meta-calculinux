@@ -14,11 +14,11 @@ machine: calculinux-qemuarm
 target:
   - calculinux-image
 
-# walnascar checkout
+# wrynose checkout (same meta-rauc as kas-luckfox-lyra-bundle.yaml)
 repos:
   meta-rauc:
     url: https://github.com/rauc/meta-rauc.git
-    commit: a0b83842d131093e89fa4fefaaa1997f05afdf62
+    commit: 38da0e5866a953e664001ba90b5edad68d68cd5d
   meta-calculinux:
     layers:
       meta-calculinux-distro:

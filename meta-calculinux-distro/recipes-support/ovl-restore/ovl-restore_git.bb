@@ -12,7 +12,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171d
 SRC_URI = "git://github.com/Calculinux/overlayfs.git;protocol=https;branch=main"
 SRCREV = "5197262f25fbb96edf45937443df26e1967c5453"
 
-S = "${WORKDIR}/git/tools/ovl-restore"
+S = "${UNPACKDIR}/${BP}/tools/ovl-restore"
 
 PV = "1.1.0+git"
 

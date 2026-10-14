@@ -16,8 +16,6 @@ SRC_URI = "git://github.com/Calculinux/calculinux-emulator-launcher.git;protocol
 SRCREV = "b034f954f7aba9c6ba7a585bfce758e801ff9b15"
 PV = "0.1.0+git"
 
-S = "${WORKDIR}/git"
-
 DEPENDS = "libsdl2 curl"
 
 inherit cmake pkgconfig

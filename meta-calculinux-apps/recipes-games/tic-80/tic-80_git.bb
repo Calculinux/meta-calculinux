@@ -16,7 +16,6 @@ SRC_URI = "gitsm://github.com/nesbox/TIC-80.git;protocol=https;branch=main"
 # the last revision verified to build in this tree; tracking upstream again
 # needs the recipe adaptations a release pin will bring.
 SRCREV = "ae1195a9d0fbda243bf0ebd861d6876d072a979e"
-S = "${WORKDIR}/git"
 
 DEPENDS = "\
     libsdl2 \

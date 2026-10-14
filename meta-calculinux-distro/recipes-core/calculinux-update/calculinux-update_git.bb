@@ -9,7 +9,6 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;nobranch=1;protocol=https"
 SRCREV = "c5f25874d3be861515df4e26bf43af70fad987cb"
 
-S = "${WORKDIR}/git"
 
 # Use SRCPV for automatic git-based versioning (format: <base>+git<revision>)
 PV = "0.9.1+git${SRCPV}"
