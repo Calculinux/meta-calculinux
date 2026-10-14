@@ -1,0 +1,44 @@
+libpicofe: fall back to the packaged skin directory
+
+plat_get_skin_dir() only ever reported <exe_dir>/skin/, which suits
+running from an extracted release archive but not a packaged install.
+When PACKAGE_DATA_SKIN is defined (the recipe defines it for
+linux/plat.o), fall back to that directory if there is no local skin/
+next to the executable. Local skin/ still wins, so customised artwork
+dropped next to the binary keeps working; undefining the macro restores
+vanilla behaviour.
+
+diff --git a/frontend/libpicofe/linux/plat.c b/frontend/libpicofe/linux/plat.c
+index 2cdcace..638f9e4 100644
+--- a/frontend/libpicofe/linux/plat.c
++++ b/frontend/libpicofe/linux/plat.c
+@@ -81,11 +81,28 @@ static int plat_get_exe_dir(char *dst, int len)
+ int plat_get_skin_dir(char *dst, int len)
+ {
+ 	int ret = plat_get_exe_dir(dst, len);
++	int dl;
++
+ 	if (ret < 0)
+ 		ret = 0;
+ 
++	if (ret + (int)sizeof "skin/" < len) {
++		dl = ret + (int)sizeof "skin/" - 1;
++		memcpy(dst + ret, "skin/", sizeof "skin/");
++		if (plat_is_dir(dst))
++			return dl;
++	}
++
++#ifdef PACKAGE_DATA_SKIN
++	/* packaged builds ship the skin in datadir, not beside the binary */
++	ret = snprintf(dst, len, PACKAGE_DATA_SKIN "/");
++	if (ret >= len)
++		ret = len - 1;
++	return ret;
++#else
+ 	memcpy(dst + ret, "skin/", sizeof "skin/");
+-	return ret + sizeof("skin/") - 1;
++	return ret + (int)sizeof "skin/" - 1;
++#endif
+ }
+ 
+ #ifndef PICO_HOME_DIR
