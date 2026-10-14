@@ -4,7 +4,12 @@ SRC_URI:append = "\
     file://system.conf.in \
     file://post-install-handler.sh \
     file://invalidate-merged-fit \
+    file://rebuild-merged-fit \
 "
+
+# post-install-handler.sh calls the merge script from the merge-dt-overlays-boot
+# package (rebuild-merged-fit); keep the pair together.
+RDEPENDS:${PN} += "merge-dt-overlays-boot"
 
 RAUC_SYSTEMCONF_TEMPLATE = "${UNPACKDIR}/system.conf.in"
 
@@ -44,6 +49,7 @@ do_install:append() {
     install -d ${D}${libdir}/rauc
     install -m 0755 ${UNPACKDIR}/post-install-handler.sh ${D}${libdir}/rauc/post-install-handler.sh
     install -D -m 0755 ${UNPACKDIR}/invalidate-merged-fit ${D}${libdir}/rauc/invalidate-merged-fit
+    install -D -m 0755 ${UNPACKDIR}/rebuild-merged-fit ${D}${libdir}/rauc/rebuild-merged-fit
 }
 
-FILES:${PN} += "${libdir}/rauc/post-install-handler.sh ${libdir}/rauc/invalidate-merged-fit"
+FILES:${PN} += "${libdir}/rauc/post-install-handler.sh ${libdir}/rauc/invalidate-merged-fit ${libdir}/rauc/rebuild-merged-fit"

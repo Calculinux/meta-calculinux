@@ -27,6 +27,7 @@ RDEPENDS:${PN} = " \
     bluez5 \
     bombadillo \
     circumflex \
+    cmus \
     criu \
     diffutils \
     dosbox-x \
