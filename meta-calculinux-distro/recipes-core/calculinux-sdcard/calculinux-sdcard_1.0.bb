@@ -82,13 +82,14 @@ do_install() {
     # until the card is mounted (the /run tmpfs holds the real dir) and
     # resolves afterwards; /run exists on every boot so the link never
     # needs recreating.
-    # ${prefix} is "/" so the link lands at ${D}/sdcard.
-    ln -s /run/media/sdcard ${D}${prefix}/sdcard
+    # Bare ${D}: in bitbake ${prefix} is /usr, so deriving the root-level
+    # path from it would mis-install the link at /usr/sdcard.
+    ln -s /run/media/sdcard ${D}/sdcard
 }
 
 FILES:${PN} = " \
     ${nonarch_base_libdir}/udev/rules.d/99-calculinux-sdcard.rules \
     ${nonarch_base_libdir}/calculinux/calculinux-sdcard.sh \
     ${systemd_system_unitdir}/calculinux-sdcard@.service \
-    ${prefix}/sdcard \
+    /sdcard \
 "
