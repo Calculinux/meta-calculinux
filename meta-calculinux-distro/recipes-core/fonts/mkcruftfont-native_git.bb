@@ -6,13 +6,13 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# TEMP (revert with cruft_git.bb when the scrollback stack — cruft
-# #4/#5/#6/#10 — merges): fetch from the stack-tip branch so this SRCREV
-# (the branch tip) resolves against branch=.
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/sb-disk"
+# TEMP (revert with cruft_git.bb when the full stack — cruft
+# #4/#5/#6/#10/#11 — merges): fetch from the stack-tip branch so this
+# SRCREV (the branch tip) resolves against branch=.
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/etcc"
 # Keep in sync with recipes-core/cruft/cruft_git.bb SRCREV (bump both together).
-SRCREV = "5c19d54843d41a0df6a6f7eb0dea7c2783183e6f"
-PV = "0.2.9+git${SRCPV}"
+SRCREV = "f768d66a33bcb555f7290b65969463a0482afbfb"
+PV = "0.2.10+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 

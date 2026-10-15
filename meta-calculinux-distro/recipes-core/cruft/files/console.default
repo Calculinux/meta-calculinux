@@ -3,40 +3,18 @@
 #
 #   cruft  — userspace framebuffer terminal (Unicode, .cruftfont)
 #   kernel — kernel fbcon + agetty
+#
+# The VT wiring (masked gettys, boot-VT wants, on-demand autovt@
+# alias) is written to /etc/systemd/system at install time; run
+# `console-mode apply` after changing CONSOLE or CONSOLE_TTYS.
+# cruft's own knobs (font, status bar, scrollback) live in
+# /etc/cruft.conf.
 CONSOLE=cruft
 
 # Space-separated VT numbers to manage (matches systemd NAutoVTs default).
 # Only the first entry is started at boot; the rest start on first Alt-Fn
-# via logind's autovt@ttyN (wired to cruft@ by the generator).
+# via logind's autovt@ttyN (aliased to cruft@).
 CONSOLE_TTYS="1 2 3 4 5 6"
-
-# cruft font profile (ignored when CONSOLE=kernel):
-#   default — 6x12 Terminus+Fairfax  (/usr/share/cruft/console.cruftfont)  ~53x26
-#   miniwi  — 4x8  geekmaster/miniwi (/usr/share/cruft/miniwi.cruftfont)   ~80x40
-#   unifont — 8x16 GNU Unifont       (/usr/share/cruft/unifont.cruftfont)  ~40x20
-# Or set CRUFT_FONT=/path/to/file.cruftfont to override.
-# After changing CONSOLE_FONT: `console-mode apply`, then log out/in on each VT
-# (systemd restarts that VT's cruft; a logout is enough — no reboot needed).
-CONSOLE_FONT=default
-
-# Status bar in the top margin strip (cruft only; on by default when the
-# miniwi status font is installed). Segments, comma-joined, no spaces:
-#   time  wifi  battery  brightness  all  (default)  none  (or 0)
-# A segment whose data source is absent (VM, no battery, ...) is hidden.
-#CRUFT_SB=all
-# Status bar clock format: 24 (default) or 12 (shows H:MMam/pm).
-#SB_CLOCK=24
-# After changing: `console-mode apply`, then log out/in on each VT.
-
-# Scrollback history (cruft only): TOTAL depth in rows, RAM + disk
-# (default 96, cap 16384; 0 disables history and the scrollbar).
-# Rows older than the RAM tier spill to a session file in /var/tmp
-# (removed on exit); see cruft(1).
-#CRUFT_HISTORY=96
-# Rows of that depth kept in the RAM tier (default 512): only depths
-# above this value use the disk tier.
-#CRUFT_SB_RAM=512
-# After changing: `console-mode apply`, then log out/in on each VT.
 
 # Optional kernel fbcon font (CONSOLE=kernel only): install terminus-font, then
 # put e.g. FONT=ter-u12n.psf.gz in /etc/vconsole.conf and reboot (or
