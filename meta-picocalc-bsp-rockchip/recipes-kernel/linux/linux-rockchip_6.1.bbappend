@@ -4,7 +4,14 @@ LICENSE = "GPL-2.0-only"
 
 # Bump PR with every kernel change: the package version is otherwise a constant
 # 6.1-r0 and opkg sees a rebuilt kernel as already installed.
+#
+# PR is also stamped into the kernel version string: LINUX_VERSION_EXTENSION
+# ("...-standard") gains the "-r5" suffix, so `uname -r`, the /lib/modules
+# directory and the kernel package names all carry the kernel generation
+# (6.1.99-rockchip-standard-r5). A boot kernel and a module set from different
+# generations no longer masquerade as interchangeable.
 PR = "r5"
+LINUX_VERSION_EXTENSION .= "-${PR}"
 
 SRCREV = "cba70010f688abfb03ab4fad951f08dd188bc3f2"
 
