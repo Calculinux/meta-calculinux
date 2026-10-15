@@ -9,7 +9,10 @@ worker; unmount is ownership-checked so a late remove event cannot \
 tear down a different card. The mountpoint is created at runtime on \
 the /run tmpfs: the read-only rootfs cannot gain directories at \
 runtime, and upstream QA (QA_EMPTY_DIRS) reserves /media for runtime \
-population by a media manager - which this handler effectively is."
+population by a media manager - which this handler effectively is. \
+A build-time /sdcard symlink to the mountpoint ships with the package; \
+it dangles until the card is mounted and needs no runtime recreation \
+since it lives on the persistent rootfs."
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
@@ -73,10 +76,19 @@ do_install() {
 
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 "${UNPACKDIR}/calculinux-sdcard@.service" ${D}${systemd_system_unitdir}/
+
+    # Fixed /sdcard alias for the mountpoint, baked in at build time
+    # because the read-only rootfs gains nothing at runtime. It dangles
+    # until the card is mounted (the /run tmpfs holds the real dir) and
+    # resolves afterwards; /run exists on every boot so the link never
+    # needs recreating.
+    # ${prefix} is "/" so the link lands at ${D}/sdcard.
+    ln -s /run/media/sdcard ${D}${prefix}/sdcard
 }
 
 FILES:${PN} = " \
     ${nonarch_base_libdir}/udev/rules.d/99-calculinux-sdcard.rules \
     ${nonarch_base_libdir}/calculinux/calculinux-sdcard.sh \
     ${systemd_system_unitdir}/calculinux-sdcard@.service \
+    ${prefix}/sdcard \
 "
