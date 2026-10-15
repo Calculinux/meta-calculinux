@@ -98,19 +98,24 @@ if [ -n "${CRUFT_SB:-}" ]; then
 fi
 
 # Scrollback knobs (cruft only): total depth and the RAM-tier split.
-# Plain non-negative integers; cruft clamps them (0 disables history).
-case "${CRUFT_HISTORY:-}" in
-''|*[!0-9]*)
+# Plain non-negative integers; an empty value passes and cruft applies its
+# built-in default; any other value must be all digits.
+is_nonneg_int() {
+	# $1: value to gate.
+	case "${1:-}" in
+	'') return 0 ;;
+	*[!0-9]*) return 1 ;;
+	esac
+	return 0
+}
+is_nonneg_int "$CRUFT_HISTORY" || {
 	echo "cruft-generator: CRUFT_HISTORY='${CRUFT_HISTORY:-}' (non-negative integer rows)" >&2
 	exit 1
-	;;
-esac
-case "${CRUFT_SB_RAM:-}" in
-''|*[!0-9]*)
+}
+is_nonneg_int "$CRUFT_SB_RAM" || {
 	echo "cruft-generator: CRUFT_SB_RAM='${CRUFT_SB_RAM:-}' (non-negative integer rows)" >&2
 	exit 1
-	;;
-esac
+}
 
 # shellcheck disable=SC2086
 set -- $CONSOLE_TTYS
@@ -219,6 +224,21 @@ if [ "$self_check" -eq 1 ]; then
 		echo "autovt@.service.d missing CRUFT_SB_12H pass-through" >&2
 		exit 1
 	}
+	# Knob gating: empty (built-in default) and numeric pass; garbage fails.
+	if ! is_nonneg_int ""; then
+		echo "self-check: empty knob value must pass" >&2
+		exit 1
+	fi
+	is_nonneg_int 0 || { echo "self-check: 0 must pass" >&2; exit 1; }
+	is_nonneg_int 16384 || { echo "self-check: 16384 must pass" >&2; exit 1; }
+	if is_nonneg_int 12x; then
+		echo "self-check: '12x' must be rejected" >&2
+		exit 1
+	fi
+	if is_nonneg_int -1; then
+		echo "self-check: '-1' must be rejected" >&2
+		exit 1
+	fi
 	echo "cruft-generator: self-check ok"
 fi
 
