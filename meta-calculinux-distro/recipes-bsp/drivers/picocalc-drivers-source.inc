@@ -21,5 +21,14 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   clipped -> 0.37 FS, average -12 -> -29 dBFS, docs/m0-audio.md), the
 #   driver's pace check starts at the first frame the M0 reads, and
 #   comp_gave_up is gone (the lag check only logs a warning).
-SRCREV = "0d07ac88e6b0ef30cdb9dc69f2da2645df9fe34a"
+# + picocalc-drivers#43 (merged): re-triggered streams no longer die. A
+#   START finding the stream already running (userspace xrun recovery
+#   re-triggers through stop/prepare/start) used to answer -EALREADY,
+#   wedging the core in a POLLERR dead end with the M0 bit-banging the
+#   stale ring forever; it now re-arms the handover worker. The driver
+#   also stamps runtime->trigger_tstamp on every start, so
+#   timestamp-based userspace (cpal/rodio, e.g. ratune) sees a
+#   consistent non-zero trigger timestamp instead of shedding the
+#   stream over a zero or stale one.
+SRCREV = "88b33c1dac43aa78795022a7d2c948bf6c880971"
 S = "${WORKDIR}/git"
