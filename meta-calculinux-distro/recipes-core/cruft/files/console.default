@@ -21,11 +21,21 @@ CONSOLE_FONT=default
 
 # Status bar in the top margin strip (cruft only; on by default when the
 # miniwi status font is installed). Segments, comma-joined, no spaces:
-#   time  wifi  battery  brightness  all  (default)  none
+#   time  wifi  battery  brightness  all  (default)  none  (or 0)
 # A segment whose data source is absent (VM, no battery, ...) is hidden.
 #CRUFT_SB=all
 # Status bar clock format: 24 (default) or 12 (shows H:MMam/pm).
 #SB_CLOCK=24
+# After changing: `console-mode apply`, then log out/in on each VT.
+
+# Scrollback history (cruft only): TOTAL depth in rows, RAM + disk
+# (default 96, cap 16384; 0 disables history and the scrollbar).
+# Rows older than the RAM tier spill to a session file in /var/tmp
+# (removed on exit); see cruft(1).
+#CRUFT_HISTORY=96
+# Rows of that depth kept in the RAM tier (default 512): only depths
+# above this value use the disk tier.
+#CRUFT_SB_RAM=512
 # After changing: `console-mode apply`, then log out/in on each VT.
 
 # Optional kernel fbcon font (CONSOLE=kernel only): install terminus-font, then

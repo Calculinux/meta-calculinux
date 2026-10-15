@@ -12,18 +12,18 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# TEMP (revert when cruft PR #7 merges): fetch from the PR branch instead of
-# main so this SRCREV (the branch tip) resolves; after the merge, restore
-# branch=main with the landed SHA.
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=fix/status-bar-polish \
+# TEMP (revert when the scrollback stack — cruft #4/#5/#6/#10 — merges):
+# fetch from the stack-tip branch instead of main so this SRCREV resolves;
+# after the merge, restore branch=main with the landed SHA.
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/sb-disk \
            file://cruft@.service \
            file://cruft-budget-check.sh \
            file://console.default \
            file://cruft-generator \
            file://console-mode \
            "
-SRCREV = "8c9def21a880d2e00640715b537537e825221c17"
-PV = "0.1.0+git${SRCPV}"
+SRCREV = "5c19d54843d41a0df6a6f7eb0dea7c2783183e6f"
+PV = "0.2.9+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
@@ -57,6 +57,7 @@ do_compile() {
         -o ${WORKDIR}/cruft-selftest \
         ${S}/tests/selftest.c ${S}/cell_pixmap.c ${S}/drcs.c \
         ${S}/sixel_canvas.c ${S}/glyph_mmap.c ${S}/terminal_cell.c \
+        ${S}/scrollback.c ${S}/sbdisk.c \
         ${S}/status.c
     ${WORKDIR}/cruft-selftest
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 # systemd generator: wire VTs to cruft or leave kernel gettys alone.
 # Reads /etc/default/console (CONSOLE, CONSOLE_TTYS, CONSOLE_FONT / CRUFT_FONT,
-# CRUFT_SB, SB_CLOCK) and passes the status bar knobs through to the services.
+# CRUFT_SB, SB_CLOCK, CRUFT_HISTORY, CRUFT_SB_RAM) and passes the status bar
+# and scrollback knobs through to the services.
 #
 # Boot: only the first CONSOLE_TTYS entry (usually tty1) is started.
 # Further VTs are started on demand by logind as autovt@ttyN (symlink → cruft@).
@@ -17,6 +18,8 @@ CONSOLE_FONT=default
 CRUFT_FONT=
 CRUFT_SB=
 SB_CLOCK=
+CRUFT_HISTORY=
+CRUFT_SB_RAM=
 UNITDIR="@SYSTEMD_SYSTEM_UNITDIR@"
 
 self_check=0
@@ -32,6 +35,8 @@ if [ "${1:-}" = "--self-check" ]; then
 	CONSOLE_FONT=miniwi
 	CRUFT_SB="time,battery"
 	SB_CLOCK=12
+	CRUFT_HISTORY=64
+	CRUFT_SB_RAM=32
 elif [ -z "$normal_dir" ]; then
 	echo "cruft-generator: missing output directory" >&2
 	exit 1
@@ -92,6 +97,21 @@ if [ -n "${CRUFT_SB:-}" ]; then
 	esac
 fi
 
+# Scrollback knobs (cruft only): total depth and the RAM-tier split.
+# Plain non-negative integers; cruft clamps them (0 disables history).
+case "${CRUFT_HISTORY:-}" in
+''|*[!0-9]*)
+	echo "cruft-generator: CRUFT_HISTORY='${CRUFT_HISTORY:-}' (non-negative integer rows)" >&2
+	exit 1
+	;;
+esac
+case "${CRUFT_SB_RAM:-}" in
+''|*[!0-9]*)
+	echo "cruft-generator: CRUFT_SB_RAM='${CRUFT_SB_RAM:-}' (non-negative integer rows)" >&2
+	exit 1
+	;;
+esac
+
 # shellcheck disable=SC2086
 set -- $CONSOLE_TTYS
 boot_tty=$1
@@ -114,6 +134,12 @@ font_dropin() {
 		fi
 		if [ -n "$sb_12h" ]; then
 			printf 'Environment=CRUFT_SB_12H=1\n'
+		fi
+		if [ -n "${CRUFT_HISTORY:-}" ]; then
+			printf 'Environment=CRUFT_HISTORY=%s\n' "$CRUFT_HISTORY"
+		fi
+		if [ -n "${CRUFT_SB_RAM:-}" ]; then
+			printf 'Environment=CRUFT_SB_RAM=%s\n' "$CRUFT_SB_RAM"
 		fi
 	} > "$1/10-font.conf"
 }
@@ -171,6 +197,16 @@ if [ "$self_check" -eq 1 ]; then
 	grep -q 'CRUFT_SB_12H=1' \
 		"$normal_dir/cruft@.service.d/10-font.conf" || {
 		echo "cruft@.service.d missing CRUFT_SB_12H pass-through" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_HISTORY=64' \
+		"$normal_dir/cruft@.service.d/10-font.conf" || {
+		echo "cruft@.service.d missing CRUFT_HISTORY pass-through" >&2
+		exit 1
+	}
+	grep -q 'CRUFT_SB_RAM=32' \
+		"$normal_dir/cruft@.service.d/10-font.conf" || {
+		echo "cruft@.service.d missing CRUFT_SB_RAM pass-through" >&2
 		exit 1
 	}
 	grep -q 'CRUFT_SB=time,battery' \
