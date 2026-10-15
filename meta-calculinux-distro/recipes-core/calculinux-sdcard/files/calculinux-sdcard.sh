@@ -48,11 +48,15 @@ mount)
     dev="/dev/$KNAME"
     [ -b "$dev" ] || { log "$dev is not a block device, skipping"; exit 0; }
 
-    # Additive-only gate: the card must be a removable one, so the boot
-    # card can never be caught here even if bus numbers shift on a
-    # future DTB.
-    [ "$(cat "/sys/block/$disk/removable" 2>/dev/null)" = "1" ] ||
-        { log "$disk is not removable, skipping"; exit 0; }
+    # No /sys/block/<disk>/removable check here, on purpose: the kernel
+    # MMC core never sets GENHD_FL_REMOVABLE for any mmcblk* device -
+    # by design an MMC block device is a "permanent block device with
+    # removable media", so the flag stays 0 for eMMC and SD cards alike
+    # and the kernel steers userspace to the block add/remove hotplug
+    # events instead. Presence is exactly what the udev rule tracks:
+    # this unit only ever starts on the partition add uevent, and the
+    # KERNEL=="mmcblk[1-9]p[0-9]*" match already keeps the boot card
+    # (mmcblk0) out of this handler's reach.
 
     # Physical probe: the udev event environment does not reach the
     # service, so ask blkid directly. Filters out swap, boot/EFI and
@@ -100,8 +104,14 @@ mount)
     esac
 
     # nosuid/nodev: externally controlled media, keep the usual
-    # removable-media restrictions in force.
-    if mount -o noatime,nosuid,nodev "$dev" "$MP"; then
+    # removable-media restrictions in force. sync: nobody unmounts
+    # before pulling the card - the remove uevent arrives at best a
+    # moment too late for that - so every write must hit the media
+    # before the writer sees success. Journal-commit knobs cannot give
+    # that guarantee (buffered data pages are still lost on a yank);
+    # synchronous writes are the durable floor. The throughput cost is
+    # acceptable for this utility slot.
+    if mount -o noatime,nosuid,nodev,sync "$dev" "$MP"; then
         log "mounted $dev ($fs_type) on $MP"
     else
         log "mount of $dev ($fs_type) failed"
