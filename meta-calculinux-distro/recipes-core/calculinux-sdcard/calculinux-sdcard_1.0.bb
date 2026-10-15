@@ -24,8 +24,37 @@ inherit systemd
 # The template is started dynamically from udev (TAG+="systemd" +
 # ENV{SYSTEMD_WANTS}); it must never be enabled at boot, and an
 # uninstantiated template has nothing to enable in the first place.
+# The unit stays declared for documentation, but no packaging scripts
+# are generated: the class would emit a prerm running
+# `systemctl stop calculinux-sdcard@.service` on the *uninstantiated
+# template*, which systemd refuses ("missing the instance name") and
+# which aborts every `opkg remove` of this package (the generated prerm
+# runs under `set -e`), wedging cup's post-reboot duplicate removal on
+# every boot. Instance lifecycle is fully udev-driven (the udev rule
+# stops `calculinux-sdcard@%k.service` per card on disconnect), so no
+# package lifecycle script is needed at all.
 SYSTEMD_SERVICE:${PN} = "calculinux-sdcard@.service"
+SYSTEMD_PACKAGES = ""
 SYSTEMD_AUTO_ENABLE = "disable"
+
+# A template cannot be stopped - systemd refuses an uninstantiated
+# "systemctl stop calculinux-sdcard@.service" ("missing the instance
+# name") - but an inserted card can still have a live instance when
+# the package is removed, and removal whiteouts the udev rule and the
+# handler its ExecStop relies on. Stop the instantiated units instead;
+# enumeration via list-units patterns only ever yields concrete
+# instances. Failures never abort the removal: a unit that cannot be
+# stopped stays managed until the card is ejected or the next boot.
+pkg_prerm:${PN} () {
+    [ -z "$D" ] || return 0
+    command -v systemctl >/dev/null 2>&1 || return 0
+    for unit in $(systemctl list-units --quiet --no-legend \
+                    --property=Names 'calculinux-sdcard@*.service' \
+                    2>/dev/null | cut -d= -f2); do
+        [ -n "$unit" ] && systemctl stop "$unit" || true
+    done
+    return 0
+}
 
 RDEPENDS:${PN} = " \
     coreutils \
