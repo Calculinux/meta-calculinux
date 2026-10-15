@@ -12,6 +12,13 @@ DEPENDS = "libarchive zstd"
 
 PE = "1"
 
+# Bump PR with every opkg change: the package version is otherwise the
+# constant 1:0.9.0-r0 and a feed client running an older build sees the
+# rebuilt opkg as already installed, so it is never upgraded from the feed
+# (opkg is the one package that updates itself). Same discipline as the
+# PicoCalc kernel recipe.
+PR = "r1"
+
 # Calculinux fork of opkg 0.9.0 with image status file support and query
 # filtering. Already includes upstream config.h.in typo and cmake ACL/XATTR
 # fixes. Adds `opkg restore`, a durable removal journal for image-only
