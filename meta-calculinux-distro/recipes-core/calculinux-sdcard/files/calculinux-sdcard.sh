@@ -104,8 +104,14 @@ mount)
     esac
 
     # nosuid/nodev: externally controlled media, keep the usual
-    # removable-media restrictions in force.
-    if mount -o noatime,nosuid,nodev "$dev" "$MP"; then
+    # removable-media restrictions in force. sync: nobody unmounts
+    # before pulling the card - the remove uevent arrives at best a
+    # moment too late for that - so every write must hit the media
+    # before the writer sees success. Journal-commit knobs cannot give
+    # that guarantee (buffered data pages are still lost on a yank);
+    # synchronous writes are the durable floor. The throughput cost is
+    # acceptable for this utility slot.
+    if mount -o noatime,nosuid,nodev,sync "$dev" "$MP"; then
         log "mounted $dev ($fs_type) on $MP"
     else
         log "mount of $dev ($fs_type) failed"
