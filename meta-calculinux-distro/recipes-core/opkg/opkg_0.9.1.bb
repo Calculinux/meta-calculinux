@@ -10,17 +10,24 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=94d55d512a9ba36caa9b7df079bae19f \
 
 DEPENDS = "libarchive zstd"
 
+# Keeps this package ahead of the 1:0.9.0-r0 builds that are already in the
+# field.
 PE = "1"
 
-# Calculinux fork of opkg 0.9.0 with image status file support and query filtering.
-# Already includes upstream config.h.in typo and cmake ACL/XATTR fixes.
+# Calculinux fork of opkg 0.9.1 with image status file support and query
+# filtering. Already includes upstream config.h.in typo and cmake ACL/XATTR
+# fixes. Adds `opkg restore`, a durable removal journal for image-only
+# packages, and install-time restoration of whiteout-hidden image packages.
+# The version is declared in the fork itself (CMake project VERSION); keep
+# the recipe name in sync with the fork release so feed clients take each
+# release as a normal upgrade - opkg is the one package that updates itself.
 SRC_URI = "git://github.com/Calculinux/opkg.git;protocol=https;branch=master \
            file://opkg.conf \
            file://0001-opkg_conf-create-opkg.lock-in-run-instead-of-var-run.patch \
            file://run-ptest \
            "
 
-SRCREV = "ff71b83bcc00899cac9ef08c9689fe5ece62e989"
+SRCREV = "0b878b0c6e74ad8fbd508bf4ba86056dc0a3ad37"
 S = "${WORKDIR}/git"
 
 # This needs to be before ptest inherit, otherwise all ptest files end packaged
