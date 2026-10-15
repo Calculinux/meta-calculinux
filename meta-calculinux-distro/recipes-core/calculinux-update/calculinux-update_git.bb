@@ -7,18 +7,20 @@ LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=1ebbd3e34237af26da5dc08a4e440464"
 
 SRC_URI = "git://github.com/Calculinux/calculinux-update.git;nobranch=1;protocol=https"
-SRCREV = "ab6b42740f69ae66e7eabbe4f6f8cbdd8f5111d4"
+SRCREV = "f7c5ee98ede1c52f14bb11ca1683ab7b4b8230d6"
 
-# The +git${SRCPV} hash is not ordered: this SRCREV ("ab...") sorts BELOW the
-# previous one ("c5...") under opkg's Debian-style comparison, so feed clients
-# would skip the upgrade. The epoch makes this version win; keep the effective
-# version monotonically increasing when the pin changes (PE, or PR).
+# The +git${SRCPV} component is a hash, not an ordered version: under opkg's
+# Debian-style comparison a newer pin can sort below an older one. PE keeps
+# every packaged release ahead of the pre-epoch builds in the field; keep the
+# effective version monotonically increasing when the pin changes (PE, PR, or
+# the version base - which should track pyproject.toml).
 PE = "1"
 
 S = "${WORKDIR}/git"
 
 # Use SRCPV for automatic git-based versioning (format: <base>+git<revision>)
-PV = "0.9.1+git${SRCPV}"
+# Keep in sync with the version in the repository's pyproject.toml.
+PV = "0.9.3+git${SRCPV}"
 
 inherit python3-dir python3native systemd
 
