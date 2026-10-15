@@ -14,5 +14,6 @@
 # appropriate homes as the BSP layers are split up.
 
 PICOCALC_PRODUCT_RDEPENDS = " \
+    calculinux-alsa-config \
     calculinux-sdcard \
 "
