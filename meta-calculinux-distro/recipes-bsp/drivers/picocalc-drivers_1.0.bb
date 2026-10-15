@@ -32,12 +32,16 @@ PICOCALC_ALL_MODULE_VIRTUALS = "${PICOCALC_MODULE_VIRTUALS_MFD} ${PICOCALC_MODUL
 inherit module
 #######
 
+inherit systemd
+
+SRC_URI += "file://picocalc-keymap.service"
+
 # Skip QA checks that are problematic for all kernel modules
 INSANE_SKIP:${PN} += "buildpaths debug-files"
 INSANE_SKIP:${PN}-dbg += "buildpaths"
 
 # Define logical package groups - custom packages first, then standard packages
-PACKAGES = "${PN}-mfd ${PN}-kbd ${PN}-lcd-fb ${PN}-lcd-drm ${PN}-snd-pwm ${PN}-snd-softpwm ${PN}-rproc ${PN}-snd-m0 ${PN}-dbg ${PN}-src ${PN}-staticdev ${PN}-dev ${PN}-doc ${PN}-locale ${PN}"
+PACKAGES = "${PN}-mfd ${PN}-kbd ${PN}-keymap ${PN}-lcd-fb ${PN}-lcd-drm ${PN}-snd-pwm ${PN}-snd-softpwm ${PN}-rproc ${PN}-snd-m0 ${PN}-dbg ${PN}-src ${PN}-staticdev ${PN}-dev ${PN}-doc ${PN}-locale ${PN}"
 
 # Package descriptions
 SUMMARY:${PN}-mfd = "PicoCalc MFD drivers (core, BMS, backlight, keyboard, LED)"
@@ -45,6 +49,9 @@ DESCRIPTION:${PN}-mfd = "Complete set of MFD (Multi-Function Device) drivers for
 
 SUMMARY:${PN}-kbd = "PicoCalc legacy keyboard driver"
 DESCRIPTION:${PN}-kbd = "GPIO-matrix keyboard driver for PicoCalc (legacy, use MFD keyboard instead)"
+
+SUMMARY:${PN}-keymap = "PicoCalc console keymap (scrollback bindings)"
+DESCRIPTION:${PN}-keymap = "Console keymap binding Ctrl+Home / Ctrl+End to the cruft scrollback jump sequences; loaded onto the console VTs at boot via kbd loadkeys"
 
 SUMMARY:${PN}-lcd-fb = "PicoCalc Legacy FBDev LCD driver"
 DESCRIPTION:${PN}-lcd-fb = "ILI9488 framebuffer driver for PicoCalc LCD display"
@@ -72,6 +79,9 @@ FILES:${PN}-mfd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picoca
                    ${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_mfd_led.ko"
 
 FILES:${PN}-kbd = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_kbd.ko"
+FILES:${PN}-keymap = "${datadir}/keymaps/picocalc.map \
+                   ${systemd_system_unitdir}/picocalc-keymap.service \
+                   ${systemd_system_unitdir}/sysinit.target.wants/picocalc-keymap.service"
 FILES:${PN}-lcd-fb = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/ili9488_fb.ko"
 FILES:${PN}-lcd-drm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/ili9488_drm.ko"
 FILES:${PN}-snd-pwm = "${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/picocalc_snd_pwm.ko"
@@ -108,8 +118,12 @@ RDEPENDS:${PN} = " \
     ${PN}-snd-m0 \
     ${PN}-rproc \
     ${PN}-mfd \
+    ${PN}-keymap \
 "
 RDEPENDS:${PN}-snd-m0 = "${PN}-rproc picocalc-m0-firmware"
+RDEPENDS:${PN}-keymap = "kbd"
+
+SYSTEMD_SERVICE:${PN}-keymap = "picocalc-keymap.service"
 
 # Main package itself is empty - all content is in sub-packages
 FILES:${PN} = ""
@@ -159,6 +173,12 @@ do_install() {
     install -m 0644 ${S}/drivers/picocalc_snd-softpwm/picocalc_snd_softpwm.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/luckfox-lyra/drivers/picocalc_rk3506_rproc/rk3506_rproc.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
     install -m 0644 ${S}/luckfox-lyra/drivers/picocalc_snd-m0/picocalc_snd_m0.ko ${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}/extra/
+
+    install -d ${D}${datadir}/keymaps
+    install -m 0644 ${S}/keymaps/picocalc.map ${D}${datadir}/keymaps/
+
+    install -d ${D}${systemd_system_unitdir}
+    install -m 0644 ${WORKDIR}/picocalc-keymap.service ${D}${systemd_system_unitdir}/
 }
 
 SYSROOT_DIRS += "${datadir}/picocalc"

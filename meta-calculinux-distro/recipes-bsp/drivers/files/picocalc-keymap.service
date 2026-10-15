@@ -1,0 +1,10 @@
+[Unit]
+Description=PicoCalc console keymap (Ctrl+Home/End scrollback bindings)
+ConditionPathExists=/usr/share/keymaps/picocalc.map
+Before=getty.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for t in /dev/tty1 /dev/tty2 /dev/tty3 /dev/tty4 /dev/tty5 /dev/tty6; do loadkeys -C $$t /usr/share/keymaps/picocalc.map || true; done'
+[Install]
+WantedBy=sysinit.target
