@@ -12,15 +12,17 @@ DEPENDS = "libarchive zstd"
 
 PE = "1"
 
-# Calculinux fork of opkg 0.9.0 with image status file support and query filtering.
-# Already includes upstream config.h.in typo and cmake ACL/XATTR fixes.
+# Calculinux fork of opkg 0.9.0 with image status file support and query
+# filtering. Already includes upstream config.h.in typo and cmake ACL/XATTR
+# fixes. Adds `opkg restore`, a durable removal journal for image-only
+# packages, and install-time restoration of whiteout-hidden image packages.
 SRC_URI = "git://github.com/Calculinux/opkg.git;protocol=https;branch=master \
            file://opkg.conf \
            file://0001-opkg_conf-create-opkg.lock-in-run-instead-of-var-run.patch \
            file://run-ptest \
            "
 
-SRCREV = "ff71b83bcc00899cac9ef08c9689fe5ece62e989"
+SRCREV = "b1cbe42a7187ce880e79095df778e8e38168b110"
 S = "${WORKDIR}/git"
 
 # This needs to be before ptest inherit, otherwise all ptest files end packaged
