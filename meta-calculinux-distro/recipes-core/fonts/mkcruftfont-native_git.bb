@@ -11,7 +11,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 # SRCREV (the branch tip) resolves against branch=.
 SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/etcc"
 # Keep in sync with recipes-core/cruft/cruft_git.bb SRCREV (bump both together).
-SRCREV = "d24375eab5d14290a7aca60b1231f01c6a412c7f"
+SRCREV = "294402e30fa1491071427b3b7e0f4a901125087b"
 PV = "0.2.10+git${SRCPV}"
 
 S = "${WORKDIR}/git"
