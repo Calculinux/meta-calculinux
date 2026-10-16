@@ -24,7 +24,7 @@ RDEPENDS:${PN} = "alsa-lib alsa-utils"
 
 do_install() {
 	install -d ${D}${sysconfdir}
-	install -m 0644 ${WORKDIR}/asound.conf ${D}${sysconfdir}/asound.conf
+	install -m 0644 ${UNPACKDIR}/asound.conf ${D}${sysconfdir}/asound.conf
 }
 
 FILES:${PN} = "${sysconfdir}/asound.conf"
