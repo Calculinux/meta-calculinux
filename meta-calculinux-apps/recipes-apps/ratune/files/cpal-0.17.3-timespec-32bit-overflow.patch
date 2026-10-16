@@ -1,0 +1,11 @@
+--- a/src/host/alsa/mod.rs
++++ b/src/host/alsa/mod.rs
+@@ -1105,7 +1105,7 @@
+ // https://fossies.org/linux/alsa-lib/test/audio_time.c
+ #[inline]
+ fn timespec_to_nanos(ts: libc::timespec) -> i64 {
+-    let nanos = ts.tv_sec * 1_000_000_000 + ts.tv_nsec;
++    let nanos = ts.tv_sec as i64 * 1_000_000_000 + ts.tv_nsec as i64;
+     #[cfg(target_pointer_width = "64")]
+     return nanos;
+     #[cfg(not(target_pointer_width = "64"))]
