@@ -23,6 +23,7 @@ RDEPENDS:${PN} = " \
     beetle-pce-fast-libretro \
     binutils \
     bison \
+    bluez-alsa \
     bluez5 \
     bombadillo \
     circumflex \
