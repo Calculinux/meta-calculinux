@@ -20,6 +20,27 @@ inherit cargo cargo-update-recipe-crates pkgconfig
 CARGO_BUILD_FLAGS:remove = "--frozen"
 CARGO_BUILD_FLAGS += "--offline"
 
+# cpal 0.17.3 computes `tv_sec * 1_000_000_000` with 32-bit integers on 32-bit
+# targets (c_long == i32), so the product silently wraps for any monotonic
+# timestamp beyond ~2.1 s of uptime. The ALSA backend then sees a "negative"
+# elapsed time on every poll, reports a backend error each time and stops
+# feeding audio - playback dies within seconds on the Lyra (ARMv7), e.g.
+# "get_htstamp `16041.0` was earlier than get_trigger_htstamp `15915.0`"
+# despite the first value being later. Mirrors the upstream fix (RustAudio/cpal
+# master, see RustAudio/cpal#1157): widen both operands to i64. The patch is
+# applied to the bitbake-vendored crate, which is fully unpacked by
+# do_compile time.
+do_compile:prepend () {
+	local cpal=${CARGO_VENDORING_DIRECTORY}/cpal-0.17.3
+	if [ ! -f ${WORKDIR}/.cpal-0.17.3-i64-timestamp-patched ]; then
+		if [ ! -d ${cpal} ]; then
+			bbfatal "cpal-0.17.3 not found under ${CARGO_VENDORING_DIRECTORY}"
+		fi
+		patch -d ${cpal} -p1 -N < ${THISDIR}/files/cpal-0.17.3-timespec-32bit-overflow.patch
+		touch ${WORKDIR}/.cpal-0.17.3-i64-timestamp-patched
+	fi
+}
+
 # alsa-sys (rodio/cpal), libdbus-sys (keyring secret-service), openssl-sys
 DEPENDS = "alsa-lib dbus openssl"
 
