@@ -15,7 +15,12 @@ PACKAGE_ARCH = "all"
 
 SRC_URI = "file://asound.conf"
 
-RDEPENDS:${PN} = "alsa-utils libasound2"
+# RPROVIDES names are not uniform across stacks: the walnascar poky
+# pins the runtime library under the PN "alsa-lib" (no libasound2
+# package, RPROVIDES libasound only), and the same PN also ships the
+# built libasound_module_*.so files (incl. the softvol module this
+# config needs). Depend on the PN, not a generation-specific name.
+RDEPENDS:${PN} = "alsa-lib alsa-utils"
 
 do_install() {
 	install -d ${D}${sysconfdir}

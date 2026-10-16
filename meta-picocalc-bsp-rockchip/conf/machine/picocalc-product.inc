@@ -14,6 +14,12 @@
 # appropriate homes as the BSP layers are split up.
 
 PICOCALC_PRODUCT_RDEPENDS = " \
-    calculinux-alsa-config \
     calculinux-sdcard \
+"
+
+# The M0 ALSA config is only useful where the M0 PCM (picocalc_snd_m0,
+# card 0) exists; extend this mask as more PicoCalc variants carrying
+# the M0 land.
+PICOCALC_PRODUCT_RDEPENDS:append:luckfox-lyra = " \
+    calculinux-alsa-config \
 "

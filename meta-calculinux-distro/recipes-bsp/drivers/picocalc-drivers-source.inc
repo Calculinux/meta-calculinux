@@ -21,7 +21,8 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   clipped -> 0.37 FS, average -12 -> -29 dBFS, docs/m0-audio.md), the
 #   driver's pace check starts at the first frame the M0 reads, and
 #   comp_gave_up is gone (the lag check only logs a warning).
-# + picocalc-drivers#43 (merged): re-triggered streams no longer die. A
+# + picocalc-drivers#43 (PR head, pinned by SHA): re-triggered streams no
+#   longer die. A
 #   START finding the stream already running (userspace xrun recovery
 #   re-triggers through stop/prepare/start) used to answer -EALREADY,
 #   wedging the core in a POLLERR dead end with the M0 bit-banging the
