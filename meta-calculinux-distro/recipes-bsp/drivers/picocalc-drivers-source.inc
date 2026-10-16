@@ -31,5 +31,5 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   timestamp-based userspace (cpal/rodio, e.g. ratune) sees a
 #   consistent non-zero trigger timestamp instead of shedding the
 #   stream over a zero or stale one.
-SRCREV = "88b33c1dac43aa78795022a7d2c948bf6c880971"
+SRCREV = "0a59c92caec9b43afb99bb84e2fd725decb0894a"
 S = "${WORKDIR}/git"
