@@ -11,7 +11,11 @@ DESCRIPTION = "Installs /etc/asound.conf defining the default PCM as a plug + so
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
-PACKAGE_ARCH = "all"
+# Machine arch, like the sibling device data recipes (calculinux-bootscript,
+# u-boot-fw-config, default-merged-fit): the config is M0/Lyra-specific, and
+# "all" is invisible to the SPDX 3.0 package walk (SSTATE_ARCHS has no
+# "all" entry), which breaks do_create_package_spdx on the image's RDEPENDS.
+PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 SRC_URI = "file://asound.conf"
 
