@@ -21,5 +21,5 @@ SRC_URI = "git://github.com/Calculinux/picocalc-drivers.git;protocol=https;nobra
 #   clipped -> 0.37 FS, average -12 -> -29 dBFS, docs/m0-audio.md), the
 #   driver's pace check starts at the first frame the M0 reads, and
 #   comp_gave_up is gone (the lag check only logs a warning).
-SRCREV = "626d2e6b512de30eff380cbfa8bc7f0cf33d0bf3"
+SRCREV = "0d07ac88e6b0ef30cdb9dc69f2da2645df9fe34a"
 S = "${WORKDIR}/git"
