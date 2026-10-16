@@ -213,6 +213,45 @@ exactly these, minus its relocation cd):
 not a `kas build`. Artifacts: `build/tmp/deploy/images/<machine>/` (`*.wic(.gz)`, `*.raucb`,
 SDK tarballs).
 
+### Building from a PR worktree
+
+KAS resolves a local (no `url`/`commit`) repository from the **git toplevel of the
+manifest's own directory**: `Repo.get_root_path()` runs `git rev-parse --show-toplevel`
+on the manifest's parent dir (`kas/repos.py`; verified against KAS 5.1, which ships in
+`ghcr.io/siemens/kas/kas`). Corollary: when a worktree's parent is the shared build root,
+the worktree's manifest consumes the worktree's recipes while everything else - the
+`src-kas/` upstream checkouts, `build/`, downloads, sstate - resolves to the same shared
+state (the checkout phase confirms this by re-validating the shared checkouts at identical
+pinned shas; nothing moves when pins match). KAS logs
+`INFO … Using <path> as root for repository meta-calculinux` - read that line to know
+which tree a run actually consumed. This kills two traps:
+
+- **`make` from a worktree builds the main worktree, not yours.** The Makefile hardcodes
+  `KAS_CONFIG=./meta-calculinux/kas-….yaml` relative to `BUILD_ROOT` (default `..`), so
+  even run from a worktree it is always the canonical tree's manifest that gets consumed.
+  The build comes out green; the worktree's edits simply aren't in it. If a "recipe
+  change" has no effect on a `make`-driven artifact, this is the first thing to check.
+- **Escape hatch: raw KAS from the shared build root, with the worktree's manifest.**
+  Same sanctioned container/pin story, plus the shared state:
+
+  ```bash
+  cd calculinux-build/
+  ./meta-calculinux-<wt>/kas-container shell meta-calculinux-<wt>/kas-luckfox-lyra-bundle.yaml \
+      -c "bitbake <target>"      # `build` = same, repo mounted ro
+  ```
+
+  (worked example: PR #244, worktree `meta-calculinux-tic80`, device lane, all-green with
+  shared sstate).
+
+Precondition: the worktree's pins equal main's (`git diff origin/main -- kas-*.yaml
+patches/` empty) - otherwise KAS re-syncs the shared `src-kas/` checkouts to the
+worktree's pins; that self-heals on the next canonical build, but any main build in
+between loses its sstate hits. To probe manifest resolution without building:
+`kas dump --resolve-local <manifest>` (a bare `docker run … kas …` probe on this SELinux
+host additionally needs `--security-opt label=disable`, and KAS hands git a fresh temp
+`HOME`, so `safe.directory = *` must arrive via `GIT_CONFIG_GLOBAL`, not
+`$HOME/.gitconfig`).
+
 ### The log and state map
 
 Everything you need on failure lives under `build/` on the host and survives between

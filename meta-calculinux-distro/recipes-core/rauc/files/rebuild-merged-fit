@@ -1,0 +1,113 @@
+#!/bin/sh
+# Rebuild the merged DT-overlay FIT for every slot RAUC just installed,
+# using the freshly installed rootfs (the slot's new kernel + its own
+# .dtbo files, resolved ahead of the live system) and the live system's
+# overlay selection - user-added .dtbo files persist across slots on the
+# /data overlay layer, which the raw slot rootfs does not expose. Runs right
+# after invalidate-merged-fit in the RAUC post-install handler, so the new
+# slot's FIRST boot already carries the user's overlays instead of falling
+# back to /boot/zboot_merged.img (own kernel, no user overlays) and waiting
+# for merge-dt-overlays-boot to run on that boot (issue #239).
+#
+# RAUC 1.14 unmounts each ext4 slot as soon as its image is written, BEFORE
+# the system post-install handler runs, so the slot is normally NOT mounted
+# here. It is mounted read-only for the rebuild (its own block device, at
+# $MOUNT_PREFIX/<slot name>) and unmounted again on success and failure. An
+# existing mount point is used as-is (a real mount, or a test stand-in).
+#
+# Inputs come from the RAUC handler environment:
+#   RAUC_TARGET_SLOTS        indices of the installed slots
+#   RAUC_SLOT_NAME_<i>       slot name, e.g. rootfs.1
+#   RAUC_SLOT_CLASS_<i>      slot class (only rootfs is refreshed)
+#   RAUC_SLOT_BOOTNAME_<i>   A or B
+#   RAUC_SLOT_DEVICE_<i>     block device of the slot (used to mount it)
+#   RAUC_MOUNT_PREFIX        prefix for RAUC mount points (RAUC default
+#                            /mnt/rauc); used for the temporary mount point
+#
+# Every failure degrades to a warning and exit 0: the new slot still boots
+# via /boot/zboot_merged.img and the boot-time merge service rebuilds the
+# user FIT for the boot after that. The update must never fail on this.
+set -e
+
+MERGE_SCRIPT="${MERGE_SCRIPT:-/usr/lib/systemd/merge-dt-overlays-boot.sh}"
+CONFIG_FILE="${OVERLAY_CONF:-/etc/device-tree-overlays.conf}"
+OVERLAY_DATA="${OVERLAY_DATA:-/data}"
+MOUNT_PREFIX="${RAUC_MOUNT_PREFIX:-/mnt/rauc}"
+# Normalize: a prefix of "/" or "/mnt/rauc/" must yield clean paths.
+case "$MOUNT_PREFIX" in
+    /) MOUNT_PREFIX="" ;;
+    */) MOUNT_PREFIX="${MOUNT_PREFIX%/}" ;;
+esac
+
+if [ ! -x "$MERGE_SCRIPT" ]; then
+    echo "rebuild-merged-fit: $MERGE_SCRIPT not found, skipping" >&2
+    exit 0
+fi
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "rebuild-merged-fit: no $CONFIG_FILE, nothing to merge" >&2
+    exit 0
+fi
+
+# Mount point we mounted and have not unmounted yet (exit releases it).
+CLEANUP_MOUNT=""
+cleanup() {
+    if [ -n "$CLEANUP_MOUNT" ]; then
+        umount "$CLEANUP_MOUNT" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
+for s in ${RAUC_TARGET_SLOTS:-}; do
+    key=$(printf '%s' "$s" | tr '.' '_')
+    eval name=\$RAUC_SLOT_NAME_$key
+    [ -z "$name" ] && eval name=\$RAUC_SLOT_NAME_$s
+    eval cls=\$RAUC_SLOT_CLASS_$key
+    [ -z "$cls" ] && eval cls=\$RAUC_SLOT_CLASS_$s
+    eval bn=\$RAUC_SLOT_BOOTNAME_$key
+    [ -z "$bn" ] && eval bn=\$RAUC_SLOT_BOOTNAME_$s
+    eval dev=\$RAUC_SLOT_DEVICE_$key
+    [ -z "$dev" ] && eval dev=\$RAUC_SLOT_DEVICE_$s
+
+    # Only rootfs slots carry /boot/fit_kernel and a bootname.
+    [ "$cls" = rootfs ] || continue
+
+    case "$bn" in
+        A|a) slot=A ;;
+        B|b) slot=B ;;
+        *)
+            echo "rebuild-merged-fit: unknown bootname for slot ${name:-$s}, skipping" >&2
+            continue ;;
+    esac
+
+    mnt="$MOUNT_PREFIX/$name"
+    CLEANUP_MOUNT=""
+    if [ ! -d "$mnt" ]; then
+        # RAUC unmounted the slot after installing it: mount it read-only
+        # for the rebuild. Read-only is deliberate - the merge only reads
+        # kernel/FDT/overlays, and the output goes to the live /data.
+        if [ -z "$dev" ]; then
+            echo "rebuild-merged-fit: slot ${name:-$s} not mounted at $mnt and no slot device known, skipping" >&2
+            continue
+        fi
+        if ! mkdir -p "$mnt" || ! mount -o ro "$dev" "$mnt"; then
+            # No leftover mount point for the next update (we created it).
+            rmdir "$mnt" 2>/dev/null || true
+            echo "rebuild-merged-fit: cannot mount $dev at $mnt (slot ${name:-$s}), skipping" >&2
+            continue
+        fi
+        CLEANUP_MOUNT="$mnt"
+    fi
+
+    echo "rebuild-merged-fit: rebuilding slot $slot ($name) from $mnt"
+    if ! "$MERGE_SCRIPT" "$CONFIG_FILE" "$OVERLAY_DATA" "$slot" "$mnt"; then
+        echo "rebuild-merged-fit: FAILED for slot $name; first boot falls back to /boot/zboot_merged.img, boot service retries" >&2
+    fi
+
+    if [ -n "$CLEANUP_MOUNT" ]; then
+        umount "$CLEANUP_MOUNT" 2>/dev/null || true
+        rmdir "$CLEANUP_MOUNT" 2>/dev/null || true
+        CLEANUP_MOUNT=""
+    fi
+done
+
+exit 0
