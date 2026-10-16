@@ -9,7 +9,7 @@
 SUMMARY = "ALSA configuration for the PicoCalc M0 audio output"
 DESCRIPTION = "Installs /etc/asound.conf defining the default PCM as a plug + softvol chain over the M0 DAC."
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bc8446122904814d2b6a5b659e73783841c"
+LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda2f7b4f302"
 
 PACKAGE_ARCH = "all"
 
