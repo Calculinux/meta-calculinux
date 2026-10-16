@@ -1,7 +1,8 @@
 SUMMARY = "Miniwi 4x8 cruft console font"
 DESCRIPTION = "Tiny 4x8 bitmap font (geekmaster/miniwi) packaged as a demand-paged \
 CRUFTFN1 blob for the cruft framebuffer console. On a 320x320 PicoCalc panel this \
-yields an 80x40 character grid. Select via CONSOLE_FONT=miniwi in /etc/default/console. \
+yields an 80x40 character grid. Select by pointing CRUFT_FONT at \
+/usr/share/cruft/miniwi.cruftfont in /etc/cruft.conf. \
 Also installed as status.cruftfont (symlink) for the cruft status bar, whose default \
 font path is /usr/share/cruft/status.cruftfont; without it the bar switches itself \
 off and the grid reclaims the full panel height."

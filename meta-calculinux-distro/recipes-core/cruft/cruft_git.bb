@@ -23,7 +23,7 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/etcc
            file://cruft.conf \
            file://console-mode \
            "
-SRCREV = "294402e30fa1491071427b3b7e0f4a901125087b"
+SRCREV = "7d4dc66960c245a074a9ce18c520dc12f0f0b17e"
 PV = "0.2.10+git${SRCPV}"
 
 S = "${WORKDIR}/git"
