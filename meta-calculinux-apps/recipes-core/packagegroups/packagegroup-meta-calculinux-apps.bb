@@ -68,6 +68,7 @@ RDEPENDS:${PN} = " \
     python3 \
     python3-pip \
     python3-wik \
+    ratune \
     reddit-tui \
     retro8-libretro \
     rpcbind \
