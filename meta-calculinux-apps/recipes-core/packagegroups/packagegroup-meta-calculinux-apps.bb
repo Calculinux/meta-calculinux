@@ -24,6 +24,7 @@ RDEPENDS:${PN} = " \
     binutils \
     bison \
     bluez5 \
+    bluetui \
     bombadillo \
     circumflex \
     cmus \
