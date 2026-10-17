@@ -1,7 +1,11 @@
 SUMMARY = "Miniwi 4x8 cruft console font"
 DESCRIPTION = "Tiny 4x8 bitmap font (geekmaster/miniwi) packaged as a demand-paged \
 CRUFTFN1 blob for the cruft framebuffer console. On a 320x320 PicoCalc panel this \
-yields an 80x40 character grid. Select via CONSOLE_FONT=miniwi in /etc/default/console."
+yields an 80x40 character grid. Select by pointing CRUFT_FONT at \
+/usr/share/cruft/miniwi.cruftfont in /etc/cruft.conf. \
+Also installed as status.cruftfont (symlink) for the cruft status bar, whose default \
+font path is /usr/share/cruft/status.cruftfont; without it the bar switches itself \
+off and the grid reclaims the full panel height."
 
 LICENSE = "WTFPL"
 LIC_FILES_CHKSUM = "file://LICENCE;md5=f312a7c4d02230e8f2b537295d375c69"
@@ -40,6 +44,10 @@ PY
 do_install() {
     install -d ${D}${datadir}/cruft
     install -m 0644 ${B}/miniwi.cruftfont ${D}${datadir}/cruft/miniwi.cruftfont
+    # Status bar font: identical 4x8 blob (all glyphs verified present), kept as a
+    # relative symlink so nothing is duplicated.
+    ln -s miniwi.cruftfont ${D}${datadir}/cruft/status.cruftfont
 }
 
-FILES:${PN} = "${datadir}/cruft/miniwi.cruftfont"
+FILES:${PN} = "${datadir}/cruft/miniwi.cruftfont \
+               ${datadir}/cruft/status.cruftfont"
