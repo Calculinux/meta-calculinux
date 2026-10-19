@@ -41,8 +41,9 @@ inherit systemd pkgconfig
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
+# CFLAGS is supplied per invocation in do_compile (alongside the PNG
+# compile flags) rather than here - see the note there.
 EXTRA_OEMAKE = "CC='${CC}' \
-    CFLAGS='${CFLAGS} -std=c99 -D_XOPEN_SOURCE=600' \
     LDFLAGS='${LDFLAGS}' \
     PREFIX='${D}${prefix}' \
     MANPREFIX='${D}${mandir}' \
@@ -54,14 +55,21 @@ do_compile() {
     # The upstream makefile detects libpng by probing the toolchain
     # (compile+link of a tiny png_image program). Under cross that
     # probe cannot resolve the staged libpng, so it would silently
-    # drop PNG decoding from cruft. Forward the staged libpng through
-    # the makefile's cross-build hint (PNG_CFLAGS/PNG_LIBS override
-    # the probe), and pin the outcome with HAVE_PNG=1 so a regressed
-    # libpng fails loudly instead of degrading.
+    # drop PNG decoding from cruft. Pin HAVE_PNG=1 to bypass the
+    # probe and forward the staged libpng.
+    #
+    # GOTCHA (GNU make override semantics): a CFLAGS handed to make on
+    # the command line supersedes the makefile's own CFLAGS handling,
+    # so the makefile's `CFLAGS += -DHAVE_LIBPNG ...` would never reach
+    # the compiler. The PNG definition and include therefore belong in
+    # this command-line CFLAGS. Linking is covered independently: the
+    # makefile's cruft rule appends its own $(KG_PNG_LDFLAGS), derived
+    # from PNG_LIBS, straight to the link line.
     pn_cflags=$(pkg-config --cflags libpng)
     pn_libs=$(pkg-config --libs libpng)
-    oe_runmake cruft HAVE_PNG=1 \
-        PNG_CFLAGS="$pn_cflags" PNG_LIBS="$pn_libs"
+    oe_runmake cruft \
+        CFLAGS="${CFLAGS} -std=c99 -D_XOPEN_SOURCE=600 -DHAVE_LIBPNG $pn_cflags" \
+        HAVE_PNG=1 PNG_LIBS="$pn_libs"
 
     # Host-side selftests (cross target binary is not runnable here).
     # TU list mirrors the upstream makefile's TEST_SRCS; keep in sync.
