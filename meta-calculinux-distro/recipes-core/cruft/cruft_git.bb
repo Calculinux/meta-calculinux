@@ -13,17 +13,17 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# TEMP (revert when the full stack — cruft #4/#5/#6/#10/#11 — merges):
+# TEMP (revert when the full stack — cruft #4/#5/#6/#10/#11/#14 — merges):
 # fetch from the stack-tip branch instead of main so this SRCREV resolves;
 # after the merge, restore branch=main with the landed SHA.
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/etcc \
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/image-tests \
            file://cruft@.service \
            file://cruft-budget-check.sh \
            file://console.default \
            file://cruft.conf \
            file://console-mode \
            "
-SRCREV = "7d4dc66960c245a074a9ce18c520dc12f0f0b17e"
+SRCREV = "5f009aa0c7ab3725c8d2550dd8d1960c782614e3"
 PV = "0.2.10+git${SRCPV}"
 
 S = "${WORKDIR}/git"
@@ -54,11 +54,12 @@ do_compile() {
     oe_runmake cruft
 
     # Host-side selftests (cross target binary is not runnable here).
+    # TU list mirrors the upstream makefile's TEST_SRCS; keep in sync.
     ${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS} -std=c99 -O0 -g -I${S} \
         -o ${WORKDIR}/cruft-selftest \
         ${S}/tests/selftest.c ${S}/cell_pixmap.c ${S}/drcs.c \
-        ${S}/sixel_canvas.c ${S}/glyph_mmap.c ${S}/terminal_cell.c \
-        ${S}/scrollback.c ${S}/sbdisk.c \
+        ${S}/sixel_canvas.c ${S}/kitty_image.c ${S}/glyph_mmap.c \
+        ${S}/terminal_cell.c ${S}/scrollback.c ${S}/sbdisk.c \
         ${S}/status.c ${S}/conf.c
     ${WORKDIR}/cruft-selftest
 
