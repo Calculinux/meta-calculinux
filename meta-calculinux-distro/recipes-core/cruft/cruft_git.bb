@@ -28,7 +28,7 @@ PV = "0.2.10+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "ncurses-native"
+DEPENDS = "ncurses-native libpng"
 # miniwi-console carries the status bar's 4x8 font; the bar is on by
 # default whenever that font is loadable, so it is a hard dependency.
 RDEPENDS:${PN} = "console-font miniwi-console"
@@ -37,7 +37,7 @@ RPROVIDES:${PN} = "yaft"
 RREPLACES:${PN} = "yaft"
 RCONFLICTS:${PN} = "yaft"
 
-inherit systemd
+inherit systemd pkgconfig
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
@@ -51,7 +51,17 @@ EXTRA_OEMAKE = "CC='${CC}' \
 do_configure[noexec] = "1"
 
 do_compile() {
-    oe_runmake cruft
+    # The upstream makefile detects libpng by probing the toolchain
+    # (compile+link of a tiny png_image program). Under cross that
+    # probe cannot resolve the staged libpng, so it would silently
+    # drop PNG decoding from cruft. Forward the staged libpng through
+    # the makefile's cross-build hint (PNG_CFLAGS/PNG_LIBS override
+    # the probe), and pin the outcome with HAVE_PNG=1 so a regressed
+    # libpng fails loudly instead of degrading.
+    pn_cflags=$(pkg-config --cflags libpng)
+    pn_libs=$(pkg-config --libs libpng)
+    oe_runmake cruft HAVE_PNG=1 \
+        PNG_CFLAGS="$pn_cflags" PNG_LIBS="$pn_libs"
 
     # Host-side selftests (cross target binary is not runnable here).
     # TU list mirrors the upstream makefile's TEST_SRCS; keep in sync.
