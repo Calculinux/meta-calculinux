@@ -26,7 +26,7 @@ SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.0-rc2;n
            file://cruft.conf \
            file://console-mode \
            "
-SRCREV = "c981763a12c12a3b14b6c60a648e55352a2fd749"
+SRCREV = "3a07885273d14ac39a3c60ec16a8019bc1771d16"
 
 S = "${WORKDIR}/git"
 
