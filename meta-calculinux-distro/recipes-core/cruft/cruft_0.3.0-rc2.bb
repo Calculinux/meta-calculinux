@@ -13,13 +13,13 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# Pinned to the head of cruft's feat/image-tests (the frozen head of the
-# stacked PR chain cruft #4/#5/#6/#10/#11/#14 plus the kitty-graphics
-# fixes on top of the v0.3.0-rc1 tag: q=2 reply deadlock, placeholder
-# placement, term_init zeroing). SRCREV is the exact commit, so the build
-# stays reproducible; switch back to a tag= fetch once the stack is tagged
-# (the final 0.3.0 tag supersedes this recipe once the stack lands on main).
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;branch=feat/image-tests \
+# Pinned to the v0.3.0-rc2 tag: the frozen head of the stacked PR chain
+# (cruft #4/#5/#6/#10/#11/#14), i.e. v0.3.0-rc1 plus the kitty-graphics
+# fixes (q=2 reply deadlock, placeholder placement, term_init zeroing).
+# The tag stays valid across merges and branch turnover, unlike a branch=
+# fetch, so SRCREV is the tag's pinned commit. The final 0.3.0 tag
+# supersedes this recipe once the stack lands on main.
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.0-rc2;nobranch=1 \
            file://cruft@.service \
            file://cruft-budget-check.sh \
            file://console.default \
