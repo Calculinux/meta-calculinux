@@ -13,20 +13,18 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# Pinned to the v0.3.0-rc2 tag: the frozen head of the stacked PR chain
-# (cruft #4/#5/#6/#10/#11/#14), i.e. v0.3.0-rc1 plus the kitty-graphics
-# fixes (q=2 reply deadlock, placeholder placement, term_init zeroing).
-# The tag stays valid across merges and branch turnover, unlike a branch=
-# fetch, so SRCREV is the tag's pinned commit. The final 0.3.0 tag
-# supersedes this recipe once the stack lands on main.
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.0-rc2;nobranch=1 \
+# Pinned to the v0.3.0 release tag (the stacked PR chain cruft
+# #4/#5/#6/#10/#11/#14, merged to main). The tag stays valid across
+# branch turnover, unlike a branch= fetch, so SRCREV is the tag's pinned
+# commit.
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.0;nobranch=1 \
            file://cruft@.service \
            file://cruft-budget-check.sh \
            file://console.default \
            file://cruft.conf \
            file://console-mode \
            "
-SRCREV = "3a07885273d14ac39a3c60ec16a8019bc1771d16"
+SRCREV = "92d3577ebc69ae1766054ddfe840962f13613041"
 
 S = "${WORKDIR}/git"
 
