@@ -16,6 +16,7 @@ RDEPENDS:${PN} += "mpv"
 
 SRC_URI = "\
     git://${GO_IMPORT};destsuffix=git/src/${GO_IMPORT};nobranch=1;name=${BPN};protocol=https \
+    file://stmp.toml.example \
 "
 
 SRCREV = "4a8428bc06cc2490ff1caf7fc53fcacc5fc398c0"
@@ -25,5 +26,12 @@ S = "${WORKDIR}/git"
 # Go modules are fetched by the go tool during compile; bitbake isolates
 # tasks from the network unless they opt in.
 do_compile[network] = "1"
+
+# The config holds credentials, so ship only an example; users copy it to
+# ~/.config/stmp/stmp.toml.
+do_install:append() {
+    install -d ${D}${docdir}/${BPN}
+    install -m 0644 ${UNPACKDIR}/stmp.toml.example ${D}${docdir}/${BPN}/stmp.toml.example
+}
 
 GO_IMPORT = "github.com/spezifisch/stmps"

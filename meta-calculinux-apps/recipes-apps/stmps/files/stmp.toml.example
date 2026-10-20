@@ -1,0 +1,25 @@
+# Example stmps configuration.
+#
+# Copy this to ~/.config/stmp/stmp.toml and fill in your server details.
+# The real file holds your password, so keep it out of version control.
+
+[auth]
+username = 'admin'
+password = 'password'
+# Use legacy unsalted password authentication instead of token+salt.
+# Only needed for servers that do not support the modern scheme.
+# plaintext = true
+
+[server]
+# Any Subsonic API server (Navidrome, Airsonic, Gonic, ...).
+host = 'https://your-subsonic-host.tld'
+# Report plays to the server for last.fm / ListenBrainz scrobbling.
+# scrobble = true
+
+[client]
+# How many songs the "random" action adds to the queue.
+random-songs = 50
+
+[ui]
+# Glyphs cycled by the playlist-loading spinner.
+# spinner = '▁▂▃▄▅▆▇█▇▆▅▄▃▂▁'
