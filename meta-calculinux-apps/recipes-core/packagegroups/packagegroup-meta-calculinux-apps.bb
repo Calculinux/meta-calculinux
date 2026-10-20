@@ -75,6 +75,7 @@ RDEPENDS:${PN} = " \
     screen \
     sdl2-test \
     snes9x-libretro \
+    stmps \
     strace \
     sysstat \
     tcpdump \
