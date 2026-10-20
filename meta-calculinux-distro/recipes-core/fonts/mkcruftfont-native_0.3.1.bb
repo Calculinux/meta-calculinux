@@ -6,11 +6,11 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# Tracks the v0.3.0 tag alongside
-# recipes-core/cruft/cruft_0.3.0.bb (same upstream revision; move
+# Tracks the v0.3.1 tag alongside
+# recipes-core/cruft/cruft_0.3.1.bb (same upstream revision; move
 # both to the next tag together).
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.0;nobranch=1"
-SRCREV = "92d3577ebc69ae1766054ddfe840962f13613041"
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.1;nobranch=1"
+SRCREV = "c1dc8bf3950d0738a002973e5a1e13c65271ebb0"
 
 S = "${WORKDIR}/git"
 

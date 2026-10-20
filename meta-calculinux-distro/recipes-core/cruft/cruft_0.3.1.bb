@@ -13,18 +13,18 @@ HOMEPAGE = "https://github.com/Calculinux/cruft"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0a1f0030369f9d1f26870e0bfc24c47b"
 
-# Pinned to the v0.3.0 release tag (the stacked PR chain cruft
+# Pinned to the v0.3.1 release tag (the stacked PR chain cruft
 # #4/#5/#6/#10/#11/#14, merged to main). The tag stays valid across
 # branch turnover, unlike a branch= fetch, so SRCREV is the tag's pinned
 # commit.
-SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.0;nobranch=1 \
+SRC_URI = "git://github.com/Calculinux/cruft.git;protocol=https;tag=v0.3.1;nobranch=1 \
            file://cruft@.service \
            file://cruft-budget-check.sh \
            file://console.default \
            file://cruft.conf \
            file://console-mode \
            "
-SRCREV = "92d3577ebc69ae1766054ddfe840962f13613041"
+SRCREV = "c1dc8bf3950d0738a002973e5a1e13c65271ebb0"
 
 S = "${WORKDIR}/git"
 
