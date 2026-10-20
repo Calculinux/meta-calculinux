@@ -1,6 +1,6 @@
 # Example stmps configuration.
 #
-# Copy this to ~/.config/stmp/stmp.toml and fill in your server details.
+# Copy this to ~/.config/stmps/stmp.toml and fill in your server details.
 # The real file holds your password, so keep it out of version control.
 
 [auth]

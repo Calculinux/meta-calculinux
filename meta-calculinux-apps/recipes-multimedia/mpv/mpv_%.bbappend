@@ -4,3 +4,7 @@
 # luajit runtime dependencies.
 # mpv 0.40 still requires libass and libplacebo; see their bbappends.
 PACKAGECONFIG = "libmpv"
+
+# Same version as the untrimmed package already in the feed; bump PR so opkg
+# upgrades devices that have it installed.
+PR = "r1"

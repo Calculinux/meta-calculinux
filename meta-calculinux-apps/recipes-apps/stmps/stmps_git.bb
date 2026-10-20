@@ -28,7 +28,7 @@ S = "${WORKDIR}/git"
 do_compile[network] = "1"
 
 # The config holds credentials, so ship only an example; users copy it to
-# ~/.config/stmp/stmp.toml.
+# ~/.config/stmps/stmp.toml.
 do_install:append() {
     install -d ${D}${docdir}/${BPN}
     install -m 0644 ${UNPACKDIR}/stmp.toml.example ${D}${docdir}/${BPN}/stmp.toml.example
