@@ -21,8 +21,8 @@ SRC_URI = "https://linux.brostrend.com/aic8800-dkms.deb;unpack=0;downloadfilenam
            file://0001-disable-werror-and-fix-address-check.patch \
            file://0002-disable-ft-ies-update.patch \
 "
-# sha256 of the 6.4.3.0-0b1 deb (extracts to usr/src/aic8800-6.4.3.0)
-SRC_URI[sha256sum] = "5abe730ee9edec292a894f5cdf407c205491b8c57fd39b87886aae3785cd5fac"
+# sha256 of the 6.4.3.0 deb (extracts to usr/src/aic8800-6.4.3.0)
+SRC_URI[sha256sum] = "562293b4bcd7c6b559b05729a156b55a961b77aa532d6b5d9bda54b143bb7f77"
 
 S = "${WORKDIR}/aic8800-${PV}"
 B = "${S}"
