@@ -18,8 +18,10 @@
 # licenses then you should change the value to separate the licenses with |
 # instead of &. If there is any doubt, check the accompanying documentation
 # to determine which situation is applicable.
-LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=3cb79dafc1fb222af3f1c5e010bdc39a"
+LICENSE = "GPL-2.0"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=3cb79dafc1fb222af3f1c5e010bdc39a \ 
+					file://deps/libchdr/deps/lzma-25.01/LICENSE;md5=3d1ec3e25748dcd6bbe8f0fb938a4fcf \
+					file://deps/minizip/LICENSE;md5=3b64f9defa09db5b9646e20f4f431b25"
 
 SRC_URI = "gitsm://github.com/gurubook/retrorun;protocol=https;branch=picocalc"
 
@@ -34,6 +36,7 @@ DEPENDS = " \
     libsdl2 \
     libpng \
 	curl \
+	alsa-lib \
 "
 
 inherit pkgconfig
